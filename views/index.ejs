@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GamePlan</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header>
+    <h1>GamePlan</h1>
+    <nav>
+      <% if (typeof user !== 'undefined') { %>
+        <a href="/logout">Logout</a>
+      <% } else { %>
+        <a href="/register">Register</a>
+        <a href="/login">Login</a>
+      <% } %>
+      <a href="/event/new">Create Event</a>
+    </nav>
+  </header>
+  <main>
+    <h2>Upcoming Events</h2>
+    <ul>
+      <% events.forEach(event => { %>
+        <li>
+          <h3><a href="/event/<%= event._id %>"><%= event.name %></a></h3>
+          <p><%= event.description %></p>
+          <p>Player Limit: <%= event.playerLimit %></p>
+          <p>Current Players: <%= event.players.length %></p>
+        </li>
+      <% }) %>
+    </ul>
+  </main>
+</body>
+</html>

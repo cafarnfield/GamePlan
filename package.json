@@ -1,0 +1,33 @@
+{
+  "name": "gameplan",
+  "version": "1.0.0",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "MONGO_URI=mongodb://localhost:27017/gameplan npm start"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cafarnfield/GamePlan.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/cafarnfield/GamePlan/issues"
+  },
+  "homepage": "https://github.com/cafarnfield/GamePlan#readme",
+  "description": "",
+  "dependencies": {
+    "bcrypt": "^5.0.1",
+    "body-parser": "^1.19.0",
+    "dotenv": "^16.5.0",
+    "ejs": "^3.1.6",
+    "express": "^4.17.1",
+    "express-session": "^1.17.1",
+    "mongoose": "^5.12.3",
+    "passport": "^0.4.1",
+    "passport-local": "^1.0.0"
+  }
+}

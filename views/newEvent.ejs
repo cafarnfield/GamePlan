@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Event - GamePlan</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header>
+    <h1>GamePlan</h1>
+    <nav>
+      <a href="/">Home</a>
+    </nav>
+  </header>
+  <main>
+    <h2>Create Event</h2>
+    <form action="/event/new" method="POST">
+      <label for="name">Event/Game Name:</label>
+      <input type="text" id="name" name="name" required>
+      <label for="description">Description:</label>
+      <textarea id="description" name="description" required></textarea>
+      <label for="playerLimit">Player Limit:</label>
+      <input type="number" id="playerLimit" name="playerLimit" required>
+      <label for="date">Date & Time:</label>
+      <input type="datetime-local" id="date" name="date" required>
+      <button type="submit">Create Event</button>
+    </form>
+  </main>
+</body>
+</html>

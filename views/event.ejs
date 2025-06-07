@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= event.name %> - GamePlan</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header>
+    <h1>GamePlan</h1>
+    <nav>
+      <a href="/">Home</a>
+    </nav>
+  </header>
+  <main>
+    <h2><%= event.name %></h2>
+    <p><%= event.description %></p>
+    <p>Player Limit: <%= event.playerLimit %></p>
+    <p>Current Players: <%= event.players.length %></p>
+    <h3>Players</h3>
+    <ul>
+      <% event.players.forEach(player => { %>
+        <li><%= player.name %> (<%= player.email %>)</li>
+      <% }) %>
+    </ul>
+    <% if (typeof user !== 'undefined') { %>
+      <% if (event.players.some(player => player._id.equals(user._id))) { %>
+        <form action="/event/<%= event._id %>/leave" method="POST">
+          <button type="submit">Leave Event</button>
+        </form>
+      <% } else { %>
+        <form action="/event/<%= event._id %>/join" method="POST">
+          <button type="submit">Join Event</button>
+        </form>
+      <% } %>
+    <% } %>
+  </main>
+</body>
+</html>
