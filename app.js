@@ -365,7 +365,7 @@ app.post('/event/new', ensureAuthenticated, ensureNotBlocked, async (req, res) =
     });
 
     // Process extensions if provided
-    if (extensions) {
+    if (extensions && extensions !== '[]') {
       const extensionData = JSON.parse(extensions);
       for (const ext of extensionData) {
         const extension = new Extension({

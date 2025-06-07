@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
+  <div class="scanlines"></div>
   <header>
     <h1>GamePlan</h1>
     <nav>
@@ -44,16 +45,16 @@
     </ul>
     <% if (typeof user !== 'undefined') { %>
       <% if (event.players.length > 0 && (event.players[0]._id.equals(user._id) || user.isAdmin)) { %> <!-- Show delete button to event creator or admins -->
-        <form action="/event/<%= event._id %>/delete" method="POST" style="display:inline-block;">
+        <form action="/event/<%= event._id %>/delete" method="POST" class="event-button">
           <button type="submit">Delete Event</button>
         </form>
       <% } %>
       <% if (event.players.some(player => player._id.equals(user._id))) { %>
-        <form action="/event/<%= event._id %>/leave" method="POST" style="display:inline-block;">
+        <form action="/event/<%= event._id %>/leave" method="POST" class="event-button">
           <button type="submit">Leave Event</button>
         </form>
       <% } else if (event.players.length < event.playerLimit) { %>
-        <form action="/event/<%= event._id %>/join" method="POST" style="display:inline-block;">
+        <form action="/event/<%= event._id %>/join" method="POST" class="event-button">
           <button type="submit">Join Event</button>
         </form>
       <% } else { %>

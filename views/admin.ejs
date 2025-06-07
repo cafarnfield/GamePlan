@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
+  <div class="scanlines"></div>
   <header>
     <h1>GamePlan Admin Panel</h1>
     <nav>
@@ -41,8 +42,8 @@
       <% games.forEach(game => { %>
         <li>
           <%= game.name %> - <%= game.description %>
-          <form action="/admin/delete-game/<%= game._id %>" method="POST" style="display:inline;">
-            <button type="submit">Delete</button>
+          <form action="/admin/delete-game/<%= game._id %>" method="POST" class="admin-form">
+            <button type="submit" class="admin-button">Delete</button>
           </form>
         </li>
       <% }); %>

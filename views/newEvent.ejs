@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
+  <div class="scanlines"></div>
   <header>
     <h1>GamePlan</h1>
   <nav>
@@ -65,8 +66,13 @@
             </div>
           </div>
         </div>
-        <h3>Required Extensions</h3>
-        <div id="extensions-container">
+        <h3>Add Extensions</h3>
+        <div>
+          <input type="checkbox" id="add-extensions" name="add-extensions">
+          <label for="add-extensions">I want to add extensions</label>
+        </div>
+        <div id="extensions-container" style="display: none;">
+          <h4>Required Extensions</h4>
           <div class="extension">
             <label for="extension-name">Extension Name:</label>
             <input type="text" name="extension-name" required>
@@ -76,10 +82,22 @@
             <input type="number" name="extension-time" required>
           </div>
         </div>
-        <button type="button" onclick="addExtensionField()">Add Another Extension</button>
+        <button type="button" id="add-extension-btn" onclick="addExtensionField()" style="display: none;">Add Another Extension</button>
         <button type="submit">Create Event</button>
       </form>
       <script>
+        document.getElementById('add-extensions').addEventListener('change', function() {
+          const extensionsContainer = document.getElementById('extensions-container');
+          const addExtensionBtn = document.getElementById('add-extension-btn');
+          if (this.checked) {
+            extensionsContainer.style.display = 'block';
+            addExtensionBtn.style.display = 'inline-block';
+          } else {
+            extensionsContainer.style.display = 'none';
+            addExtensionBtn.style.display = 'none';
+          }
+        });
+
         function addExtensionField() {
           const container = document.getElementById('extensions-container');
           const newExtension = document.createElement('div');
