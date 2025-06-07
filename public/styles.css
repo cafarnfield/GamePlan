@@ -1,26 +1,35 @@
 body {
-  font-family: Arial, sans-serif;
+  font-family: 'Press Start 2P', cursive;
   margin: 0;
   padding: 0;
-  background-color: #121212;
-  color: #fff;
+  background-color: #000;
+  color: #0f0;
+  background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=');
+  background-size: 10px 10px;
 }
 
 header {
-  background-color: #222;
-  color: #fff;
+  background-color: #000;
+  color: #0f0;
   padding: 1rem;
   text-align: center;
+  border: 2px solid #0f0;
 }
 
 header h1 {
   margin: 0;
+  font-size: 2rem;
 }
 
 nav a {
-  color: #fff;
+  color: #0f0;
   margin: 0 1rem;
   text-decoration: none;
+  border-bottom: 2px solid transparent;
+}
+
+nav a:hover {
+  border-bottom: 2px solid #0f0;
 }
 
 main {
@@ -28,7 +37,9 @@ main {
 }
 
 h2 {
-  color: #fff;
+  color: #0f0;
+  border-bottom: 2px solid #0f0;
+  padding-bottom: 0.5rem;
 }
 
 form {
@@ -39,23 +50,27 @@ form {
 label {
   display: block;
   margin: 1rem 0 0.5rem;
+  color: #0f0;
 }
 
 input, textarea, button {
   width: 100%;
   padding: 0.5rem;
   margin-top: 0.5rem;
+  border: 2px solid #0f0;
+  background-color: #000;
+  color: #0f0;
 }
 
 button {
-  background-color: #444;
-  color: #fff;
+  background-color: #0f0;
+  color: #000;
   border: none;
   cursor: pointer;
 }
 
 button:hover {
-  background-color: #666;
+  background-color: #00ff00;
 }
 
 ul {
@@ -64,13 +79,12 @@ ul {
 }
 
 li {
-  background-color: #333;
+  background-color: #000;
   margin: 0.5rem 0;
   padding: 1rem;
-  border: 1px solid #555;
+  border: 2px solid #0f0;
 }
 
-/* Style for platform checkboxes */
 .platform-checkboxes {
   display: flex;
   flex-direction: column;
@@ -84,4 +98,15 @@ li {
 
 .platform-checkboxes input[type="checkbox"] {
   margin-right: 0.5rem;
+  accent-color: #0f0;
+}
+
+/* Admin link style */
+.admin-link {
+  color: #888;
+  text-decoration: none;
+}
+
+.admin-link:hover {
+  color: #555;
 }
