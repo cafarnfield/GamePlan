@@ -5,29 +5,49 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>GamePlan</title>
   <link rel="stylesheet" href="/styles.css">
+  <style>
+    .admin-link {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      font-size: 0.9em;
+      color: #888;
+      text-decoration: none;
+    }
+    .admin-link:hover {
+      color: #555;
+    }
+  </style>
 </head>
 <body>
   <header>
     <h1>GamePlan</h1>
-    <nav>
+  <nav>
       <% if (typeof user !== 'undefined') { %>
+        <a href="/profile">Profile</a>
         <a href="/logout">Logout</a>
+        <p>Welcome, <%= user.gameNickname ? user.gameNickname : user.name %></p>
       <% } else { %>
-        <a href="/register">Register</a>
         <a href="/login">Login</a>
+        <a href="/register">Register</a>
       <% } %>
-      <a href="/event/new">Create Event</a>
     </nav>
   </header>
   <main>
-    <h2>Upcoming Events</h2>
+    <h2>Events</h2>
+    <% if (typeof user !== 'undefined') { %>
+      <a href="/event/new">Create New Event</a>
+      <% if (user.isAdmin) { %>
+        <!-- Admin link -->
+        <a class="admin-link" href="/admin">Admin</a>
+      <% } %>
+    <% } %>
+
     <ul>
       <% events.forEach(event => { %>
         <li>
-          <h3><a href="/event/<%= event._id %>"><%= event.name %></a></h3>
-          <p><%= event.description %></p>
-          <p>Player Limit: <%= event.playerLimit %></p>
-          <p>Current Players: <%= event.players.length %></p>
+          <a href="/event/<%= event._id %>"><%= event.name %></a>
+          (<%= event.players.length %>/<%= event.playerLimit %> players)
         </li>
       <% }) %>
     </ul>

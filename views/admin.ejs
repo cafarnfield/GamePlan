@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel - GamePlan</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header>
+    <h1>GamePlan Admin Panel</h1>
+    <nav>
+      <a href="/">Home</a>
+    </nav>
+  </header>
+  <main>
+    <h2>Admin Actions</h2>
+
+    <h3>Manage Users</h3>
+    <p><a href="/admin/users">View and manage all registered users</a></p>
+    <form action="/admin/toggle-admin" method="POST">
+      <label for="user-email">User Email:</label>
+      <input type="email" id="user-email" name="email" required>
+      <button type="submit">Toggle Admin Status</button>
+    </form>
+    <p>Note: Users with Game Nicknames will be displayed with their nickname instead of their regular name.</p>
+
+    <h3>Manage Games</h3>
+    <h4>Add New Game</h4>
+    <form action="/admin/add-game" method="POST">
+      <label for="game-name">Game Name:</label>
+      <input type="text" id="game-name" name="name" required>
+      <label for="game-description">Description:</label>
+      <textarea id="game-description" name="description" required></textarea>
+      <button type="submit">Add Game</button>
+    </form>
+
+    <h4>Existing Games</h4>
+    <ul>
+      <% games.forEach(game => { %>
+        <li>
+          <%= game.name %> - <%= game.description %>
+          <form action="/admin/delete-game/<%= game._id %>" method="POST" style="display:inline;">
+            <button type="submit">Delete</button>
+          </form>
+        </li>
+      <% }); %>
+    </ul>
+  </main>
+</body>
+</html>

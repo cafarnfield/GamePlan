@@ -18,22 +18,48 @@
     <p><%= event.description %></p>
     <p>Player Limit: <%= event.playerLimit %></p>
     <p>Current Players: <%= event.players.length %></p>
+      <% if (event.players.length > 0) { %>
+        <p>Created by: <%= event.players[0].gameNickname ? event.players[0].gameNickname : event.players[0].name %> (<%= event.players[0].email %>)</p>
+      <% } %>
+
+    <% if (event.requiredExtensions && event.requiredExtensions.length > 0) { %>
+      <h3>Required Extensions</h3>
+      <ul>
+        <% event.requiredExtensions.forEach(extension => { %>
+          <li>
+            <strong>Name:</strong> <%= extension.name %><br>
+            <strong>Installation Time:</strong> <%= extension.installationTime %> minutes<br>
+            <strong>Download:</strong> <a href="<%= extension.downloadLink %>" target="_blank">Link</a>
+          </li>
+        <% }) %>
+      </ul>
+    <% } %>
+
     <h3>Players</h3>
     <ul>
       <% event.players.forEach(player => { %>
-        <li><%= player.name %> (<%= player.email %>)</li>
+        <li><%= player.gameNickname ? player.gameNickname : player.name %> (<%= player.email %>)</li>
       <% }) %>
     </ul>
     <% if (typeof user !== 'undefined') { %>
-      <% if (event.players.some(player => player._id.equals(user._id))) { %>
-        <form action="/event/<%= event._id %>/leave" method="POST">
-          <button type="submit">Leave Event</button>
-        </form>
-      <% } else { %>
-        <form action="/event/<%= event._id %>/join" method="POST">
-          <button type="submit">Join Event</button>
+      <% if (event.players.length > 0 && (event.players[0]._id.equals(user._id) || user.isAdmin)) { %> <!-- Show delete button to event creator or admins -->
+        <form action="/event/<%= event._id %>/delete" method="POST" style="display:inline-block;">
+          <button type="submit">Delete Event</button>
         </form>
       <% } %>
+      <% if (event.players.some(player => player._id.equals(user._id))) { %>
+        <form action="/event/<%= event._id %>/leave" method="POST" style="display:inline-block;">
+          <button type="submit">Leave Event</button>
+        </form>
+      <% } else if (event.players.length < event.playerLimit) { %>
+        <form action="/event/<%= event._id %>/join" method="POST" style="display:inline-block;">
+          <button type="submit">Join Event</button>
+        </form>
+      <% } else { %>
+        <p>Event is full</p>
+      <% } %>
+    <% } else { %>
+      <p>Please <a href="/login">log in</a> to join this event</p>
     <% } %>
   </main>
 </body>

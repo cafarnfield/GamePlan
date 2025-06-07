@@ -9,23 +9,111 @@
 <body>
   <header>
     <h1>GamePlan</h1>
-    <nav>
-      <a href="/">Home</a>
+  <nav>
+      <% if (typeof user !== 'undefined') { %>
+        <a href="/profile">Profile</a>
+        <a href="/logout">Logout</a>
+        <a href="/">Home</a>
+        <p>Welcome, <%= user.gameNickname ? user.gameNickname : user.name %></p>
+      <% } else { %>
+        <a href="/register">Register</a>
+        <a href="/login">Login</a>
+        <a href="/">Home</a>
+      <% } %>
     </nav>
   </header>
   <main>
-    <h2>Create Event</h2>
-    <form action="/event/new" method="POST">
-      <label for="name">Event/Game Name:</label>
-      <input type="text" id="name" name="name" required>
-      <label for="description">Description:</label>
-      <textarea id="description" name="description" required></textarea>
-      <label for="playerLimit">Player Limit:</label>
-      <input type="number" id="playerLimit" name="playerLimit" required>
-      <label for="date">Date & Time:</label>
-      <input type="datetime-local" id="date" name="date" required>
-      <button type="submit">Create Event</button>
-    </form>
+    <% if (typeof user === 'undefined' || !user) { %>
+      <p>You need to <a href="/login">log in</a> to create events.</p>
+    <% } else { %>
+      <h2>Create Event</h2>
+      <form action="/event/new" method="POST">
+        <label for="name">Event Name:</label>
+        <input type="text" id="name" name="name" required>
+        <label for="game">Game:</label>
+        <select id="game" name="gameId" required>
+          <% games.forEach(game => { %>
+            <option value="<%= game._id %>"><%= game.name %></option>
+          <% }); %>
+        </select>
+        <label for="description">Description:</label>
+        <textarea id="description" name="description" required></textarea>
+        <label for="playerLimit">Player Limit:</label>
+        <input type="number" id="playerLimit" name="playerLimit" required>
+        <label for="date">Date & Time:</label>
+        <input type="datetime-local" id="date" name="date" required>
+        <h3>Platforms</h3>
+        <div>
+          <p>Select platforms:</p>
+          <div class="platform-checkboxes">
+            <div>
+              <input type="checkbox" id="pc" name="platforms" value="PC">
+              <label for="pc">PC</label>
+            </div>
+            <div>
+              <input type="checkbox" id="playstation" name="platforms" value="PlayStation">
+              <label for="playstation">PlayStation</label>
+            </div>
+            <div>
+              <input type="checkbox" id="xbox" name="platforms" value="Xbox">
+              <label for="xbox">Xbox</label>
+            </div>
+            <div>
+              <input type="checkbox" id="switch" name="platforms" value="Nintendo Switch">
+              <label for="switch">Nintendo Switch</label>
+            </div>
+          </div>
+        </div>
+        <h3>Required Extensions</h3>
+        <div id="extensions-container">
+          <div class="extension">
+            <label for="extension-name">Extension Name:</label>
+            <input type="text" name="extension-name" required>
+            <label for="extension-link">Download Link:</label>
+            <input type="url" name="extension-link" required>
+            <label for="extension-time">Installation Time (minutes):</label>
+            <input type="number" name="extension-time" required>
+          </div>
+        </div>
+        <button type="button" onclick="addExtensionField()">Add Another Extension</button>
+        <button type="submit">Create Event</button>
+      </form>
+      <script>
+        function addExtensionField() {
+          const container = document.getElementById('extensions-container');
+          const newExtension = document.createElement('div');
+          newExtension.className = 'extension';
+          newExtension.innerHTML = `
+            <label for="extension-name">Extension Name:</label>
+            <input type="text" name="extension-name" required>
+            <label for="extension-link">Download Link:</label>
+            <input type="url" name="extension-link" required>
+            <label for="extension-time">Installation Time (minutes):</label>
+            <input type="number" name="extension-time" required>
+          `;
+          container.appendChild(newExtension);
+        }
+
+        document.querySelector('form').addEventListener('submit', function(event) {
+          const extensions = document.querySelectorAll('.extension');
+          const extensionsData = [];
+
+          extensions.forEach(extension => {
+            const name = extension.querySelector('input[name="extension-name"]').value;
+            const link = extension.querySelector('input[name="extension-link"]').value;
+            const time = extension.querySelector('input[name="extension-time"]').value;
+
+            extensionsData.push({ name, downloadLink: link, installationTime: time });
+          });
+
+          const hiddenInput = document.createElement('input');
+          hiddenInput.type = 'hidden';
+          hiddenInput.name = 'extensions';
+          hiddenInput.value = JSON.stringify(extensionsData);
+          this.appendChild(hiddenInput);
+        });
+      </script>
+    <% } %>
   </main>
 </body>
 </html>
