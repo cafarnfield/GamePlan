@@ -6,6 +6,8 @@ const LocalStrategy = require('passport-local').Strategy;
 const bcrypt = require('bcrypt');
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
+const axios = require('axios'); // Add axios for HTTP requests
+const steamService = require('./services/steamService');
 
 // Initialize Express
 const app = express();
@@ -246,14 +248,61 @@ app.post('/admin/user/toggle-admin/:id', ensureAdmin, async (req, res) => {
   }
 });
 
-// Route to add a new game (admin only)
+// Steam API routes
+app.get('/api/steam/search', ensureAdmin, async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || q.trim().length < 2) {
+      return res.json([]);
+    }
+    
+    const results = await steamService.searchGames(q, 10);
+    res.json(results);
+  } catch (error) {
+    console.error('Error searching Steam games:', error);
+    res.status(500).json({ error: 'Failed to search Steam games' });
+  }
+});
+
+// Route to add a new game with Steam integration (admin only)
 app.post('/admin/add-game', ensureAdmin, async (req, res) => {
   try {
-    const { name, description } = req.body;
-    const game = new Game({ name, description });
+    const { name, description, steamAppId, steamData } = req.body;
+    
+    const gameData = {
+      name,
+      description: description || ''
+    };
+
+    // Add Steam data if provided
+    if (steamAppId) {
+      gameData.steamAppId = parseInt(steamAppId);
+    }
+    
+    if (steamData) {
+      try {
+        const parsedSteamData = typeof steamData === 'string' ? JSON.parse(steamData) : steamData;
+        gameData.steamData = parsedSteamData;
+        
+        // Extract platforms from Steam data
+        if (parsedSteamData.platforms && parsedSteamData.platforms.length > 0) {
+          gameData.platforms = parsedSteamData.platforms;
+        }
+        
+        // Use Steam description if no custom description provided
+        if (!description && parsedSteamData.short_description) {
+          gameData.description = parsedSteamData.short_description;
+        }
+      } catch (parseError) {
+        console.error('Error parsing Steam data:', parseError);
+      }
+    }
+
+    const game = new Game(gameData);
     await game.save();
     res.redirect('/admin');
   } catch (err) {
+    console.error('Error adding game:', err);
     res.status(500).send('Error adding game');
   }
 });
@@ -406,7 +455,16 @@ app.get('/logout', (req, res) => {
 app.get('/event/new', ensureAuthenticated, ensureNotBlocked, async (req, res) => {
   const games = await Game.find();
   const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
-  res.render('newEvent', { user: req.user, games, isDevelopmentAutoLogin });
+  
+  // Prepare games data for client-side JavaScript
+  const gamesData = games.map(game => ({
+    _id: game._id.toString(),
+    name: game.name,
+    steamAppId: game.steamAppId || null,
+    description: game.description || ''
+  }));
+  
+  res.render('newEvent', { user: req.user, games, gamesData: JSON.stringify(gamesData), isDevelopmentAutoLogin });
 });
 
 app.post('/event/new', ensureAuthenticated, ensureNotBlocked, async (req, res) => {
@@ -425,7 +483,7 @@ app.post('/event/new', ensureAuthenticated, ensureNotBlocked, async (req, res) =
     }
     console.log('Game found:', game);
 
-    // Create the event
+// Create the event with automatic Steam App ID from game
     const event = new Event({
       name,
       game: gameId,
@@ -433,7 +491,8 @@ app.post('/event/new', ensureAuthenticated, ensureNotBlocked, async (req, res) =
       playerLimit,
       date: new Date(date), // Ensure date is a Date object
       players: [req.user._id], // Add the creator as the first player
-      platforms: Array.isArray(platforms) ? platforms : []
+      platforms: Array.isArray(platforms) ? platforms : [],
+      steamAppId: game.steamAppId || req.body.steamAppId // Use game's Steam App ID or manual override
     });
 
     // Process extensions if provided
@@ -491,16 +550,82 @@ app.post('/event/new', ensureAuthenticated, ensureNotBlocked, async (req, res) =
   }
 });
 
+// Helper function to check Steam updates
+async function checkSteamUpdates(appId) {
+  const url = `https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=${appId}&count=5`;
+
+  try {
+    const response = await axios.get(url, { timeout: 5000 });
+    const newsData = response.data;
+
+    // Check for update indicators in the news
+    const updateFound = newsData.appnews.newsitems.some(item => {
+      const title = item.title.toLowerCase();
+      const content = item.contents.toLowerCase();
+      return (
+        title.includes('update') ||
+        title.includes('patch') ||
+        title.includes('new version') ||
+        content.includes('update') ||
+        content.includes('patch') ||
+        content.includes('new version')
+      );
+    });
+
+    return {
+      hasUpdate: updateFound,
+      news: updateFound ? newsData.appnews.newsitems : []
+    };
+  } catch (error) {
+    console.error('Error fetching Steam news:', error);
+    return { hasUpdate: false, news: [] };
+  }
+}
+
 app.get('/event/:id', async (req, res) => {
   try {
     console.log('Fetching event with ID:', req.params.id);
     console.log('Authenticated user:', req.isAuthenticated(), req.user);
+    
+    // First, try to fetch the event
     const event = await Event.findById(req.params.id).populate('players').populate('requiredExtensions').populate('game');
-    console.log('Fetched event:', event);
+    
+    if (!event) {
+      console.error('Event not found with ID:', req.params.id);
+      return res.status(404).send('Event not found');
+    }
+    
+    console.log('Fetched event:', event.name, 'Steam App ID:', event.steamAppId);
+
+    // Initialize update properties
+    event.hasUpdate = false;
+    event.updateNews = [];
+
+    // Check for updates if Steam App ID is available
+    if (event.steamAppId) {
+      try {
+        console.log('Checking Steam updates for App ID:', event.steamAppId);
+        const updateInfo = await checkSteamUpdates(event.steamAppId);
+        event.hasUpdate = updateInfo.hasUpdate;
+        event.updateNews = updateInfo.news;
+        console.log('Steam update check completed. Has update:', event.hasUpdate);
+      } catch (steamError) {
+        console.warn('Steam API check failed, continuing without update info:', steamError.message);
+        // Continue rendering the event even if Steam check fails
+      }
+    } else {
+      console.log('No Steam App ID available for this event, skipping update check');
+    }
+
     const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
     res.render('event', { event, user: req.user, isDevelopmentAutoLogin });
   } catch (err) {
     console.error('Error fetching event:', err);
+    console.error('Error details:', {
+      message: err.message,
+      stack: err.stack,
+      eventId: req.params.id
+    });
     res.status(500).send('Error fetching event');
   }
 });
@@ -557,6 +682,40 @@ app.get('/debug/game/:id', async (req, res) => {
     }
   } catch (err) {
     res.status(500).send('Error checking game');
+  }
+});
+
+// Route to check for game updates
+app.get('/check-updates/:appId', async (req, res) => {
+  const appId = req.params.appId;
+  const url = `https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=${appId}&count=5`;
+
+  try {
+    const response = await axios.get(url);
+    const newsData = response.data;
+
+    // Check for update indicators in the news
+    const updateFound = newsData.appnews.newsitems.some(item => {
+      const title = item.title.toLowerCase();
+      const content = item.contents.toLowerCase();
+      return (
+        title.includes('update') ||
+        title.includes('patch') ||
+        title.includes('new version') ||
+        content.includes('update') ||
+        content.includes('patch') ||
+        content.includes('new version')
+      );
+    });
+
+    if (updateFound) {
+      res.json({ hasUpdate: true, news: newsData.appnews.newsitems });
+    } else {
+      res.json({ hasUpdate: false });
+    }
+  } catch (error) {
+    console.error('Error fetching Steam news:', error);
+    res.status(500).send('Error checking for updates');
   }
 });
 

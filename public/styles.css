@@ -447,6 +447,35 @@ p {
   animation: loading 1.5s ease-in-out infinite;
 }
 
+/* Update Alert Styling */
+.update-alert {
+  background: linear-gradient(135deg, #ff6b35 0%, #ff8e53 100%);
+  color: #000;
+  padding: 1rem;
+  border: var(--pixel-size) solid #ff6b35;
+  margin: 1rem 0;
+  border-radius: 5px;
+  box-shadow:
+    0 2px 10px rgba(255, 107, 53, 0.3),
+    0 0 20px rgba(255, 107, 53, 0.2);
+  animation: updateAlertPulse 3s ease-in-out infinite;
+}
+
+@keyframes updateAlertPulse {
+  0%, 100% {
+    background: linear-gradient(135deg, #ff6b35 0%, #ff8e53 100%);
+    box-shadow:
+      0 2px 10px rgba(255, 107, 53, 0.3),
+      0 0 20px rgba(255, 107, 53, 0.2);
+  }
+  50% {
+    background: linear-gradient(135deg, #ff8e53 0%, #ffab73 100%);
+    box-shadow:
+      0 2px 15px rgba(255, 107, 53, 0.5),
+      0 0 30px rgba(255, 107, 53, 0.3);
+  }
+}
+
 /* Table Styling for Admin Pages */
 table {
   width: 100%;
@@ -454,7 +483,7 @@ table {
   margin: 2rem 0;
   background: var(--dark-blue);
   border: var(--pixel-size) solid var(--teal-cyan);
-  box-shadow: 
+  box-shadow:
     0 0 20px rgba(0, 255, 204, 0.2),
     inset 0 0 20px rgba(26, 26, 46, 0.8);
 }

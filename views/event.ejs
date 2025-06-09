@@ -24,6 +24,21 @@
         <p>Created by: <%= event.players[0].gameNickname ? event.players[0].gameNickname : event.players[0].name %></p>
       <% } %>
 
+    <% if (event.hasUpdate) { %>
+      <div class="update-alert">
+        <h3>Update Available</h3>
+        <p>This game has a recent update. Please make sure to update before the event.</p>
+        <ul>
+          <% event.updateNews.forEach(newsItem => { %>
+            <li>
+              <strong><%= newsItem.title %></strong><br>
+              <%= newsItem.contents %>
+            </li>
+          <% }) %>
+        </ul>
+      </div>
+    <% } %>
+
     <% if (event.requiredExtensions && event.requiredExtensions.length > 0) { %>
       <h3>Required Extensions</h3>
       <ul>

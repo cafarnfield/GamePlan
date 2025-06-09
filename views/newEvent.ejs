@@ -44,6 +44,10 @@
         <input type="number" id="playerLimit" name="playerLimit" required>
         <label for="date">Date & Time:</label>
         <input type="datetime-local" id="date" name="date" required>
+        <div id="steam-info" style="margin: 15px 0; padding: 10px; border: 1px solid #00ff00; background: rgba(0, 255, 0, 0.1); display: none;">
+          <h4>Steam Integration</h4>
+          <p id="steam-status">Steam App ID will be automatically set based on selected game</p>
+        </div>
         <h3>Platforms</h3>
         <div>
           <p>Select platforms:</p>
@@ -75,11 +79,11 @@
           <h4>Required Extensions</h4>
           <div class="extension">
             <label for="extension-name">Extension Name:</label>
-            <input type="text" name="extension-name" required>
+            <input type="text" name="extension-name">
             <label for="extension-link">Download Link:</label>
-            <input type="url" name="extension-link" required>
+            <input type="url" name="extension-link">
             <label for="extension-time">Installation Time (minutes):</label>
-            <input type="number" name="extension-time" required>
+            <input type="number" name="extension-time">
           </div>
         </div>
         <button type="button" id="add-extension-btn" onclick="addExtensionField()" style="display: none;">Add Another Extension</button>
@@ -104,13 +108,56 @@
           newExtension.className = 'extension';
           newExtension.innerHTML = `
             <label for="extension-name">Extension Name:</label>
-            <input type="text" name="extension-name" required>
+            <input type="text" name="extension-name">
             <label for="extension-link">Download Link:</label>
-            <input type="url" name="extension-link" required>
+            <input type="url" name="extension-link">
             <label for="extension-time">Installation Time (minutes):</label>
-            <input type="number" name="extension-time" required>
+            <input type="number" name="extension-time">
           `;
           container.appendChild(newExtension);
+        }
+
+        // Game selection handler for Steam integration info
+        const gameSelect = document.getElementById('game');
+        const steamInfo = document.getElementById('steam-info');
+        const steamStatus = document.getElementById('steam-status');
+        
+        // Games data with Steam App IDs (passed from server)
+        const gamesData = <%- gamesData %>;
+        const gamesMap = {};
+        gamesData.forEach(game => {
+          gamesMap[game._id] = game;
+        });
+        
+        gameSelect.addEventListener('change', function() {
+          const selectedGameId = this.value;
+          const gameData = gamesMap[selectedGameId];
+          
+          if (gameData && gameData.steamAppId) {
+            steamStatus.innerHTML = `
+              <strong>✓ Steam Integration Active</strong><br>
+              <small>Game: ${gameData.name}</small><br>
+              <small>Steam App ID: ${gameData.steamAppId}</small><br>
+              <small>Update notifications will be automatically enabled for this event</small>
+            `;
+            steamInfo.style.display = 'block';
+          } else if (gameData) {
+            steamStatus.innerHTML = `
+              <strong>⚠ No Steam Integration</strong><br>
+              <small>Game: ${gameData.name}</small><br>
+              <small>This game doesn't have Steam integration configured</small>
+            `;
+            steamInfo.style.display = 'block';
+            steamInfo.style.background = 'rgba(255, 255, 0, 0.1)';
+            steamInfo.style.borderColor = '#ffff00';
+          } else {
+            steamInfo.style.display = 'none';
+          }
+        });
+        
+        // Trigger initial check
+        if (gameSelect.value) {
+          gameSelect.dispatchEvent(new Event('change'));
         }
 
         document.querySelector('form').addEventListener('submit', function(event) {

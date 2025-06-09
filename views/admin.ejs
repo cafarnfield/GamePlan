@@ -6,6 +6,140 @@
   <title>Admin - GamePlan</title>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
+  <style>
+    .steam-search-container {
+      margin: 20px 0;
+      padding: 20px;
+      border: 2px solid #00ff00;
+      background: rgba(0, 255, 0, 0.1);
+    }
+    
+    .steam-search-input {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      background: #000;
+      color: #00ff00;
+      border: 1px solid #00ff00;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 12px;
+    }
+    
+    .steam-results {
+      max-height: 400px;
+      overflow-y: auto;
+      margin: 10px 0;
+    }
+    
+    .steam-game-result {
+      display: flex;
+      align-items: center;
+      padding: 15px;
+      margin: 10px 0;
+      border: 1px solid #00ff00;
+      background: rgba(0, 0, 0, 0.8);
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    
+    .steam-game-result:hover {
+      background: rgba(0, 255, 0, 0.2);
+    }
+    
+    .steam-game-result.selected {
+      background: rgba(0, 255, 0, 0.3);
+      border-color: #ffff00;
+    }
+    
+    .steam-game-image {
+      width: 120px;
+      height: 45px;
+      margin-right: 15px;
+      object-fit: cover;
+      border: 1px solid #00ff00;
+    }
+    
+    .steam-game-info {
+      flex: 1;
+    }
+    
+    .steam-game-title {
+      font-size: 14px;
+      color: #00ff00;
+      margin-bottom: 5px;
+    }
+    
+    .steam-game-description {
+      font-size: 10px;
+      color: #cccccc;
+      line-height: 1.4;
+      max-height: 60px;
+      overflow: hidden;
+    }
+    
+    .steam-game-meta {
+      font-size: 8px;
+      color: #888;
+      margin-top: 5px;
+    }
+    
+    .loading {
+      text-align: center;
+      color: #00ff00;
+      padding: 20px;
+    }
+    
+    .manual-entry {
+      margin-top: 20px;
+      padding: 15px;
+      border: 1px solid #888;
+      background: rgba(0, 0, 0, 0.5);
+    }
+    
+    .form-section {
+      margin: 20px 0;
+      padding: 15px;
+      border: 1px solid #00ff00;
+    }
+    
+    .hidden {
+      display: none;
+    }
+    
+    .game-list-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px;
+      margin: 5px 0;
+      border: 1px solid #00ff00;
+      background: rgba(0, 0, 0, 0.3);
+    }
+    
+    .game-info {
+      flex: 1;
+    }
+    
+    .game-steam-info {
+      font-size: 10px;
+      color: #888;
+      margin-top: 5px;
+    }
+    
+    .admin-button {
+      background: #ff0000;
+      color: white;
+      border: 1px solid #ff0000;
+      padding: 5px 10px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 8px;
+      cursor: pointer;
+    }
+    
+    .admin-button:hover {
+      background: #cc0000;
+    }
+  </style>
 </head>
 <body>
   <div class="scanlines"></div>
@@ -28,26 +162,215 @@
     <p>Note: Users with Game Nicknames will be displayed with their nickname instead of their regular name.</p>
 
     <h3>Manage Games</h3>
-    <h4>Add New Game</h4>
-    <form action="/admin/add-game" method="POST">
-      <label for="game-name">Game Name:</label>
-      <input type="text" id="game-name" name="name" required>
-      <label for="game-description">Description:</label>
-      <textarea id="game-description" name="description" required></textarea>
-      <button type="submit">Add Game</button>
-    </form>
+    
+    <div class="form-section">
+      <h4>Add New Game with Steam Integration</h4>
+      
+      <div class="steam-search-container">
+        <label for="steam-search">Search Steam Games:</label>
+        <input type="text" id="steam-search" class="steam-search-input" placeholder="Type game name to search Steam..." autocomplete="off">
+        <div id="steam-results" class="steam-results"></div>
+        <div id="loading" class="loading hidden">Searching Steam...</div>
+      </div>
+      
+      <form id="add-game-form" action="/admin/add-game" method="POST">
+        <input type="hidden" id="steam-app-id" name="steamAppId">
+        <input type="hidden" id="steam-data" name="steamData">
+        
+        <label for="game-name">Game Name:</label>
+        <input type="text" id="game-name" name="name" required>
+        
+        <label for="game-description">Description (optional - will use Steam description if empty):</label>
+        <textarea id="game-description" name="description"></textarea>
+        
+        <div id="selected-steam-info" class="hidden">
+          <h5>Selected Steam Game:</h5>
+          <div id="steam-preview"></div>
+        </div>
+        
+        <button type="submit">Add Game</button>
+      </form>
+      
+      <div class="manual-entry">
+        <h5>Or add manually without Steam integration:</h5>
+        <button type="button" id="clear-steam" onclick="clearSteamSelection()">Clear Steam Selection & Add Manually</button>
+      </div>
+    </div>
 
-    <h4>Existing Games</h4>
-    <ul>
-      <% games.forEach(game => { %>
-        <li>
-          <%= game.name %> - <%= game.description %>
-          <form action="/admin/delete-game/<%= game._id %>" method="POST" class="admin-form">
-            <button type="submit" class="admin-button">Delete</button>
-          </form>
-        </li>
-      <% }); %>
-    </ul>
+    <div class="form-section">
+      <h4>Existing Games</h4>
+      <% if (games.length === 0) { %>
+        <p>No games added yet.</p>
+      <% } else { %>
+        <% games.forEach(game => { %>
+          <div class="game-list-item">
+            <div class="game-info">
+              <strong><%= game.name %></strong>
+              <% if (game.description) { %>
+                <br><span style="font-size: 12px;"><%= game.description.substring(0, 100) %><%= game.description.length > 100 ? '...' : '' %></span>
+              <% } %>
+              <div class="game-steam-info">
+                <% if (game.steamAppId) { %>
+                  Steam App ID: <%= game.steamAppId %>
+                  <% if (game.platforms && game.platforms.length > 0) { %>
+                    | Platforms: <%= game.platforms.join(', ') %>
+                  <% } %>
+                <% } else { %>
+                  No Steam integration
+                <% } %>
+              </div>
+            </div>
+            <form action="/admin/delete-game/<%= game._id %>" method="POST" style="display: inline;">
+              <button type="submit" class="admin-button" onclick="return confirm('Are you sure you want to delete this game?')">Delete</button>
+            </form>
+          </div>
+        <% }); %>
+      <% } %>
+    </div>
   </main>
+
+  <script>
+    let searchTimeout;
+    let selectedGame = null;
+    
+    const searchInput = document.getElementById('steam-search');
+    const resultsContainer = document.getElementById('steam-results');
+    const loadingDiv = document.getElementById('loading');
+    const gameNameInput = document.getElementById('game-name');
+    const gameDescriptionInput = document.getElementById('game-description');
+    const steamAppIdInput = document.getElementById('steam-app-id');
+    const steamDataInput = document.getElementById('steam-data');
+    const selectedSteamInfo = document.getElementById('selected-steam-info');
+    const steamPreview = document.getElementById('steam-preview');
+    
+    searchInput.addEventListener('input', function() {
+      const query = this.value.trim();
+      
+      clearTimeout(searchTimeout);
+      
+      if (query.length < 2) {
+        resultsContainer.innerHTML = '';
+        return;
+      }
+      
+      searchTimeout = setTimeout(() => {
+        searchSteamGames(query);
+      }, 500);
+    });
+    
+    async function searchSteamGames(query) {
+      loadingDiv.classList.remove('hidden');
+      resultsContainer.innerHTML = '';
+      
+      try {
+        const response = await fetch(`/api/steam/search?q=${encodeURIComponent(query)}`);
+        const games = await response.json();
+        
+        loadingDiv.classList.add('hidden');
+        
+        if (games.length === 0) {
+          resultsContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #888;">No Steam games found</div>';
+          return;
+        }
+        
+        resultsContainer.innerHTML = games.map(game => `
+          <div class="steam-game-result" onclick="selectSteamGame(${game.appid}, '${escapeHtml(game.name)}', ${JSON.stringify(game).replace(/"/g, '&quot;')})">
+            ${game.header_image ? `<img src="${game.header_image}" alt="${escapeHtml(game.name)}" class="steam-game-image" onerror="this.style.display='none'">` : '<div class="steam-game-image" style="background: #333; display: flex; align-items: center; justify-content: center; font-size: 8px;">No Image</div>'}
+            <div class="steam-game-info">
+              <div class="steam-game-title">${escapeHtml(game.name)}</div>
+              <div class="steam-game-description">${escapeHtml(game.short_description || 'No description available')}</div>
+              <div class="steam-game-meta">
+                App ID: ${game.appid}
+                ${game.developers && game.developers.length > 0 ? ` | Dev: ${game.developers.join(', ')}` : ''}
+              </div>
+            </div>
+          </div>
+        `).join('');
+        
+      } catch (error) {
+        loadingDiv.classList.add('hidden');
+        resultsContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #ff0000;">Error searching Steam games</div>';
+        console.error('Steam search error:', error);
+      }
+    }
+    
+    function selectSteamGame(appId, name, gameData) {
+      selectedGame = gameData;
+      
+      // Update form fields
+      gameNameInput.value = name;
+      steamAppIdInput.value = appId;
+      steamDataInput.value = JSON.stringify({
+        name: gameData.name,
+        short_description: gameData.short_description,
+        header_image: gameData.header_image,
+        developers: gameData.developers,
+        publishers: gameData.publishers,
+        platforms: gameData.platforms
+      });
+      
+      // Update description if empty
+      if (!gameDescriptionInput.value && gameData.short_description) {
+        gameDescriptionInput.value = gameData.short_description;
+      }
+      
+      // Show selected game preview
+      steamPreview.innerHTML = `
+        <div style="display: flex; align-items: center; padding: 10px; border: 1px solid #00ff00; background: rgba(0, 255, 0, 0.1);">
+          ${gameData.header_image ? `<img src="${gameData.header_image}" alt="${escapeHtml(name)}" style="width: 120px; height: 45px; margin-right: 15px; object-fit: cover;">` : ''}
+          <div>
+            <strong>${escapeHtml(name)}</strong><br>
+            <small>Steam App ID: ${appId}</small><br>
+            <small style="color: #888;">${escapeHtml(gameData.short_description || 'No description')}</small>
+          </div>
+        </div>
+      `;
+      selectedSteamInfo.classList.remove('hidden');
+      
+      // Highlight selected result
+      document.querySelectorAll('.steam-game-result').forEach(el => el.classList.remove('selected'));
+      event.currentTarget.classList.add('selected');
+      
+      // Clear search
+      searchInput.value = '';
+      resultsContainer.innerHTML = '';
+    }
+    
+    function clearSteamSelection() {
+      selectedGame = null;
+      steamAppIdInput.value = '';
+      steamDataInput.value = '';
+      gameDescriptionInput.value = '';
+      selectedSteamInfo.classList.add('hidden');
+      
+      // Clear search results
+      searchInput.value = '';
+      resultsContainer.innerHTML = '';
+      
+      // Focus on name input
+      gameNameInput.focus();
+    }
+    
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+    
+    // Form submission handler
+    document.getElementById('add-game-form').addEventListener('submit', function(e) {
+      const gameName = gameNameInput.value.trim();
+      if (!gameName) {
+        e.preventDefault();
+        alert('Please enter a game name');
+        return;
+      }
+      
+      // If Steam game is selected but no custom description, use Steam description
+      if (selectedGame && !gameDescriptionInput.value && selectedGame.short_description) {
+        gameDescriptionInput.value = selectedGame.short_description;
+      }
+    });
+  </script>
 </body>
 </html>

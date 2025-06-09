@@ -10,7 +10,8 @@ const eventSchema = new mongoose.Schema({
   date: { type: Date, required: true },
   players: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   requiredExtensions: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Extension' }],
-  platforms: [{ type: String, enum: ['PC', 'PlayStation', 'Xbox', 'Nintendo Switch'] }]
+  platforms: [{ type: String, enum: ['PC', 'PlayStation', 'Xbox', 'Nintendo Switch'] }],
+  steamAppId: { type: Number } // Add Steam App ID field (optional)
 });
 
 const Event = mongoose.model('Event', eventSchema);
