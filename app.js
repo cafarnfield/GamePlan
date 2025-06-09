@@ -21,21 +21,23 @@ app.use((req, res, next) => {
 });
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your_secret_key',
-  resave: false,
-  saveUninitialized: false,
+  resave: true,
+  saveUninitialized: true,
   cookie: {
     maxAge: 24 * 60 * 60 * 1000, // 1 day
     httpOnly: true,
     secure: false, // Set to true if using HTTPS
     sameSite: 'lax' // Add sameSite option
   },
-  rolling: true, // Renew session cookie on each request
   name: 'gameplan.sid', // Custom session cookie name
-  store: new session.MemoryStore(), // Use in-memory store for testing
-  saveUninitialized: true, // Save uninitialized sessions
-  resave: true, // Resave sessions
-  proxy: true // Trust first proxy
+  store: new session.MemoryStore() // Use in-memory store for testing
 }));
+app.use((req, res, next) => {
+  console.log('Session middleware accessed');
+  console.log('Session before middleware:', req.session);
+  console.log('Authenticated user:', req.isAuthenticated(), req.user);
+  next();
+});
 app.use((req, res, next) => {
   console.log('Session after middleware:', req.session);
   next();
@@ -67,6 +69,31 @@ const User = require('./models/User');
 const Extension = require('./models/Extension');
 const Event = require('./models/Event');
 const Game = require('./models/Game');
+
+// Mock admin user for development auto-login
+const mockAdminUser = {
+  _id: 'dev-admin-id',
+  name: 'Development Admin',
+  email: 'dev-admin@gameplan.local',
+  gameNickname: 'DevAdmin',
+  isAdmin: true,
+  isBlocked: false,
+  save: async function() { return this; } // Mock save method
+};
+
+// Development auto-login middleware
+const autoLoginMiddleware = (req, res, next) => {
+  if (process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development') {
+    // Inject mock admin user
+    req.user = mockAdminUser;
+    req.isAuthenticated = () => true;
+    console.log('Development mode: Auto-logged in as admin');
+  }
+  next();
+};
+
+// Apply auto-login middleware after passport initialization
+app.use(autoLoginMiddleware);
 
 // Passport configuration with debug logging
 passport.use(new LocalStrategy(
@@ -109,6 +136,10 @@ passport.deserializeUser(async (id, done) => {
 
 // Middleware to check if user is authenticated
 const ensureAuthenticated = (req, res, next) => {
+  // Check for auto-login in development mode
+  if (process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development') {
+    return next();
+  }
   if (req.isAuthenticated()) {
     return next();
   }
@@ -120,6 +151,12 @@ const ensureAdmin = (req, res, next) => {
   console.log('ensureAdmin middleware accessed');
   console.log('req.isAuthenticated():', req.isAuthenticated());
   console.log('req.user:', req.user);
+
+  // Check for auto-login admin in development mode
+  if (process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development' && req.user && req.user.isAdmin) {
+    return next();
+  }
+
   if (req.isAuthenticated() && req.user && req.user.isAdmin) {
     return next();
   }
@@ -143,13 +180,15 @@ const ensureNotBlocked = (req, res, next) => {
 // Route to show admin panel
 app.get('/admin', ensureAdmin, async (req, res) => {
   const games = await Game.find();
-  res.render('admin', { games });
+  const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
+  res.render('admin', { games, isDevelopmentAutoLogin });
 });
 
 // Route to show all registered users
 app.get('/admin/users', ensureAdmin, async (req, res) => {
   const users = await User.find();
-  res.render('adminUsers', { users });
+  const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
+  res.render('adminUsers', { users, isDevelopmentAutoLogin });
 });
 
 // Route to delete a user
@@ -207,13 +246,25 @@ app.post('/admin/user/toggle-admin/:id', ensureAdmin, async (req, res) => {
   }
 });
 
-// Route to add a new game
+// Route to add a new game (admin only)
 app.post('/admin/add-game', ensureAdmin, async (req, res) => {
   try {
     const { name, description } = req.body;
     const game = new Game({ name, description });
     await game.save();
     res.redirect('/admin');
+  } catch (err) {
+    res.status(500).send('Error adding game');
+  }
+});
+
+// Route to add a new game directly (for testing)
+app.post('/test/add-game', async (req, res) => {
+  try {
+    const { name, description } = req.body;
+    const game = new Game({ name, description });
+    await game.save();
+    res.status(200).json({ id: game._id, name: game.name });
   } catch (err) {
     res.status(500).send('Error adding game');
   }
@@ -265,14 +316,18 @@ app.get('/', async (req, res) => {
     path: 'players',
     populate: { path: 'players' }
   }).populate('requiredExtensions').populate('game');
-  res.render('index', { events, user: req.user });
+  const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
+  res.render('index', { events, user: req.user, isDevelopmentAutoLogin });
 });
 
 // User profile route
 app.get('/profile', ensureAuthenticated, ensureNotBlocked, (req, res) => {
   console.log('Profile route accessed');
   console.log('User:', req.user);
-  res.render('profile', { user: req.user });
+  // For development, if no user is authenticated, create a mock user
+  const user = req.user || { name: 'Development User', email: 'dev@example.com', gameNickname: 'DevNick' };
+  const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
+  res.render('profile', { user, isDevelopmentAutoLogin });
 });
 
 // Update profile route
@@ -288,7 +343,8 @@ app.post('/profile/update', ensureAuthenticated, ensureNotBlocked, async (req, r
 });
 
 app.get('/register', (req, res) => {
-  res.render('register');
+  const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
+  res.render('register', { isDevelopmentAutoLogin });
 });
 
 app.post('/register', async (req, res) => {
@@ -304,7 +360,8 @@ app.post('/register', async (req, res) => {
 });
 
 app.get('/login', (req, res) => {
-  res.render('login');
+  const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
+  res.render('login', { isDevelopmentAutoLogin });
 });
 
 app.post('/login', (req, res, next) => {
@@ -348,48 +405,102 @@ app.get('/logout', (req, res) => {
 // Protected route for creating events
 app.get('/event/new', ensureAuthenticated, ensureNotBlocked, async (req, res) => {
   const games = await Game.find();
-  res.render('newEvent', { user: req.user, games });
+  const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
+  res.render('newEvent', { user: req.user, games, isDevelopmentAutoLogin });
 });
 
 app.post('/event/new', ensureAuthenticated, ensureNotBlocked, async (req, res) => {
   try {
+    console.log('Event creation request received');
+    console.log('Request body:', req.body);
+
     const { name, gameId, description, playerLimit, date, extensions, platforms } = req.body;
+
+    // Validate game ID
+    console.log('Validating game ID:', gameId);
+    const game = await Game.findById(gameId);
+    if (!game) {
+      console.error('Invalid game ID:', gameId);
+      return res.status(400).send('Invalid game ID');
+    }
+    console.log('Game found:', game);
+
+    // Create the event
     const event = new Event({
       name,
       game: gameId,
       description,
       playerLimit,
-      date,
+      date: new Date(date), // Ensure date is a Date object
       players: [req.user._id], // Add the creator as the first player
-      platforms: platforms ? platforms.split(',') : []
+      platforms: Array.isArray(platforms) ? platforms : []
     });
 
     // Process extensions if provided
-    if (extensions && extensions !== '[]') {
-      const extensionData = JSON.parse(extensions);
-      for (const ext of extensionData) {
-        const extension = new Extension({
-          name: ext.name,
-          downloadLink: ext.downloadLink,
-          installationTime: ext.installationTime
-        });
-        await extension.save();
-        event.requiredExtensions.push(extension._id);
+    if (extensions) {
+      try {
+        console.log('Processing extensions:', extensions);
+
+        // Handle case where extensions might be an array (from old form)
+        let extensionData;
+        if (Array.isArray(extensions)) {
+          // Take the last valid entry if it's an array
+          const lastEntry = extensions[extensions.length - 1];
+          if (lastEntry && lastEntry.trim() !== '[]') {
+            extensionData = JSON.parse(lastEntry);
+          } else {
+            extensionData = [];
+          }
+        } else {
+          // Normal case - single string
+          extensionData = JSON.parse(extensions);
+        }
+
+        for (const ext of extensionData) {
+          // Validate extension data structure
+          if (typeof ext.name !== 'string' ||
+              typeof ext.downloadLink !== 'string' ||
+              typeof ext.installationTime !== 'string') {
+            console.error('Invalid extension data structure:', ext);
+            return res.status(400).send('Invalid extension data structure');
+          }
+
+          const extension = new Extension({
+            name: ext.name,
+            downloadLink: ext.downloadLink,
+            installationTime: ext.installationTime
+          });
+          await extension.save();
+          event.requiredExtensions.push(extension._id);
+        }
+      } catch (parseError) {
+        console.error('Error parsing extensions:', parseError);
+        return res.status(400).send('Invalid extensions data');
       }
     }
 
-    await event.save();
-    res.redirect('/');
+    console.log('Saving event:', event);
+    const savedEvent = await event.save();
+    console.log('Saved event:', savedEvent);
+
+    // Redirect to the event page
+    res.redirect(`/event/${savedEvent._id}`);
   } catch (err) {
+    console.error('Error creating event:', err);
     res.status(500).send('Error creating event');
   }
 });
 
 app.get('/event/:id', async (req, res) => {
   try {
+    console.log('Fetching event with ID:', req.params.id);
+    console.log('Authenticated user:', req.isAuthenticated(), req.user);
     const event = await Event.findById(req.params.id).populate('players').populate('requiredExtensions').populate('game');
-    res.render('event', { event, user: req.user });
+    console.log('Fetched event:', event);
+    const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
+    res.render('event', { event, user: req.user, isDevelopmentAutoLogin });
   } catch (err) {
+    console.error('Error fetching event:', err);
     res.status(500).send('Error fetching event');
   }
 });
@@ -422,15 +533,30 @@ app.post('/event/:id/leave', ensureAuthenticated, ensureNotBlocked, async (req, 
 // Add event deletion route
 app.post('/event/:id/delete', ensureAuthenticated, ensureNotBlocked, async (req, res) => {
   try {
-    const event = await Event.findById(req.params.id);
+    const event = await Event.findById(req.params.id).populate('players');
     // Only allow the event creator or admins to delete the event
-    if (event.players.length === 0 || (!event.players[0].equals(req.user._id) && !req.user.isAdmin)) {
+    if (event.players.length === 0 || (!event.players[0]._id.equals(req.user._id) && !req.user.isAdmin)) {
       return res.status(403).send('You are not authorized to delete this event');
     }
     await event.remove();
     res.redirect('/');
   } catch (err) {
+    console.error('Error deleting event:', err);
     res.status(500).send('Error deleting event');
+  }
+});
+
+// Debug route to check game existence
+app.get('/debug/game/:id', async (req, res) => {
+  try {
+    const game = await Game.findById(req.params.id);
+    if (game) {
+      res.send(`Game found: ${game.name}`);
+    } else {
+      res.send('Game not found');
+    }
+  } catch (err) {
+    res.status(500).send('Error checking game');
   }
 });
 

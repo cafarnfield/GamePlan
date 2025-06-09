@@ -114,6 +114,12 @@
         }
 
         document.querySelector('form').addEventListener('submit', function(event) {
+          // Remove any existing extensions hidden input
+          const existingExtensionsInput = document.querySelector('input[name="extensions"]');
+          if (existingExtensionsInput) {
+            existingExtensionsInput.remove();
+          }
+
           const extensions = document.querySelectorAll('.extension');
           const extensionsData = [];
 

@@ -21,7 +21,7 @@
     <p>Player Limit: <%= event.playerLimit %></p>
     <p>Current Players: <%= event.players.length %></p>
       <% if (event.players.length > 0) { %>
-        <p>Created by: <%= event.players[0].gameNickname ? event.players[0].gameNickname : event.players[0].name %> (<%= event.players[0].email %>)</p>
+        <p>Created by: <%= event.players[0].gameNickname ? event.players[0].gameNickname : event.players[0].name %></p>
       <% } %>
 
     <% if (event.requiredExtensions && event.requiredExtensions.length > 0) { %>
@@ -40,10 +40,10 @@
     <h3>Players</h3>
     <ul>
       <% event.players.forEach(player => { %>
-        <li><%= player.gameNickname ? player.gameNickname : player.name %> (<%= player.email %>)</li>
+        <li><%= player.gameNickname ? player.gameNickname : player.name %></li>
       <% }) %>
     </ul>
-    <% if (typeof user !== 'undefined') { %>
+<% if (typeof user !== 'undefined') { %>
       <% if (event.players.length > 0 && (event.players[0]._id.equals(user._id) || user.isAdmin)) { %> <!-- Show delete button to event creator or admins -->
         <form action="/event/<%= event._id %>/delete" method="POST" class="event-button">
           <button type="submit">Delete Event</button>

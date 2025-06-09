@@ -9,6 +9,11 @@
 </head>
 <body>
   <div class="scanlines"></div>
+  <% if (isDevelopmentAutoLogin) { %>
+    <div class="dev-banner">
+      🔧 DEVELOPMENT MODE - Auto-logged in as Admin
+    </div>
+  <% } %>
   <header>
     <h1>GamePlan</h1>
   <nav>
