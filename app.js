@@ -147,6 +147,8 @@ const mockAdminUser = {
   email: 'dev-admin@gameplan.local',
   gameNickname: 'DevAdmin',
   isAdmin: true,
+  isSuperAdmin: true,
+  isProtected: false,
   isBlocked: false,
   save: async function() { return this; } // Mock save method
 };
@@ -250,6 +252,55 @@ const ensureAdmin = (req, res, next) => {
     return next();
   }
   res.status(403).send('You are not authorized to perform this action');
+};
+
+// Middleware to check if user is super admin
+const ensureSuperAdmin = (req, res, next) => {
+  console.log('ensureSuperAdmin middleware accessed');
+  console.log('req.user:', req.user);
+
+  // Check for auto-login super admin in development mode
+  if (process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development' && req.user && req.user.isSuperAdmin) {
+    return next();
+  }
+
+  if (req.isAuthenticated() && req.user && req.user.isSuperAdmin) {
+    return next();
+  }
+  res.status(403).send('Super Admin privileges required for this action');
+};
+
+// Middleware to check admin operation permissions
+const checkAdminOperationPermission = async (req, res, next) => {
+  try {
+    const targetUser = await User.findById(req.params.id);
+    
+    if (!targetUser) {
+      return res.status(404).send('User not found');
+    }
+    
+    // Flamma protection - only Flamma can modify itself
+    if (targetUser.isProtected && req.user.email !== targetUser.email) {
+      return res.status(403).send('This user is protected and can only be modified by themselves');
+    }
+    
+    // Super Admin operations on admins require super admin privileges
+    if (targetUser.isAdmin && !req.user.isSuperAdmin) {
+      return res.status(403).send('Super Admin privileges required to modify admin users');
+    }
+    
+    // Cannot delete Super Admins directly (must demote first)
+    if (targetUser.isSuperAdmin && req.route.path.includes('delete')) {
+      return res.status(403).send('Cannot delete Super Admin directly. Must demote to Admin first.');
+    }
+    
+    // Store target user for use in route handler
+    req.targetUser = targetUser;
+    next();
+  } catch (err) {
+    console.error('Error in checkAdminOperationPermission:', err);
+    res.status(500).send('Error checking permissions');
+  }
 };
 
 // Middleware to check if user is blocked
@@ -839,60 +890,83 @@ app.get('/admin/users', ensureAdmin, async (req, res) => {
 });
 
 // Route to delete a user
-app.post('/admin/user/delete/:id', ensureAdmin, async (req, res) => {
+app.post('/admin/user/delete/:id', ensureAdmin, checkAdminOperationPermission, async (req, res) => {
   try {
+    const targetUser = req.targetUser; // Set by middleware
+    
+    // Create audit log
+    await createAuditLog(req.user, 'delete_user', targetUser, 'User deleted by admin', getClientIP(req));
+    
     await User.findByIdAndDelete(req.params.id);
+    console.log(`User ${targetUser.email} deleted by admin ${req.user.email}`);
     res.redirect('/admin/users');
   } catch (err) {
+    console.error('Error deleting user:', err);
     res.status(500).send('Error deleting user');
   }
 });
 
 // Route to block a user
-app.post('/admin/user/block/:id', ensureAdmin, async (req, res) => {
+app.post('/admin/user/block/:id', ensureAdmin, checkAdminOperationPermission, async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
-    if (!user) {
-      return res.status(404).send('User not found');
-    }
-    user.isBlocked = true;
-    await user.save();
+    const targetUser = req.targetUser; // Set by middleware
+    
+    targetUser.isBlocked = true;
+    await targetUser.save();
+    
+    // Create audit log
+    await createAuditLog(req.user, 'block_user', targetUser, 'User blocked by admin', getClientIP(req));
+    
+    console.log(`User ${targetUser.email} blocked by admin ${req.user.email}`);
     res.redirect('/admin/users');
   } catch (err) {
+    console.error('Error blocking user:', err);
     res.status(500).send('Error blocking user');
   }
 });
 
 // Route to unblock a user
-app.post('/admin/user/unblock/:id', ensureAdmin, async (req, res) => {
+app.post('/admin/user/unblock/:id', ensureAdmin, checkAdminOperationPermission, async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
-    if (!user) {
-      return res.status(404).send('User not found');
-    }
-    user.isBlocked = false;
-    await user.save();
+    const targetUser = req.targetUser; // Set by middleware
+    
+    targetUser.isBlocked = false;
+    await targetUser.save();
+    
+    // Create audit log
+    await createAuditLog(req.user, 'unblock_user', targetUser, 'User unblocked by admin', getClientIP(req));
+    
+    console.log(`User ${targetUser.email} unblocked by admin ${req.user.email}`);
     res.redirect('/admin/users');
   } catch (err) {
+    console.error('Error unblocking user:', err);
     res.status(500).send('Error unblocking user');
   }
 });
 
 // Route to toggle admin status for a user
-app.post('/admin/user/toggle-admin/:id', ensureAdmin, async (req, res) => {
+app.post('/admin/user/toggle-admin/:id', ensureSuperAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).send('User not found');
     }
+    
+    // Prevent modification of protected users by others
+    if (user.isProtected && req.user.email !== user.email) {
+      return res.status(403).send('This user is protected and can only be modified by themselves');
+    }
+    
     user.isAdmin = !user.isAdmin;
     await user.save();
     
     // Create audit log
     await createAuditLog(req.user, user.isAdmin ? 'promote_admin' : 'demote_admin', user, '', getClientIP(req));
     
+    console.log(`User ${user.email} admin status toggled to ${user.isAdmin} by super admin ${req.user.email}`);
     res.redirect('/admin/users');
   } catch (err) {
+    console.error('Error updating user admin status:', err);
     res.status(500).send('Error updating user');
   }
 });
@@ -982,6 +1056,80 @@ app.post('/admin/user/end-probation/:id', ensureAdmin, async (req, res) => {
   } catch (err) {
     console.error('Error ending probation:', err);
     res.status(500).json({ error: 'Error ending probation' });
+  }
+});
+
+// Route to promote user to super admin
+app.post('/admin/user/promote-super-admin/:id', ensureSuperAdmin, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).send('User not found');
+    }
+    
+    // Prevent modification of protected users by others
+    if (user.isProtected && req.user.email !== user.email) {
+      return res.status(403).send('This user is protected and can only be modified by themselves');
+    }
+    
+    // User must be admin first
+    if (!user.isAdmin) {
+      return res.status(400).send('User must be an admin before being promoted to Super Admin');
+    }
+    
+    // Check if already super admin
+    if (user.isSuperAdmin) {
+      return res.status(400).send('User is already a Super Admin');
+    }
+    
+    user.isSuperAdmin = true;
+    await user.save();
+    
+    // Create audit log
+    await createAuditLog(req.user, 'promote_super_admin', user, 'User promoted to Super Admin', getClientIP(req));
+    
+    console.log(`User ${user.email} promoted to Super Admin by ${req.user.email}`);
+    res.redirect('/admin/users');
+  } catch (err) {
+    console.error('Error promoting user to super admin:', err);
+    res.status(500).send('Error promoting user to super admin');
+  }
+});
+
+// Route to demote super admin to admin
+app.post('/admin/user/demote-super-admin/:id', ensureSuperAdmin, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).send('User not found');
+    }
+    
+    // Prevent modification of protected users by others
+    if (user.isProtected && req.user.email !== user.email) {
+      return res.status(403).send('This user is protected and can only be modified by themselves');
+    }
+    
+    // Check if user is super admin
+    if (!user.isSuperAdmin) {
+      return res.status(400).send('User is not a Super Admin');
+    }
+    
+    // Prevent self-demotion
+    if (req.user._id.equals(user._id)) {
+      return res.status(403).send('Super Admins cannot demote themselves');
+    }
+    
+    user.isSuperAdmin = false;
+    await user.save();
+    
+    // Create audit log
+    await createAuditLog(req.user, 'demote_super_admin', user, 'Super Admin demoted to Admin', getClientIP(req));
+    
+    console.log(`Super Admin ${user.email} demoted to Admin by ${req.user.email}`);
+    res.redirect('/admin/users');
+  } catch (err) {
+    console.error('Error demoting super admin:', err);
+    res.status(500).send('Error demoting super admin');
   }
 });
 

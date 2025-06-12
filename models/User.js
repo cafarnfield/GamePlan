@@ -5,6 +5,8 @@ const userSchema = new mongoose.Schema({
   email: String,
   password: String,
   isAdmin: { type: Boolean, default: false },
+  isSuperAdmin: { type: Boolean, default: false },
+  isProtected: { type: Boolean, default: false },
   isBlocked: { type: Boolean, default: false },
   gameNickname: { type: String, default: '' },
   status: { 

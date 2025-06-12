@@ -6,7 +6,13 @@ const auditLogSchema = new mongoose.Schema({
   action: { 
     type: String, 
     required: true,
-    enum: ['approve', 'reject', 'delete', 'block', 'unblock', 'toggle_admin', 'bulk_approve', 'bulk_reject', 'bulk_delete', 'end_probation']
+    enum: [
+      'approve', 'reject', 'delete', 'block', 'unblock', 'toggle_admin', 'bulk_approve', 'bulk_reject', 'bulk_delete', 'end_probation',
+      'approve_user', 'reject_user', 'delete_user', 'block_user', 'unblock_user',
+      'promote_admin', 'demote_admin', 'promote_super_admin', 'demote_super_admin',
+      'approve_game', 'reject_game', 'merge_games',
+      'admin_delete_event', 'admin_bulk_delete_events', 'admin_edit_event', 'delete_event'
+    ]
   },
   targetUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   targetUserEmail: String,
