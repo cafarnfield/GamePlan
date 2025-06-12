@@ -50,6 +50,56 @@
       </div>
     </div>
 
+    <!-- Action Buttons -->
+    <% if (typeof user !== 'undefined') { %>
+      <div class="event-actions">
+        <% 
+          const isCreator = event.createdBy && event.createdBy._id.equals(user._id);
+          const isLegacyCreator = !event.createdBy && event.players.length > 0 && event.players[0]._id.equals(user._id);
+          const canEdit = isCreator || isLegacyCreator || user.isAdmin;
+          const canDelete = isCreator || isLegacyCreator || user.isAdmin;
+          const isPlayerInEvent = event.players.some(player => player._id.equals(user._id));
+        %>
+        
+        <% if (isPlayerInEvent) { %>
+          <form action="/event/<%= event._id %>/leave" method="POST" style="display: inline;">
+            <button type="submit" class="action-button secondary">Leave Event</button>
+          </form>
+        <% } else if (event.players.length < event.playerLimit) { %>
+          <form action="/event/<%= event._id %>/join" method="POST" style="display: inline;">
+            <button type="submit" class="action-button primary">Join Event</button>
+          </form>
+        <% } else { %>
+          <button class="action-button disabled" disabled>Event Full</button>
+        <% } %>
+        
+        <% if (canEdit) { %>
+          <form action="/event/<%= event._id %>/edit" method="GET" style="display: inline;">
+            <button type="submit" class="action-button secondary">Edit Event</button>
+          </form>
+        <% } %>
+        
+        <% if (canEdit) { %>
+          <form action="/event/<%= event._id %>/duplicate" method="GET" style="display: inline;">
+            <button type="submit" class="action-button secondary">Duplicate Event</button>
+          </form>
+        <% } %>
+        
+        <% if (canDelete) { %>
+          <form action="/event/<%= event._id %>/delete" method="POST" style="display: inline;" 
+                onsubmit="return confirm('Are you sure you want to delete this event? This action cannot be undone.');">
+            <button type="submit" class="action-button danger">Delete Event</button>
+          </form>
+        <% } %>
+      </div>
+    <% } else { %>
+      <div class="event-actions">
+        <p style="color: var(--muted-cyan); text-align: center; margin: 2rem 0;">
+          Please <a href="/login">log in</a> to join this event
+        </p>
+      </div>
+    <% } %>
+
     <!-- Updates Notification (Less Intrusive) -->
     <% if (event.hasUpdate) { %>
       <div class="update-notification" id="updateNotification">
@@ -292,56 +342,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Action Buttons -->
-    <% if (typeof user !== 'undefined') { %>
-      <div class="event-actions">
-        <% 
-          const isCreator = event.createdBy && event.createdBy._id.equals(user._id);
-          const isLegacyCreator = !event.createdBy && event.players.length > 0 && event.players[0]._id.equals(user._id);
-          const canEdit = isCreator || isLegacyCreator || user.isAdmin;
-          const canDelete = isCreator || isLegacyCreator || user.isAdmin;
-          const isPlayerInEvent = event.players.some(player => player._id.equals(user._id));
-        %>
-        
-        <% if (isPlayerInEvent) { %>
-          <form action="/event/<%= event._id %>/leave" method="POST" style="display: inline;">
-            <button type="submit" class="action-button secondary">Leave Event</button>
-          </form>
-        <% } else if (event.players.length < event.playerLimit) { %>
-          <form action="/event/<%= event._id %>/join" method="POST" style="display: inline;">
-            <button type="submit" class="action-button primary">Join Event</button>
-          </form>
-        <% } else { %>
-          <button class="action-button disabled" disabled>Event Full</button>
-        <% } %>
-        
-        <% if (canEdit) { %>
-          <form action="/event/<%= event._id %>/edit" method="GET" style="display: inline;">
-            <button type="submit" class="action-button secondary">Edit Event</button>
-          </form>
-        <% } %>
-        
-        <% if (canEdit) { %>
-          <form action="/event/<%= event._id %>/duplicate" method="GET" style="display: inline;">
-            <button type="submit" class="action-button secondary">Duplicate Event</button>
-          </form>
-        <% } %>
-        
-        <% if (canDelete) { %>
-          <form action="/event/<%= event._id %>/delete" method="POST" style="display: inline;" 
-                onsubmit="return confirm('Are you sure you want to delete this event? This action cannot be undone.');">
-            <button type="submit" class="action-button danger">Delete Event</button>
-          </form>
-        <% } %>
-      </div>
-    <% } else { %>
-      <div class="event-actions">
-        <p style="color: var(--muted-cyan); text-align: center; margin: 2rem 0;">
-          Please <a href="/login">log in</a> to join this event
-        </p>
-      </div>
-    <% } %>
   </main>
 
   <script>
