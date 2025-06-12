@@ -376,6 +376,77 @@ app.get('/admin', ensureAdmin, async (req, res) => {
   res.redirect('/admin/dashboard');
 });
 
+// Route to show admin system management
+app.get('/admin/system', ensureAdmin, async (req, res) => {
+  try {
+    // System statistics
+    const systemStats = {
+      // Database statistics
+      totalUsers: await User.countDocuments(),
+      totalEvents: await Event.countDocuments(),
+      totalGames: await Game.countDocuments(),
+      totalAuditLogs: await AuditLog.countDocuments(),
+      
+      // Recent activity counts
+      recentUsers: await User.countDocuments({ 
+        createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } 
+      }),
+      recentEvents: await Event.countDocuments({ 
+        createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } 
+      }),
+      
+      // Security metrics
+      blockedUsers: await User.countDocuments({ isBlocked: true }),
+      rejectedUsers: await User.countDocuments({ status: 'rejected' }),
+      probationaryUsers: await User.countDocuments({ 
+        probationaryUntil: { $exists: true, $gte: new Date() } 
+      })
+    };
+    
+    // Suspicious IP analysis
+    const suspiciousIPs = await User.aggregate([
+      { $match: { registrationIP: { $exists: true, $ne: null } } },
+      { $group: { 
+        _id: '$registrationIP', 
+        count: { $sum: 1 },
+        users: { $push: { email: '$email', createdAt: '$createdAt', status: '$status' } }
+      }},
+      { $match: { count: { $gte: 3 } } },
+      { $sort: { count: -1 } },
+      { $limit: 10 }
+    ]);
+    
+    // Recent audit logs
+    const recentAuditLogs = await AuditLog.find()
+      .sort({ timestamp: -1 })
+      .limit(50)
+      .lean();
+    
+    // System health indicators
+    const systemHealth = {
+      databaseConnected: mongoose.connection.readyState === 1,
+      uptime: process.uptime(),
+      memoryUsage: process.memoryUsage(),
+      nodeVersion: process.version,
+      environment: process.env.NODE_ENV || 'development'
+    };
+    
+    const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
+    
+    res.render('adminSystem', {
+      systemStats,
+      suspiciousIPs,
+      recentAuditLogs,
+      systemHealth,
+      isDevelopmentAutoLogin,
+      user: req.user
+    });
+  } catch (err) {
+    console.error('Error loading system page:', err);
+    res.status(500).send('Error loading system page');
+  }
+});
+
 // Legacy admin panel route (for game management)
 app.get('/admin/legacy', ensureAdmin, async (req, res) => {
   const games = await Game.find();

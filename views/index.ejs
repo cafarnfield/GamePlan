@@ -40,6 +40,9 @@
   <nav>
       <% if (typeof user !== 'undefined') { %>
         <a href="/profile">Profile</a>
+        <% if (user.isAdmin) { %>
+          <a href="/admin">Admin</a>
+        <% } %>
         <a href="/logout">Logout</a>
         <p>Welcome, <%= user.gameNickname ? user.gameNickname : user.name %></p>
       <% } else { %>
@@ -53,8 +56,6 @@
     <% if (typeof user !== 'undefined') { %>
       <button class="event-button" onclick="window.location.href='/event/new'">Create New Event</button>
       <% if (user.isAdmin) { %>
-        <!-- Admin button -->
-        <button class="admin-button" onclick="window.location.href='/admin'">Admin</button>
         <!-- Admin alert for pending users -->
         <div id="admin-alert" class="admin-alert" style="display: none;">
           <span id="pending-count">0</span> user(s) pending approval
