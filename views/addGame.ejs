@@ -183,180 +183,177 @@
         let searchTimeout;
         let selectedGameData = null;
 
-        // Tab switching
-        document.querySelectorAll('.search-tab').forEach(tab => {
-            tab.addEventListener('click', function() {
-                // Remove active class from all tabs
-                document.querySelectorAll('.search-tab').forEach(t => t.classList.remove('active'));
-                // Add active class to clicked tab
-                this.classList.add('active');
+        // Initialize the form
+        document.addEventListener('DOMContentLoaded', function() {
+            // Game search functionality
+            const gameSearch = document.getElementById('gameSearch');
+            if (gameSearch) {
+                gameSearch.addEventListener('input', handleGameSearch);
+            }
+        });
+
+        // Game search functionality
+        function handleGameSearch() {
+            const query = this.value.trim();
+            const resultsContainer = document.getElementById('searchResults');
+            
+            if (query.length < 2) {
+                showSearchPlaceholder();
+                return;
+            }
+            
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                searchGames(query);
+            }, 300);
+        }
+
+        async function searchGames(query) {
+            const resultsContainer = document.getElementById('searchResults');
+            resultsContainer.innerHTML = '<div class="loading">🔍 Searching games...</div>';
+            
+            try {
+                // Search Steam games
+                const steamResponse = await fetch(`/api/steam/search?q=${encodeURIComponent(query)}`);
+                const steamGames = await steamResponse.json();
                 
-                // Hide all search sections
-                document.querySelectorAll('.search-section').forEach(section => {
-                    section.style.display = 'none';
+                // Search RAWG games
+                const rawgResponse = await fetch(`/api/rawg/search?q=${encodeURIComponent(query)}`);
+                const rawgGames = await rawgResponse.json();
+                
+                // Search existing games (if available)
+                const existingGames = [];
+                
+                displaySearchResults(steamGames, rawgGames, existingGames);
+            } catch (error) {
+                console.error('Error searching games:', error);
+                resultsContainer.innerHTML = '<div class="error">❌ Error searching games. Please try again.</div>';
+            }
+        }
+
+        function displaySearchResults(steamGames, rawgGames, existingGames) {
+            const resultsContainer = document.getElementById('searchResults');
+            let html = '';
+            
+            // Combine and deduplicate results
+            const allGames = [];
+            
+            // Add existing games first (highest priority)
+            existingGames.forEach(game => {
+                allGames.push({
+                    type: 'existing',
+                    id: game._id,
+                    name: game.name,
+                    description: game.description || 'No description available',
+                    image: game.steamData?.header_image || game.rawgData?.background_image || null,
+                    source: 'Database',
+                    platforms: game.platforms || [],
+                    data: game
                 });
-                
-                // Hide manual form
-                document.getElementById('manual-form').style.display = 'none';
-                
-                const source = this.dataset.source;
-                if (source === 'manual') {
-                    document.getElementById('manual-form').style.display = 'block';
-                } else {
-                    document.getElementById(source + '-search').style.display = 'block';
-                }
-                
-                // Clear previous selections
-                clearSelection();
             });
-        });
-
-        // Steam search
-        document.getElementById('steam-search-input').addEventListener('input', function() {
-            const query = this.value.trim();
-            if (query.length < 2) {
-                document.getElementById('steam-results').style.display = 'none';
-                return;
-            }
             
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => {
-                searchSteamGames(query);
-            }, 300);
-        });
-
-        // RAWG search
-        document.getElementById('rawg-search-input').addEventListener('input', function() {
-            const query = this.value.trim();
-            if (query.length < 2) {
-                document.getElementById('rawg-results').style.display = 'none';
-                return;
-            }
+            // Add Steam games (prefer over RAWG)
+            steamGames.forEach(game => {
+                if (!game.existsInDatabase) {
+                    allGames.push({
+                        type: 'steam',
+                        id: game.appid,
+                        name: game.name,
+                        description: game.short_description || 'No description available',
+                        image: game.header_image,
+                        source: 'Steam',
+                        platforms: ['PC'],
+                        data: game
+                    });
+                }
+            });
             
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => {
-                searchRawgGames(query);
-            }, 300);
-        });
-
-        // Manual form handling
-        document.getElementById('manual-name').addEventListener('input', function() {
-            const name = this.value.trim();
-            const description = document.getElementById('manual-description').value.trim();
+            // Add RAWG games (lowest priority)
+            rawgGames.forEach(game => {
+                if (!game.existsInDatabase && !game.hasSteamEquivalent) {
+                    allGames.push({
+                        type: 'rawg',
+                        id: game.id,
+                        name: game.name,
+                        description: game.short_description || 'No description available',
+                        image: game.background_image,
+                        source: 'RAWG',
+                        platforms: game.platforms || [],
+                        data: game
+                    });
+                }
+            });
             
-            if (name) {
-                selectedGameData = {
-                    type: 'manual',
-                    name: name,
-                    description: description
-                };
-                showSelectedGame(name, description || 'Manual entry');
+            if (allGames.length === 0) {
+                html = `
+                    <div class="no-results">
+                        <div class="no-results-icon">😔</div>
+                        <h3>No games found</h3>
+                        <p>Try a different search term or add your game manually</p>
+                    </div>
+                `;
             } else {
-                clearSelection();
-            }
-        });
-
-        document.getElementById('manual-description').addEventListener('input', function() {
-            const name = document.getElementById('manual-name').value.trim();
-            const description = this.value.trim();
-            
-            if (name) {
-                selectedGameData = {
-                    type: 'manual',
-                    name: name,
-                    description: description
-                };
-                showSelectedGame(name, description || 'Manual entry');
-            }
-        });
-
-        async function searchSteamGames(query) {
-            const resultsDiv = document.getElementById('steam-results');
-            resultsDiv.innerHTML = '<div class="loading">Searching Steam...</div>';
-            resultsDiv.style.display = 'block';
-            
-            try {
-                const response = await fetch(`/api/steam/search?q=${encodeURIComponent(query)}`);
-                const games = await response.json();
-                
-                if (games.length === 0) {
-                    resultsDiv.innerHTML = '<div class="no-results">No Steam games found</div>';
-                    return;
-                }
-                
-                resultsDiv.innerHTML = games.map(game => `
-                    <div class="search-result-item" onclick="selectSteamGame(${JSON.stringify(game).replace(/"/g, '&quot;')})">
-                        <img src="${game.header_image || '/placeholder-game.png'}" alt="${game.name}" class="search-result-image" onerror="this.src='/placeholder-game.png'">
-                        <div class="search-result-info">
-                            <h4>${game.name}</h4>
-                            <p>${game.short_description || 'No description available'}</p>
-                            ${game.existsInDatabase ? '<div class="game-exists-warning">⚠️ This game already exists in the database</div>' : ''}
+                html = '<div class="search-results-list">';
+                allGames.slice(0, 10).forEach(game => {
+                    html += `
+                        <div class="game-card simple-title" onclick="selectGame(${JSON.stringify(game).replace(/"/g, '&quot;')})">
+                            <div class="game-title-only">
+                                ${game.name}
+                            </div>
                         </div>
-                    </div>
-                `).join('');
-            } catch (error) {
-                console.error('Error searching Steam games:', error);
-                resultsDiv.innerHTML = '<div class="no-results">Error searching Steam games</div>';
+                    `;
+                });
+                html += '</div>';
             }
-        }
-
-        async function searchRawgGames(query) {
-            const resultsDiv = document.getElementById('rawg-results');
-            resultsDiv.innerHTML = '<div class="loading">Searching RAWG...</div>';
-            resultsDiv.style.display = 'block';
             
-            try {
-                const response = await fetch(`/api/rawg/search?q=${encodeURIComponent(query)}`);
-                const games = await response.json();
-                
-                if (games.length === 0) {
-                    resultsDiv.innerHTML = '<div class="no-results">No RAWG games found</div>';
-                    return;
-                }
-                
-                resultsDiv.innerHTML = games.map(game => `
-                    <div class="search-result-item" onclick="selectRawgGame(${JSON.stringify(game).replace(/"/g, '&quot;')})">
-                        <img src="${game.background_image || '/placeholder-game.png'}" alt="${game.name}" class="search-result-image" onerror="this.src='/placeholder-game.png'">
-                        <div class="search-result-info">
-                            <h4>${game.name}</h4>
-                            <p>${game.description || 'No description available'}</p>
-                            ${game.existsInDatabase ? '<div class="game-exists-warning">⚠️ This game already exists in the database</div>' : ''}
-                            ${game.hasSteamEquivalent ? '<div class="game-exists-warning">⚠️ A Steam version of this game already exists</div>' : ''}
-                        </div>
-                    </div>
-                `).join('');
-            } catch (error) {
-                console.error('Error searching RAWG games:', error);
-                resultsDiv.innerHTML = '<div class="no-results">Error searching RAWG games</div>';
+            resultsContainer.innerHTML = html;
+        }
+
+        function showSearchPlaceholder() {
+            const resultsContainer = document.getElementById('searchResults');
+            resultsContainer.innerHTML = `
+                <div class="search-placeholder">
+                    <div class="placeholder-icon">🎮</div>
+                    <h3>Start typing to search</h3>
+                    <p>We'll search Steam, RAWG, and our game database</p>
+                </div>
+            `;
+        }
+
+        function selectGame(gameData) {
+            selectedGameData = {
+                type: gameData.type,
+                data: gameData.data
+            };
+            
+            if (gameData.type === 'existing') {
+                selectedGameData.gameId = gameData.id;
             }
-        }
-
-        function selectSteamGame(game) {
-            selectedGameData = {
-                type: 'steam',
-                data: game
-            };
-            showSelectedGame(game.name, game.short_description || 'Steam game');
-            document.getElementById('steam-results').style.display = 'none';
-        }
-
-        function selectRawgGame(game) {
-            selectedGameData = {
-                type: 'rawg',
-                data: game
-            };
-            showSelectedGame(game.name, game.description || 'RAWG game');
-            document.getElementById('rawg-results').style.display = 'none';
-        }
-
-        function showSelectedGame(name, description) {
-            document.getElementById('selected-game-name').textContent = name;
-            document.getElementById('selected-game-description').textContent = description;
-            document.getElementById('selected-game').style.display = 'block';
+            
+            // Update UI
+            document.getElementById('selectedGameName').textContent = gameData.name;
+            document.getElementById('selectedGameDescription').textContent = gameData.description;
+            document.getElementById('selectedGameSource').textContent = gameData.source;
+            document.getElementById('selectedGamePlatforms').textContent = gameData.platforms.join(', ');
+            document.getElementById('selectedGameOverlay').textContent = gameData.name;
+            
+            if (gameData.image) {
+                document.getElementById('selectedGameImage').src = gameData.image;
+                document.getElementById('selectedGameImage').style.display = 'block';
+                document.getElementById('selectedGamePlaceholder').style.display = 'none';
+            } else {
+                document.getElementById('selectedGameImage').style.display = 'none';
+                document.getElementById('selectedGamePlaceholder').style.display = 'flex';
+            }
+            
+            // Show selected game, hide search
+            document.getElementById('searchResults').style.display = 'none';
+            document.getElementById('selectedGame').style.display = 'block';
+            document.getElementById('gameSearch').style.display = 'none';
             
             // Populate form fields
-            document.getElementById('game-name').value = name;
-            document.getElementById('game-description').value = description;
+            document.getElementById('game-name').value = gameData.name;
+            document.getElementById('game-description').value = gameData.description;
             
             if (selectedGameData.type === 'steam') {
                 document.getElementById('steam-app-id').value = selectedGameData.data.appid;
@@ -366,34 +363,133 @@
                 document.getElementById('rawg-id').value = selectedGameData.data.id;
                 document.getElementById('rawg-data').value = JSON.stringify(selectedGameData.data);
                 document.getElementById('game-source').value = 'rawg';
+            } else if (selectedGameData.type === 'existing') {
+                document.getElementById('game-source').value = 'existing';
             } else if (selectedGameData.type === 'manual') {
                 document.getElementById('game-source').value = 'manual';
             }
             
+            // Show form
             document.getElementById('add-game-form').style.display = 'block';
         }
 
-        function clearSelection() {
+        function changeGame() {
             selectedGameData = null;
-            document.getElementById('selected-game').style.display = 'none';
+            document.getElementById('searchResults').style.display = 'block';
+            document.getElementById('selectedGame').style.display = 'none';
+            document.getElementById('gameSearch').style.display = 'block';
+            document.getElementById('gameSearch').value = '';
             document.getElementById('add-game-form').style.display = 'none';
+            showSearchPlaceholder();
+        }
+
+        // Manual game functions
+        function showManualGameForm() {
+            document.getElementById('manualGameForm').style.display = 'block';
+            document.getElementById('addManualGameBtn').style.display = 'none';
+        }
+
+        function hideManualGameForm() {
+            document.getElementById('manualGameForm').style.display = 'none';
+            document.getElementById('addManualGameBtn').style.display = 'block';
             
-            // Clear form fields
-            document.getElementById('game-name').value = '';
-            document.getElementById('game-description').value = '';
-            document.getElementById('steam-app-id').value = '';
-            document.getElementById('steam-data').value = '';
-            document.getElementById('rawg-id').value = '';
-            document.getElementById('rawg-data').value = '';
-            document.getElementById('game-source').value = '';
+            // Clear form
+            document.getElementById('manualGameName').value = '';
+            document.getElementById('manualGameDescription').value = '';
+            document.querySelectorAll('input[name="manualGameCategories"]').forEach(cb => cb.checked = false);
+        }
+
+        function selectManualGame() {
+            const name = document.getElementById('manualGameName').value.trim();
+            const description = document.getElementById('manualGameDescription').value.trim();
+            const categories = Array.from(document.querySelectorAll('input[name="manualGameCategories"]:checked')).map(cb => cb.value);
+            
+            if (!name) {
+                showError('Please enter a game name');
+                return;
+            }
+            if (!description) {
+                showError('Please enter a game description');
+                return;
+            }
+            if (categories.length === 0) {
+                showError('Please select at least one category');
+                return;
+            }
+            
+            selectedGameData = {
+                type: 'manual',
+                data: {
+                    name,
+                    description,
+                    categories,
+                    tags: []
+                }
+            };
+            
+            // Update UI
+            document.getElementById('selectedGameName').textContent = name;
+            document.getElementById('selectedGameDescription').textContent = description;
+            document.getElementById('selectedGameSource').textContent = 'Manual Entry';
+            document.getElementById('selectedGamePlatforms').textContent = categories.join(', ');
+            document.getElementById('selectedGameOverlay').textContent = name;
+            document.getElementById('selectedGameImage').style.display = 'none';
+            document.getElementById('selectedGamePlaceholder').style.display = 'flex';
+            
+            // Show selected game, hide manual form
+            document.getElementById('manualGameForm').style.display = 'none';
+            document.getElementById('selectedGame').style.display = 'block';
+            document.getElementById('gameSearch').style.display = 'none';
+            document.getElementById('addManualGameBtn').style.display = 'none';
+            
+            // Populate form fields
+            document.getElementById('game-name').value = name;
+            document.getElementById('game-description').value = description;
+            document.getElementById('game-source').value = 'manual';
+            document.getElementById('manual-categories').value = JSON.stringify(categories);
+            
+            // Show form
+            document.getElementById('add-game-form').style.display = 'block';
+        }
+
+        // Error handling
+        function showError(message) {
+            // Create error message element
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.innerHTML = `
+                <div class="error-content">
+                    <span class="error-icon">⚠️</span>
+                    <span class="error-text">${message}</span>
+                    <button class="error-close" onclick="this.parentElement.parentElement.remove()">×</button>
+                </div>
+            `;
+            
+            // Insert at top of admin content
+            const adminContent = document.querySelector('.admin-content');
+            adminContent.insertBefore(errorDiv, adminContent.firstChild);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (errorDiv.parentNode) {
+                    errorDiv.remove();
+                }
+            }, 5000);
+            
+            // Scroll to error
+            errorDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
 
         // Hide search results when clicking outside
         document.addEventListener('click', function(e) {
-            if (!e.target.closest('.search-results') && !e.target.closest('.search-input')) {
-                document.querySelectorAll('.search-results').forEach(results => {
-                    results.style.display = 'none';
-                });
+            if (!e.target.closest('.search-results') && !e.target.closest('#gameSearch')) {
+                const searchResults = document.getElementById('searchResults');
+                if (searchResults && !document.getElementById('selectedGame').style.display === 'block') {
+                    // Only hide if no game is selected
+                    if (!selectedGameData) {
+                        showSearchPlaceholder();
+                    }
+                }
             }
         });
     </script>
