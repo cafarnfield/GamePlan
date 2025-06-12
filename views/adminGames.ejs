@@ -60,6 +60,18 @@
     border-color: #0066ff;
     color: #00ffff;
   }
+
+  .stat-badge.rawg {
+    background: rgba(255, 165, 0, 0.2);
+    border-color: #ffa500;
+    color: #ffa500;
+  }
+
+  .stat-badge.manual {
+    background: rgba(128, 0, 128, 0.2);
+    border-color: #800080;
+    color: #800080;
+  }
   
   .games-actions {
     display: flex;
@@ -411,7 +423,7 @@
 
 <!-- Games Header -->
 <div class="games-header">
-  <div class="games-stats">
+<div class="games-stats">
     <div class="stat-badge">
       Total: <%= games.length %>
     </div>
@@ -423,6 +435,12 @@
     </div>
     <div class="stat-badge steam">
       Steam: <%= games.filter(g => g.source === 'steam').length %>
+    </div>
+    <div class="stat-badge rawg">
+      RAWG: <%= games.filter(g => g.source === 'rawg').length %>
+    </div>
+    <div class="stat-badge manual">
+      Manual: <%= games.filter(g => g.source === 'manual').length %>
     </div>
   </div>
   
