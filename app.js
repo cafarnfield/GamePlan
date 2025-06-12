@@ -306,9 +306,26 @@ app.get('/admin/dashboard', ensureAdmin, async (req, res) => {
       { $limit: 5 }
     ]);
     
-    // System health
-    const activeEvents = await Event.countDocuments({ date: { $gte: new Date() } });
+    // Enhanced event statistics
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+    const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+    
+    const activeEvents = await Event.countDocuments({ date: { $gte: now } });
+    const eventsToday = await Event.countDocuments({ 
+      date: { $gte: today, $lt: tomorrow } 
+    });
+    const eventsThisWeek = await Event.countDocuments({ 
+      date: { $gte: today, $lt: nextWeek } 
+    });
+    const totalEvents = await Event.countDocuments();
+    
+    // Game statistics
     const totalGames = await Game.countDocuments();
+    const steamGames = await Game.countDocuments({ source: 'steam' });
+    const manualGames = await Game.countDocuments({ source: 'manual' });
+    const pendingGames = await Game.countDocuments({ status: 'pending' });
     
     // Recent admin activity
     const recentActivity = await AuditLog.find()
@@ -328,18 +345,25 @@ app.get('/admin/dashboard', ensureAdmin, async (req, res) => {
       probationaryUsers,
       suspiciousIPs,
       activeEvents,
-      totalGames
+      eventsToday,
+      eventsThisWeek,
+      totalEvents,
+      totalGames,
+      steamGames,
+      manualGames,
+      pendingGames
     };
     
     const searchFilters = { status, blocked, admin, dateFrom, dateTo };
     const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
     
-    res.render('adminDashboard', { 
+    res.render('adminDashboardNew', { 
       stats, 
       recentActivity, 
       searchQuery, 
       searchFilters, 
-      isDevelopmentAutoLogin 
+      isDevelopmentAutoLogin,
+      user: req.user
     });
   } catch (err) {
     console.error('Error loading admin dashboard:', err);
@@ -347,8 +371,13 @@ app.get('/admin/dashboard', ensureAdmin, async (req, res) => {
   }
 });
 
-// Route to show admin panel
+// Route to show admin panel (redirect to dashboard)
 app.get('/admin', ensureAdmin, async (req, res) => {
+  res.redirect('/admin/dashboard');
+});
+
+// Legacy admin panel route (for game management)
+app.get('/admin/legacy', ensureAdmin, async (req, res) => {
   const games = await Game.find();
   const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
   res.render('admin', { games, isDevelopmentAutoLogin });
@@ -396,11 +425,12 @@ app.get('/admin/games', ensureAdmin, async (req, res) => {
     
     const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
     
-    res.render('adminGames', { 
+    res.render('adminGamesNew', { 
       games: gamesWithDuplicates,
       filter: status || null,
       sourceFilter: source || null,
-      isDevelopmentAutoLogin 
+      isDevelopmentAutoLogin,
+      user: req.user
     });
   } catch (err) {
     console.error('Error fetching games:', err);
@@ -523,7 +553,15 @@ app.post('/admin/game/merge/:duplicateId/:canonicalId', ensureAdmin, async (req,
 // Route to show admin events management
 app.get('/admin/events', ensureAdmin, async (req, res) => {
   try {
-    const { status, game: selectedGame } = req.query;
+    const { 
+      status, 
+      game: selectedGame, 
+      dateFrom, 
+      dateTo, 
+      search, 
+      creator 
+    } = req.query;
+    
     let query = {};
     
     // Apply filters
@@ -531,10 +569,28 @@ app.get('/admin/events', ensureAdmin, async (req, res) => {
       query.date = { $gte: new Date() };
     } else if (status === 'past') {
       query.date = { $lt: new Date() };
+    } else if (status === 'live') {
+      const now = new Date();
+      const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+      query.date = { $gte: twoHoursAgo, $lte: now };
     }
     
     if (selectedGame) {
       query.game = selectedGame;
+    }
+    
+    if (dateFrom) {
+      query.date = { ...query.date, $gte: new Date(dateFrom) };
+    }
+    
+    if (dateTo) {
+      const endDate = new Date(dateTo);
+      endDate.setHours(23, 59, 59, 999);
+      query.date = { ...query.date, $lte: endDate };
+    }
+    
+    if (search && search.trim()) {
+      query.name = { $regex: search.trim(), $options: 'i' };
     }
     
     const events = await Event.find(query)
@@ -543,15 +599,36 @@ app.get('/admin/events', ensureAdmin, async (req, res) => {
       .populate('players')
       .sort({ date: -1 });
     
+    // Filter by creator if specified
+    let filteredEvents = events;
+    if (creator && creator.trim()) {
+      filteredEvents = events.filter(event => {
+        if (!event.createdBy) return false;
+        const creatorName = (event.createdBy.gameNickname || event.createdBy.name || '').toLowerCase();
+        return creatorName.includes(creator.trim().toLowerCase());
+      });
+    }
+    
     const games = await Game.find().sort({ name: 1 });
     const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
     
-    res.render('adminEvents', { 
-      events, 
+    // Get pending counts for navigation
+    const pendingUsers = await User.countDocuments({ status: 'pending' });
+    const pendingGames = await Game.countDocuments({ status: 'pending' });
+    
+    res.render('adminEventsNew', { 
+      events: filteredEvents, 
       games,
       filter: status || null,
       selectedGame: selectedGame || null,
-      isDevelopmentAutoLogin 
+      dateFrom: dateFrom || null,
+      dateTo: dateTo || null,
+      search: search || null,
+      creator: creator || null,
+      pendingUsers,
+      pendingGames,
+      isDevelopmentAutoLogin,
+      user: req.user
     });
   } catch (err) {
     console.error('Error fetching events:', err);
@@ -627,7 +704,7 @@ app.post('/admin/events/bulk-delete', ensureAdmin, async (req, res) => {
 // Route to show all registered users with filtering
 app.get('/admin/users', ensureAdmin, async (req, res) => {
   try {
-    const { filter } = req.query;
+    const { filter, search, dateFrom, dateTo } = req.query;
     let query = {};
     
     // Apply filters
@@ -643,12 +720,46 @@ app.get('/admin/users', ensureAdmin, async (req, res) => {
       query.probationaryUntil = { $exists: true, $gte: new Date() };
     }
     
+    // Search filter
+    if (search && search.trim()) {
+      const searchRegex = { $regex: search.trim(), $options: 'i' };
+      query.$or = [
+        { name: searchRegex },
+        { email: searchRegex },
+        { gameNickname: searchRegex }
+      ];
+    }
+    
+    // Date range filter
+    if (dateFrom || dateTo) {
+      query.createdAt = {};
+      if (dateFrom) {
+        query.createdAt.$gte = new Date(dateFrom);
+      }
+      if (dateTo) {
+        const endDate = new Date(dateTo);
+        endDate.setHours(23, 59, 59, 999);
+        query.createdAt.$lte = endDate;
+      }
+    }
+    
     const users = await User.find(query).sort({ createdAt: -1 });
     const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
-    res.render('adminUsers', { 
+    
+    // Get pending counts for navigation
+    const pendingEvents = await Event.countDocuments({ gameStatus: 'pending' });
+    const pendingGames = await Game.countDocuments({ status: 'pending' });
+    
+    res.render('adminUsersNew', { 
       users, 
-      filter: filter || null, // Ensure filter is always defined
-      isDevelopmentAutoLogin 
+      filter: filter || null,
+      search: search || null,
+      dateFrom: dateFrom || null,
+      dateTo: dateTo || null,
+      pendingEvents,
+      pendingGames,
+      isDevelopmentAutoLogin,
+      user: req.user
     });
   } catch (err) {
     console.error('Error fetching users:', err);

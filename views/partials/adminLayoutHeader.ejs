@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title || 'Admin' %> - GamePlan</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/admin-styles.css">
+  <style>
+    /* Admin-specific styles */
+    .admin-layout {
+      display: flex;
+      min-height: 100vh;
+      background: #000;
+      color: #00ff00;
+      font-family: 'Press Start 2P', monospace;
+    }
+    
+    .admin-sidebar {
+      width: 250px;
+      background: rgba(0, 20, 0, 0.9);
+      border-right: 2px solid #00ff00;
+      padding: 0;
+      position: fixed;
+      height: 100vh;
+      overflow-y: auto;
+      transition: transform 0.3s ease;
+      z-index: 1000;
+    }
+    
+    .admin-sidebar.mobile-hidden {
+      transform: translateX(-100%);
+    }
+    
+    .admin-header {
+      padding: 20px;
+      border-bottom: 1px solid #00ff00;
+      background: rgba(0, 50, 0, 0.8);
+    }
+    
+    .admin-logo {
+      font-size: 14px;
+      color: #00ff00;
+      text-shadow: 0 0 10px #00ff00;
+      margin: 0;
+    }
+    
+    .admin-nav {
+      padding: 0;
+      list-style: none;
+      margin: 0;
+    }
+    
+    .admin-nav-item {
+      border-bottom: 1px solid rgba(0, 255, 0, 0.2);
+    }
+    
+    .admin-nav-link {
+      display: flex;
+      align-items: center;
+      padding: 15px 20px;
+      color: #00ff00;
+      text-decoration: none;
+      font-size: 10px;
+      transition: all 0.3s ease;
+      border-left: 3px solid transparent;
+    }
+    
+    .admin-nav-link:hover {
+      background: rgba(0, 255, 0, 0.1);
+      border-left-color: #00ff00;
+    }
+    
+    .admin-nav-link.active {
+      background: rgba(0, 255, 0, 0.2);
+      border-left-color: #00ff00;
+      color: #fff;
+    }
+    
+    .admin-nav-icon {
+      margin-right: 10px;
+      font-size: 12px;
+    }
+    
+    .admin-nav-badge {
+      margin-left: auto;
+      background: #ff0000;
+      color: #fff;
+      padding: 2px 6px;
+      border-radius: 10px;
+      font-size: 8px;
+      min-width: 16px;
+      text-align: center;
+    }
+    
+    .admin-main {
+      flex: 1;
+      margin-left: 250px;
+      background: rgba(0, 10, 0, 0.8);
+      min-height: 100vh;
+    }
+    
+    .admin-topbar {
+      background: rgba(0, 30, 0, 0.9);
+      border-bottom: 2px solid #00ff00;
+      padding: 15px 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    
+    .admin-breadcrumb {
+      display: flex;
+      align-items: center;
+      font-size: 10px;
+      color: #888;
+    }
+    
+    .admin-breadcrumb a {
+      color: #00ff00;
+      text-decoration: none;
+    }
+    
+    .admin-breadcrumb-separator {
+      margin: 0 10px;
+      color: #555;
+    }
+    
+    .admin-topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+    
+    .admin-notification-bell {
+      position: relative;
+      background: none;
+      border: 1px solid #00ff00;
+      color: #00ff00;
+      padding: 8px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    
+    .admin-notification-bell:hover {
+      background: rgba(0, 255, 0, 0.1);
+    }
+    
+    .admin-notification-badge {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      background: #ff0000;
+      color: #fff;
+      border-radius: 50%;
+      width: 16px;
+      height: 16px;
+      font-size: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .admin-user-menu {
+      position: relative;
+    }
+    
+    .admin-user-button {
+      background: none;
+      border: 1px solid #00ff00;
+      color: #00ff00;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 8px;
+      font-family: 'Press Start 2P', monospace;
+    }
+    
+    .admin-user-button:hover {
+      background: rgba(0, 255, 0, 0.1);
+    }
+    
+    .admin-content {
+      padding: 30px;
+    }
+    
+    .admin-page-header {
+      margin-bottom: 30px;
+    }
+    
+    .admin-page-title {
+      font-size: 18px;
+      color: #00ff00;
+      text-shadow: 0 0 10px #00ff00;
+      margin: 0 0 10px 0;
+    }
+    
+    .admin-page-subtitle {
+      font-size: 10px;
+      color: #888;
+      margin: 0;
+    }
+    
+    .mobile-menu-toggle {
+      display: none;
+      background: none;
+      border: 1px solid #00ff00;
+      color: #00ff00;
+      padding: 8px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    
+    .mobile-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 999;
+    }
+    
+    /* Mobile Responsive */
+    @media (max-width: 768px) {
+      .admin-sidebar {
+        transform: translateX(-100%);
+      }
+      
+      .admin-sidebar.mobile-visible {
+        transform: translateX(0);
+      }
+      
+      .admin-main {
+        margin-left: 0;
+      }
+      
+      .mobile-menu-toggle {
+        display: block;
+      }
+      
+      .mobile-overlay.active {
+        display: block;
+      }
+      
+      .admin-topbar {
+        padding: 15px 20px;
+      }
+      
+      .admin-content {
+        padding: 20px;
+      }
+      
+      .admin-breadcrumb {
+        display: none;
+      }
+    }
+    
+    /* Development banner */
+    .dev-banner {
+      background: #ff6600;
+      color: #000;
+      text-align: center;
+      padding: 5px;
+      font-size: 8px;
+      position: sticky;
+      top: 0;
+      z-index: 1001;
+    }
+  </style>
+</head>
+<body>
+  <div class="scanlines"></div>
+  
+  <% if (isDevelopmentAutoLogin) { %>
+    <div class="dev-banner">
+      🔧 DEVELOPMENT MODE - Auto-logged in as Admin
+    </div>
+  <% } %>
+  
+  <div class="admin-layout">
+    <!-- Sidebar -->
+    <nav class="admin-sidebar" id="adminSidebar">
+      <div class="admin-header">
+        <h1 class="admin-logo">GamePlan Admin</h1>
+      </div>
+      
+      <ul class="admin-nav">
+        <li class="admin-nav-item">
+          <a href="/admin" class="admin-nav-link <%= currentPage === 'dashboard' ? 'active' : '' %>">
+            <span class="admin-nav-icon">📊</span>
+            Dashboard
+          </a>
+        </li>
+        
+        <li class="admin-nav-item">
+          <a href="/admin/events" class="admin-nav-link <%= currentPage === 'events' ? 'active' : '' %>">
+            <span class="admin-nav-icon">🎮</span>
+            Events
+            <% if (typeof pendingEvents !== 'undefined' && pendingEvents > 0) { %>
+              <span class="admin-nav-badge"><%= pendingEvents %></span>
+            <% } %>
+          </a>
+        </li>
+        
+        <li class="admin-nav-item">
+          <a href="/admin/users" class="admin-nav-link <%= currentPage === 'users' ? 'active' : '' %>">
+            <span class="admin-nav-icon">👥</span>
+            Users
+            <% if (typeof pendingUsers !== 'undefined' && pendingUsers > 0) { %>
+              <span class="admin-nav-badge"><%= pendingUsers %></span>
+            <% } %>
+          </a>
+        </li>
+        
+        <li class="admin-nav-item">
+          <a href="/admin/games" class="admin-nav-link <%= currentPage === 'games' ? 'active' : '' %>">
+            <span class="admin-nav-icon">🎯</span>
+            Games
+            <% if (typeof pendingGames !== 'undefined' && pendingGames > 0) { %>
+              <span class="admin-nav-badge"><%= pendingGames %></span>
+            <% } %>
+          </a>
+        </li>
+        
+        <li class="admin-nav-item">
+          <a href="/admin/system" class="admin-nav-link <%= currentPage === 'system' ? 'active' : '' %>">
+            <span class="admin-nav-icon">⚙️</span>
+            System
+          </a>
+        </li>
+        
+        <li class="admin-nav-item" style="border-top: 1px solid rgba(0, 255, 0, 0.3); margin-top: 20px;">
+          <a href="/" class="admin-nav-link">
+            <span class="admin-nav-icon">🏠</span>
+            Back to Site
+          </a>
+        </li>
+      </ul>
+    </nav>
+    
+    <!-- Mobile Overlay -->
+    <div class="mobile-overlay" id="mobileOverlay"></div>
+    
+    <!-- Main Content -->
+    <main class="admin-main">
+      <!-- Top Bar -->
+      <header class="admin-topbar">
+        <div style="display: flex; align-items: center; gap: 15px;">
+          <button class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
+          
+          <nav class="admin-breadcrumb">
+            <a href="/admin">Admin</a>
+            <% if (typeof breadcrumbs !== 'undefined' && breadcrumbs.length > 0) { %>
+              <% breadcrumbs.forEach(crumb => { %>
+                <span class="admin-breadcrumb-separator">›</span>
+                <% if (crumb.url) { %>
+                  <a href="<%= crumb.url %>"><%= crumb.name %></a>
+                <% } else { %>
+                  <span><%= crumb.name %></span>
+                <% } %>
+              <% }); %>
+            <% } %>
+          </nav>
+        </div>
+        
+        <div class="admin-topbar-actions">
+          <button class="admin-notification-bell" title="Notifications">
+            🔔
+            <% if (typeof totalPending !== 'undefined' && totalPending > 0) { %>
+              <span class="admin-notification-badge"><%= totalPending %></span>
+            <% } %>
+          </button>
+          
+          <div class="admin-user-menu">
+            <button class="admin-user-button" onclick="toggleUserMenu()">
+              <%= user ? user.name : 'Admin' %> ▼
+            </button>
+          </div>
+        </div>
+      </header>
+      
+      <!-- Page Content -->
+      <div class="admin-content">
+        <% if (typeof pageTitle !== 'undefined' || typeof pageSubtitle !== 'undefined') { %>
+          <div class="admin-page-header">
+            <% if (typeof pageTitle !== 'undefined') { %>
+              <h1 class="admin-page-title"><%= pageTitle %></h1>
+            <% } %>
+            <% if (typeof pageSubtitle !== 'undefined') { %>
+              <p class="admin-page-subtitle"><%= pageSubtitle %></p>
+            <% } %>
+          </div>
+        <% } %>

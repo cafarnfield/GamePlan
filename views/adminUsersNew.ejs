@@ -1,0 +1,874 @@
+<% 
+  const layoutData = {
+    title: 'User Management',
+    currentPage: 'users',
+    pageTitle: 'User Management',
+    pageSubtitle: 'Manage user accounts and permissions',
+    breadcrumbs: [
+      { name: 'Users', url: null }
+    ],
+    pendingUsers: users.filter(u => u.status === 'pending').length,
+    pendingEvents: typeof pendingEvents !== 'undefined' ? pendingEvents : 0,
+    pendingGames: typeof pendingGames !== 'undefined' ? pendingGames : 0,
+    totalPending: users.filter(u => u.status === 'pending').length + (typeof pendingEvents !== 'undefined' ? pendingEvents : 0) + (typeof pendingGames !== 'undefined' ? pendingGames : 0),
+    isDevelopmentAutoLogin: isDevelopmentAutoLogin,
+    user: typeof user !== 'undefined' ? user : null
+  };
+%>
+
+<%- include('partials/adminLayoutHeader', layoutData) %>
+
+<style>
+  .users-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+    gap: 15px;
+  }
+  
+  .users-stats {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  
+  .stat-badge {
+    background: rgba(0, 50, 0, 0.8);
+    border: 1px solid #00ff00;
+    padding: 8px 15px;
+    font-size: 10px;
+    color: #00ff00;
+  }
+  
+  .stat-badge.pending {
+    background: rgba(255, 165, 0, 0.2);
+    border-color: #ffa500;
+    color: #ffa500;
+  }
+  
+  .stat-badge.approved {
+    background: rgba(0, 255, 0, 0.2);
+    border-color: #00ff00;
+    color: #00ff00;
+  }
+  
+  .stat-badge.rejected {
+    background: rgba(255, 0, 0, 0.2);
+    border-color: #ff0000;
+    color: #ff0000;
+  }
+  
+  .stat-badge.blocked {
+    background: rgba(100, 0, 0, 0.2);
+    border-color: #660000;
+    color: #ff6666;
+  }
+  
+  .users-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  
+  .action-btn {
+    background: rgba(0, 255, 0, 0.8);
+    color: #000;
+    border: 1px solid #00ff00;
+    padding: 10px 15px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    transition: all 0.3s ease;
+  }
+  
+  .action-btn:hover {
+    background: rgba(0, 255, 0, 0.9);
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+  }
+  
+  .action-btn.secondary {
+    background: rgba(0, 100, 255, 0.8);
+    color: #fff;
+    border-color: #0066ff;
+  }
+  
+  .action-btn.secondary:hover {
+    background: rgba(0, 150, 255, 0.9);
+  }
+  
+  .action-btn.danger {
+    background: rgba(255, 0, 0, 0.8);
+    color: #fff;
+    border-color: #ff0000;
+  }
+  
+  .action-btn.danger:hover {
+    background: rgba(255, 0, 0, 0.9);
+  }
+  
+  .filters-section {
+    background: rgba(0, 20, 0, 0.8);
+    border: 1px solid #00ff00;
+    padding: 20px;
+    margin-bottom: 30px;
+  }
+  
+  .filters-title {
+    font-size: 12px;
+    color: #00ff00;
+    margin: 0 0 15px 0;
+  }
+  
+  .filters-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 15px;
+  }
+  
+  .filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  
+  .filter-label {
+    font-size: 8px;
+    color: #888;
+  }
+  
+  .filter-input, .filter-select {
+    background: #000;
+    color: #00ff00;
+    border: 1px solid #00ff00;
+    padding: 8px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+  }
+  
+  .filter-input:focus, .filter-select:focus {
+    outline: none;
+    border-color: #00ffff;
+    box-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
+  }
+  
+  .filter-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+  
+  .bulk-actions {
+    background: rgba(0, 0, 100, 0.1);
+    border: 2px solid #0066ff;
+    padding: 20px;
+    margin-bottom: 30px;
+    display: none;
+  }
+  
+  .bulk-actions.show {
+    display: block;
+  }
+  
+  .bulk-actions-title {
+    font-size: 12px;
+    color: #0066ff;
+    margin: 0 0 15px 0;
+  }
+  
+  .bulk-actions-content {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  
+  .selected-count {
+    font-size: 10px;
+    color: #00ffff;
+  }
+  
+  .bulk-notes {
+    flex: 1;
+    min-width: 200px;
+    background: #000;
+    color: #00ff00;
+    border: 1px solid #00ff00;
+    padding: 8px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+  }
+  
+  .users-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: rgba(0, 10, 0, 0.8);
+    border: 1px solid #00ff00;
+    margin-bottom: 30px;
+  }
+  
+  .users-table th,
+  .users-table td {
+    border: 1px solid #00ff00;
+    padding: 10px;
+    text-align: left;
+    font-size: 8px;
+  }
+  
+  .users-table th {
+    background: rgba(0, 50, 0, 0.8);
+    color: #00ff00;
+    font-size: 10px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  
+  .users-table tr:nth-child(even) {
+    background: rgba(0, 20, 0, 0.5);
+  }
+  
+  .users-table tr:hover {
+    background: rgba(0, 255, 0, 0.1);
+  }
+  
+  .table-checkbox {
+    width: 16px;
+    height: 16px;
+  }
+  
+  .user-status {
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 6px;
+    font-weight: bold;
+  }
+  
+  .user-status.pending {
+    background: rgba(255, 165, 0, 0.2);
+    color: #ffa500;
+    border: 1px solid #ffa500;
+  }
+  
+  .user-status.approved {
+    background: rgba(0, 255, 0, 0.2);
+    color: #00ff00;
+    border: 1px solid #00ff00;
+  }
+  
+  .user-status.rejected {
+    background: rgba(255, 0, 0, 0.2);
+    color: #ff0000;
+    border: 1px solid #ff0000;
+  }
+  
+  .user-actions {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+  }
+  
+  .user-btn {
+    background: rgba(0, 100, 255, 0.8);
+    color: #fff;
+    border: 1px solid #0066ff;
+    padding: 4px 8px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 6px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    transition: all 0.3s ease;
+  }
+  
+  .user-btn:hover {
+    background: rgba(0, 150, 255, 0.9);
+  }
+  
+  .user-btn.approve {
+    background: rgba(0, 255, 0, 0.8);
+    border-color: #00ff00;
+    color: #000;
+  }
+  
+  .user-btn.approve:hover {
+    background: rgba(0, 255, 0, 0.9);
+  }
+  
+  .user-btn.reject {
+    background: rgba(255, 0, 0, 0.8);
+    border-color: #ff0000;
+  }
+  
+  .user-btn.reject:hover {
+    background: rgba(255, 0, 0, 0.9);
+  }
+  
+  .user-btn.admin {
+    background: rgba(255, 165, 0, 0.8);
+    border-color: #ffa500;
+  }
+  
+  .user-btn.admin:hover {
+    background: rgba(255, 165, 0, 0.9);
+  }
+  
+  .user-btn.block {
+    background: rgba(100, 0, 0, 0.8);
+    border-color: #660000;
+  }
+  
+  .user-btn.block:hover {
+    background: rgba(150, 0, 0, 0.9);
+  }
+  
+  .user-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    margin: 2px;
+    font-size: 6px;
+    border-radius: 3px;
+  }
+  
+  .user-badge.admin {
+    background: rgba(255, 165, 0, 0.2);
+    color: #ffa500;
+    border: 1px solid #ffa500;
+  }
+  
+  .user-badge.blocked {
+    background: rgba(255, 0, 0, 0.2);
+    color: #ff0000;
+    border: 1px solid #ff0000;
+  }
+  
+  .user-badge.probation {
+    background: rgba(255, 255, 0, 0.2);
+    color: #ffff00;
+    border: 1px solid #ffff00;
+  }
+  
+  .no-users {
+    text-align: center;
+    padding: 60px 20px;
+    color: #888;
+    font-size: 12px;
+  }
+  
+  .no-users-icon {
+    font-size: 48px;
+    margin-bottom: 20px;
+    display: block;
+  }
+  
+  .user-details {
+    font-size: 7px;
+    color: #888;
+    margin-top: 5px;
+  }
+  
+  .ip-address {
+    font-family: monospace;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 2px 4px;
+    border-radius: 2px;
+  }
+  
+  /* Mobile optimizations */
+  @media (max-width: 768px) {
+    .users-header {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    
+    .users-stats {
+      justify-content: center;
+    }
+    
+    .users-actions {
+      justify-content: center;
+    }
+    
+    .filters-grid {
+      grid-template-columns: 1fr;
+    }
+    
+    .bulk-actions-content {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    
+    .users-table {
+      font-size: 6px;
+    }
+    
+    .users-table th,
+    .users-table td {
+      padding: 5px;
+    }
+    
+    .user-actions {
+      flex-direction: column;
+    }
+  }
+</style>
+
+<!-- Users Header -->
+<div class="users-header">
+  <div class="users-stats">
+    <div class="stat-badge">
+      Total: <%= users.length %>
+    </div>
+    <div class="stat-badge pending">
+      Pending: <%= users.filter(u => u.status === 'pending').length %>
+    </div>
+    <div class="stat-badge approved">
+      Approved: <%= users.filter(u => u.status === 'approved').length %>
+    </div>
+    <div class="stat-badge rejected">
+      Rejected: <%= users.filter(u => u.status === 'rejected').length %>
+    </div>
+    <div class="stat-badge blocked">
+      Blocked: <%= users.filter(u => u.isBlocked).length %>
+    </div>
+  </div>
+  
+  <div class="users-actions">
+    <button onclick="toggleBulkActions()" class="action-btn secondary">📋 Bulk Actions</button>
+    <% if (users.filter(u => u.status === 'pending').length > 0) { %>
+      <a href="/admin/users?filter=pending" class="action-btn">⏳ Review Pending</a>
+    <% } %>
+  </div>
+</div>
+
+<!-- Filters Section -->
+<div class="filters-section">
+  <h3 class="filters-title">🔍 Filter Users</h3>
+  
+  <form method="GET" action="/admin/users" id="filterForm">
+    <div class="filters-grid">
+      <div class="filter-group">
+        <label class="filter-label">Status</label>
+        <select name="filter" class="filter-select">
+          <option value="">All Users</option>
+          <option value="pending" <%= filter === 'pending' ? 'selected' : '' %>>Pending Approval</option>
+          <option value="approved" <%= filter === 'approved' ? 'selected' : '' %>>Approved</option>
+          <option value="rejected" <%= filter === 'rejected' ? 'selected' : '' %>>Rejected</option>
+          <option value="blocked" <%= filter === 'blocked' ? 'selected' : '' %>>Blocked</option>
+          <option value="probation" <%= filter === 'probation' ? 'selected' : '' %>>On Probation</option>
+        </select>
+      </div>
+      
+      <div class="filter-group">
+        <label class="filter-label">Search Name/Email</label>
+        <input type="text" name="search" class="filter-input" placeholder="Search users..." value="<%= typeof search !== 'undefined' ? search : '' %>">
+      </div>
+      
+      <div class="filter-group">
+        <label class="filter-label">Registration Date From</label>
+        <input type="date" name="dateFrom" class="filter-input" value="<%= typeof dateFrom !== 'undefined' ? dateFrom : '' %>">
+      </div>
+      
+      <div class="filter-group">
+        <label class="filter-label">Registration Date To</label>
+        <input type="date" name="dateTo" class="filter-input" value="<%= typeof dateTo !== 'undefined' ? dateTo : '' %>">
+      </div>
+    </div>
+    
+    <div class="filter-actions">
+      <button type="submit" class="action-btn">Apply Filters</button>
+      <a href="/admin/users" class="action-btn secondary">Clear All</a>
+    </div>
+  </form>
+</div>
+
+<!-- Bulk Actions -->
+<div class="bulk-actions" id="bulkActions">
+  <h3 class="bulk-actions-title">📋 Bulk Actions</h3>
+  <div class="bulk-actions-content">
+    <span class="selected-count" id="selectedCount">0 users selected</span>
+    <input type="text" class="bulk-notes" id="bulkNotes" placeholder="Add notes for bulk action...">
+    <button onclick="bulkApprove()" class="action-btn">✅ Approve Selected</button>
+    <button onclick="bulkReject()" class="action-btn danger">❌ Reject Selected</button>
+    <button onclick="bulkDelete()" class="action-btn danger">🗑️ Delete Selected</button>
+    <button onclick="clearSelection()" class="action-btn secondary">Clear Selection</button>
+  </div>
+</div>
+
+<!-- Users Table -->
+<% if (users.length === 0) { %>
+  <div class="no-users">
+    <span class="no-users-icon">👥</span>
+    <h3>No users found</h3>
+    <p>No users match your current filters.</p>
+  </div>
+<% } else { %>
+  <table class="users-table">
+    <thead>
+      <tr>
+        <th><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
+        <th>User Details</th>
+        <th>Status</th>
+        <th>Registration</th>
+        <th>Badges</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% users.forEach(user => { 
+        const isInProbation = user.probationaryUntil && new Date() < user.probationaryUntil;
+      %>
+        <tr>
+          <td><input type="checkbox" class="table-checkbox user-checkbox" value="<%= user._id %>" onchange="updateBulkActions()"></td>
+          
+          <td>
+            <div>
+              <strong><%= user.name %></strong>
+              <% if (user.gameNickname) { %>
+                (<%= user.gameNickname %>)
+              <% } %>
+            </div>
+            <div style="color: #888; font-size: 7px;"><%= user.email %></div>
+            <% if (user.registrationIP) { %>
+              <div class="user-details">
+                IP: <span class="ip-address"><%= user.registrationIP %></span>
+              </div>
+            <% } %>
+          </td>
+          
+          <td>
+            <span class="user-status <%= user.status %>"><%= user.status.toUpperCase() %></span>
+            <% if (user.status === 'approved' && user.approvedAt) { %>
+              <div class="user-details">
+                Approved: <%= new Date(user.approvedAt).toLocaleDateString() %>
+              </div>
+            <% } %>
+            <% if (user.status === 'rejected' && user.rejectedAt) { %>
+              <div class="user-details">
+                Rejected: <%= new Date(user.rejectedAt).toLocaleDateString() %>
+              </div>
+            <% } %>
+          </td>
+          
+          <td>
+            <div><%= new Date(user.createdAt).toLocaleDateString() %></div>
+            <div class="user-details"><%= new Date(user.createdAt).toLocaleTimeString() %></div>
+          </td>
+          
+          <td>
+            <% if (user.isAdmin) { %>
+              <span class="user-badge admin">ADMIN</span>
+            <% } %>
+            <% if (user.isBlocked) { %>
+              <span class="user-badge blocked">BLOCKED</span>
+            <% } %>
+            <% if (isInProbation) { %>
+              <span class="user-badge probation">PROBATION</span>
+            <% } %>
+          </td>
+          
+          <td>
+            <div class="user-actions">
+              <% if (user.status === 'pending') { %>
+                <button onclick="approveUser('<%= user._id %>', '<%= user.name %>')" class="user-btn approve">✅ Approve</button>
+                <button onclick="rejectUser('<%= user._id %>', '<%= user.name %>')" class="user-btn reject">❌ Reject</button>
+              <% } %>
+              
+              <% if (!user.isBlocked) { %>
+                <button onclick="blockUser('<%= user._id %>', '<%= user.name %>')" class="user-btn block">🚫 Block</button>
+              <% } else { %>
+                <button onclick="unblockUser('<%= user._id %>', '<%= user.name %>')" class="user-btn">🔓 Unblock</button>
+              <% } %>
+              
+              <% if (!user.isAdmin) { %>
+                <button onclick="toggleAdmin('<%= user._id %>', '<%= user.name %>', true)" class="user-btn admin">👑 Make Admin</button>
+              <% } else { %>
+                <button onclick="toggleAdmin('<%= user._id %>', '<%= user.name %>', false)" class="user-btn">👤 Remove Admin</button>
+              <% } %>
+              
+              <% if (isInProbation) { %>
+                <button onclick="endProbation('<%= user._id %>', '<%= user.name %>')" class="user-btn">⏰ End Probation</button>
+              <% } %>
+              
+              <button onclick="deleteUser('<%= user._id %>', '<%= user.name %>')" class="user-btn reject">🗑️ Delete</button>
+            </div>
+          </td>
+        </tr>
+      <% }); %>
+    </tbody>
+  </table>
+<% } %>
+
+<script>
+  function toggleBulkActions() {
+    const bulkActions = document.getElementById('bulkActions');
+    bulkActions.classList.toggle('show');
+  }
+  
+  function updateBulkActions() {
+    const checkboxes = document.querySelectorAll('.user-checkbox:checked');
+    const bulkActions = document.getElementById('bulkActions');
+    const selectedCount = document.getElementById('selectedCount');
+    
+    selectedCount.textContent = `${checkboxes.length} users selected`;
+    
+    if (checkboxes.length > 0) {
+      bulkActions.classList.add('show');
+    }
+  }
+  
+  function toggleSelectAll() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.user-checkbox');
+    
+    checkboxes.forEach(checkbox => {
+      checkbox.checked = selectAll.checked;
+    });
+    
+    updateBulkActions();
+  }
+  
+  function clearSelection() {
+    const checkboxes = document.querySelectorAll('.user-checkbox');
+    checkboxes.forEach(checkbox => checkbox.checked = false);
+    
+    const selectAll = document.getElementById('selectAll');
+    if (selectAll) selectAll.checked = false;
+    
+    updateBulkActions();
+  }
+  
+  async function approveUser(userId, userName) {
+    const notes = prompt(`Add notes for approving ${userName} (optional):`);
+    if (notes === null) return; // User cancelled
+    
+    try {
+      const response = await fetch(`/admin/user/approve/${userId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes })
+      });
+      
+      if (response.ok) {
+        location.reload();
+      } else {
+        alert('Error approving user');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error approving user');
+    }
+  }
+  
+  async function rejectUser(userId, userName) {
+    const notes = prompt(`Add reason for rejecting ${userName}:`);
+    if (!notes || notes.trim() === '') {
+      alert('Please provide a reason for rejection');
+      return;
+    }
+    
+    if (!confirm(`Are you sure you want to reject ${userName}? This will prevent them from registering again.`)) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/admin/user/reject/${userId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes })
+      });
+      
+      if (response.ok) {
+        location.reload();
+      } else {
+        alert('Error rejecting user');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error rejecting user');
+    }
+  }
+  
+  async function blockUser(userId, userName) {
+    if (!confirm(`Are you sure you want to block ${userName}?`)) return;
+    
+    try {
+      const response = await fetch(`/admin/user/block/${userId}`, { method: 'POST' });
+      if (response.ok) {
+        location.reload();
+      } else {
+        alert('Error blocking user');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error blocking user');
+    }
+  }
+  
+  async function unblockUser(userId, userName) {
+    if (!confirm(`Are you sure you want to unblock ${userName}?`)) return;
+    
+    try {
+      const response = await fetch(`/admin/user/unblock/${userId}`, { method: 'POST' });
+      if (response.ok) {
+        location.reload();
+      } else {
+        alert('Error unblocking user');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error unblocking user');
+    }
+  }
+  
+  async function toggleAdmin(userId, userName, makeAdmin) {
+    const action = makeAdmin ? 'make admin' : 'remove admin privileges from';
+    if (!confirm(`Are you sure you want to ${action} ${userName}?`)) return;
+    
+    try {
+      const response = await fetch(`/admin/user/toggle-admin/${userId}`, { method: 'POST' });
+      if (response.ok) {
+        location.reload();
+      } else {
+        alert('Error updating admin status');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error updating admin status');
+    }
+  }
+  
+  async function endProbation(userId, userName) {
+    if (!confirm(`Are you sure you want to end probation for ${userName}?`)) return;
+    
+    try {
+      const response = await fetch(`/admin/user/end-probation/${userId}`, { method: 'POST' });
+      if (response.ok) {
+        location.reload();
+      } else {
+        alert('Error ending probation');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error ending probation');
+    }
+  }
+  
+  async function deleteUser(userId, userName) {
+    if (!confirm(`Are you sure you want to delete ${userName}? This action cannot be undone.`)) return;
+    
+    try {
+      const response = await fetch(`/admin/user/delete/${userId}`, { method: 'POST' });
+      if (response.ok) {
+        location.reload();
+      } else {
+        alert('Error deleting user');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error deleting user');
+    }
+  }
+  
+  async function bulkApprove() {
+    const checkboxes = document.querySelectorAll('.user-checkbox:checked');
+    const userIds = Array.from(checkboxes).map(cb => cb.value);
+    const notes = document.getElementById('bulkNotes').value;
+    
+    if (userIds.length === 0) {
+      alert('Please select users first');
+      return;
+    }
+    
+    if (!confirm(`Are you sure you want to approve ${userIds.length} user(s)?`)) return;
+    
+    try {
+      const response = await fetch('/admin/users/bulk-approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userIds, notes })
+      });
+      
+      if (response.ok) {
+        location.reload();
+      } else {
+        alert('Error approving users');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error approving users');
+    }
+  }
+  
+  async function bulkReject() {
+    const checkboxes = document.querySelectorAll('.user-checkbox:checked');
+    const userIds = Array.from(checkboxes).map(cb => cb.value);
+    const notes = document.getElementById('bulkNotes').value;
+    
+    if (userIds.length === 0) {
+      alert('Please select users first');
+      return;
+    }
+    
+    if (!notes || notes.trim() === '') {
+      alert('Please provide a reason for bulk rejection');
+      return;
+    }
+    
+    if (!confirm(`Are you sure you want to reject ${userIds.length} user(s)? This will prevent them from registering again.`)) return;
+    
+    try {
+      const response = await fetch('/admin/users/bulk-reject', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userIds, notes })
+      });
+      
+      if (response.ok) {
+        location.reload();
+      } else {
+        alert('Error rejecting users');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error rejecting users');
+    }
+  }
+  
+  async function bulkDelete() {
+    const checkboxes = document.querySelectorAll('.user-checkbox:checked');
+    const userIds = Array.from(checkboxes).map(cb => cb.value);
+    const notes = document.getElementById('bulkNotes').value;
+    
+    if (userIds.length === 0) {
+      alert('Please select users first');
+      return;
+    }
+    
+    if (!confirm(`Are you sure you want to delete ${userIds.length} user(s)? This action cannot be undone.`)) return;
+    
+    try {
+      const response = await fetch('/admin/users/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userIds, notes })
+      });
+      
+      if (response.ok) {
+        location.reload();
+      } else {
+        alert('Error deleting users');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error deleting users');
+    }
+  }
+</script>
+
+<%- include('partials/adminLayoutFooter') %>

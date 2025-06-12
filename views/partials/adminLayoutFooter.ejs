@@ -1,0 +1,40 @@
+</div>
+    </main>
+  </div>
+  
+  <script>
+    // Mobile menu functionality
+    const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+    const adminSidebar = document.getElementById('adminSidebar');
+    const mobileOverlay = document.getElementById('mobileOverlay');
+    
+    mobileMenuToggle.addEventListener('click', () => {
+      adminSidebar.classList.toggle('mobile-visible');
+      mobileOverlay.classList.toggle('active');
+    });
+    
+    mobileOverlay.addEventListener('click', () => {
+      adminSidebar.classList.remove('mobile-visible');
+      mobileOverlay.classList.remove('active');
+    });
+    
+    // User menu functionality
+    function toggleUserMenu() {
+      // Simple logout for now
+      if (confirm('Logout?')) {
+        window.location.href = '/logout';
+      }
+    }
+    
+    // Auto-hide mobile menu on navigation
+    document.querySelectorAll('.admin-nav-link').forEach(link => {
+      link.addEventListener('click', () => {
+        if (window.innerWidth <= 768) {
+          adminSidebar.classList.remove('mobile-visible');
+          mobileOverlay.classList.remove('active');
+        }
+      });
+    });
+  </script>
+</body>
+</html>
