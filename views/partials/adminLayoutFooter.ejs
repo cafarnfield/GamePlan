@@ -5,18 +5,27 @@
   <script>
     // Mobile menu functionality
     const mobileMenuToggle = document.getElementById('mobileMenuToggle');
-    const adminSidebar = document.getElementById('adminSidebar');
-    const mobileOverlay = document.getElementById('mobileOverlay');
+    const mobileNavDropdown = document.getElementById('mobileNavDropdown');
     
-    mobileMenuToggle.addEventListener('click', () => {
-      adminSidebar.classList.toggle('mobile-visible');
-      mobileOverlay.classList.toggle('active');
-    });
-    
-    mobileOverlay.addEventListener('click', () => {
-      adminSidebar.classList.remove('mobile-visible');
-      mobileOverlay.classList.remove('active');
-    });
+    if (mobileMenuToggle && mobileNavDropdown) {
+      mobileMenuToggle.addEventListener('click', () => {
+        mobileNavDropdown.classList.toggle('active');
+      });
+      
+      // Close mobile menu when clicking outside
+      document.addEventListener('click', (e) => {
+        if (!mobileMenuToggle.contains(e.target) && !mobileNavDropdown.contains(e.target)) {
+          mobileNavDropdown.classList.remove('active');
+        }
+      });
+      
+      // Auto-hide mobile menu on navigation
+      document.querySelectorAll('.mobile-nav-dropdown .admin-nav-link').forEach(link => {
+        link.addEventListener('click', () => {
+          mobileNavDropdown.classList.remove('active');
+        });
+      });
+    }
     
     // User menu functionality
     function toggleUserMenu() {
@@ -25,16 +34,6 @@
         window.location.href = '/logout';
       }
     }
-    
-    // Auto-hide mobile menu on navigation
-    document.querySelectorAll('.admin-nav-link').forEach(link => {
-      link.addEventListener('click', () => {
-        if (window.innerWidth <= 768) {
-          adminSidebar.classList.remove('mobile-visible');
-          mobileOverlay.classList.remove('active');
-        }
-      });
-    });
   </script>
 </body>
 </html>
