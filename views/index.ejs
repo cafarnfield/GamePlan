@@ -236,18 +236,47 @@
           
           <div class="event-details">
             <h3 class="event-title"><%= event.name %></h3>
-            <div class="game-name">
-              <span class="game-label">GAME:</span>
-              <span class="game-value">
-                <%= event.game ? event.game.name : 'Unknown Game' %>
-                <% if (event.game && event.game.source === 'steam') { %>
-                  <span class="exists-indicator">STEAM</span>
-                <% } else if (event.game && event.game.source === 'rawg') { %>
-                  <span class="exists-indicator">RAWG</span>
-                <% } %>
-              </span>
+            
+            <!-- Enhanced Game Information Section -->
+            <div class="game-info-section">
+              <div class="game-name">
+                <span class="game-label">GAME:</span>
+                <span class="game-value">
+                  <%= event.game ? event.game.name : 'Unknown Game' %>
+                  <% if (event.game && event.game.source === 'steam') { %>
+                    <span class="exists-indicator">STEAM</span>
+                  <% } else if (event.game && event.game.source === 'rawg') { %>
+                    <span class="exists-indicator">RAWG</span>
+                  <% } %>
+                </span>
+              </div>
+              
+              <% if (event.game && (event.game.steamData || event.game.rawgData)) { %>
+                <div class="game-metadata">
+                  <% const gameData = event.game.steamData || event.game.rawgData; %>
+                  <% if (gameData.developers && gameData.developers.length > 0) { %>
+                    <div class="game-meta-item">
+                      <span class="game-meta-label">Developer</span>
+                      <span class="game-meta-value"><%= gameData.developers[0] %></span>
+                    </div>
+                  <% } %>
+                  <% if (event.game.rawgData && event.game.rawgData.rating) { %>
+                    <div class="game-meta-item">
+                      <span class="game-meta-label">Rating</span>
+                      <div class="game-rating">
+                        <span class="rating-stars">
+                          <% const rating = Math.round(event.game.rawgData.rating); %>
+                          <% for (let i = 0; i < Math.min(rating, 5); i++) { %>★<% } %>
+                        </span>
+                        <span class="rating-value"><%= event.game.rawgData.rating %></span>
+                      </div>
+                    </div>
+                  <% } %>
+                </div>
+              <% } %>
             </div>
             
+            <!-- Enhanced Creator Information -->
             <div class="creator-info">
               <span class="creator-label">HOST:</span>
               <span class="creator-value">
@@ -255,6 +284,7 @@
               </span>
             </div>
             
+            <!-- Enhanced Player Information -->
             <div class="player-info">
               <div class="player-count">
                 <span class="player-label">PLAYERS:</span>
@@ -265,8 +295,14 @@
                   <span class="player-numbers">(<%= event.players.length %>/<%= event.playerLimit %>)</span>
                 </div>
               </div>
+              <% if (event.players.length < event.playerLimit) { %>
+                <div class="availability-status available">Slots Available</div>
+              <% } else { %>
+                <div class="availability-status full">Event Full</div>
+              <% } %>
             </div>
             
+            <!-- Enhanced Event Meta Information -->
             <div class="event-meta">
               <div class="event-timer" data-event-date="<%= event.date.toISOString() %>">
                 <span class="timer-icon">⏰</span>
@@ -284,12 +320,13 @@
               <% if (event.platforms && event.platforms.length > 0) { %>
                 <div class="platforms">
                   <% event.platforms.forEach(platform => { %>
-                    <span class="platform-tag"><%= platform %></span>
+                    <span class="platform-tag" data-platform="<%= platform %>"><%= platform %></span>
                   <% }) %>
                 </div>
               <% } %>
             </div>
             
+            <!-- Enhanced Event Description -->
             <% if (event.description) { %>
               <div class="event-description">
                 <%= event.description.length > 100 ? event.description.substring(0, 100) + '...' : event.description %>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Event - GamePlan</title>
+  <title><%= event.name %> - GamePlan</title>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
 </head>
@@ -13,93 +13,370 @@
     <h1>GamePlan</h1>
     <nav>
       <a href="/">Home</a>
+      <% if (typeof user !== 'undefined') { %>
+        <a href="/profile">Profile</a>
+        <a href="/logout">Logout</a>
+        <p>Welcome, <%= user.gameNickname ? user.gameNickname : user.name %></p>
+      <% } else { %>
+        <a href="/login">Login</a>
+        <a href="/register">Register</a>
+      <% } %>
     </nav>
   </header>
+  
   <main>
-    <h2><%= event.name %></h2>
-    <p><%= event.description %></p>
-    <p>Player Limit: <%= event.playerLimit %></p>
-    <p>Current Players: <%= event.players.length %></p>
-      <% if (event.createdBy) { %>
-        <p>Created by: <%= event.createdBy.gameNickname ? event.createdBy.gameNickname : event.createdBy.name %></p>
-      <% } else if (event.players.length > 0) { %>
-        <p>Created by: <%= event.players[0].gameNickname ? event.players[0].gameNickname : event.players[0].name %></p>
-      <% } %>
-
-    <% if (event.hasUpdate) { %>
-      <div class="update-alert">
-        <h3>Update Available</h3>
-        <p>This game has a recent update. Please make sure to update before the event.</p>
-        <ul>
-          <% event.updateNews.forEach(newsItem => { %>
-            <li>
-              <strong><%= newsItem.title %></strong><br>
-              <%= newsItem.contents %>
-            </li>
-          <% }) %>
-        </ul>
-      </div>
-    <% } %>
-
-    <% if (event.platforms && event.platforms.length > 0) { %>
-      <h3>Platforms</h3>
-      <div class="platforms">
-        <% event.platforms.forEach(platform => { %>
-          <span class="platform-tag"><%= platform %></span>
-        <% }) %>
-      </div>
-    <% } %>
-
-    <% if (event.requiredExtensions && event.requiredExtensions.length > 0) { %>
-      <h3>Required Extensions</h3>
-      <ul>
-        <% event.requiredExtensions.forEach(extension => { %>
-          <li>
-            <strong>Name:</strong> <%= extension.name %><br>
-            <strong>Installation Time:</strong> <%= extension.installationTime %> minutes<br>
-            <strong>Download:</strong> <a href="<%= extension.downloadLink %>" target="_blank">Link</a>
-          </li>
-        <% }) %>
-      </ul>
-    <% } %>
-
-    <h3>Players</h3>
-    <ul>
-      <% event.players.forEach(player => { %>
-        <li><%= player.gameNickname ? player.gameNickname : player.name %></li>
-      <% }) %>
-    </ul>
-<% if (typeof user !== 'undefined') { %>
-      <% 
-        const isCreator = event.createdBy && event.createdBy._id.equals(user._id);
-        const isLegacyCreator = !event.createdBy && event.players.length > 0 && event.players[0]._id.equals(user._id);
-        const canEdit = isCreator || isLegacyCreator || user.isAdmin;
-        const canDelete = isCreator || isLegacyCreator || user.isAdmin;
-      %>
-      <% if (canEdit) { %> <!-- Show edit button to event creator or admins -->
-        <form action="/event/<%= event._id %>/edit" method="GET" class="event-button" style="display: inline-block; margin-right: 10px;">
-          <button type="submit">Edit Event</button>
-        </form>
-      <% } %>
-      <% if (canDelete) { %> <!-- Show delete button to event creator or admins -->
-        <form action="/event/<%= event._id %>/delete" method="POST" class="event-button" style="display: inline-block;" onsubmit="return confirm('Are you sure you want to delete this event? This action cannot be undone.');">
-          <button type="submit">Delete Event</button>
-        </form>
-      <% } %>
-      <% if (event.players.some(player => player._id.equals(user._id))) { %>
-        <form action="/event/<%= event._id %>/leave" method="POST" class="event-button">
-          <button type="submit">Leave Event</button>
-        </form>
-      <% } else if (event.players.length < event.playerLimit) { %>
-        <form action="/event/<%= event._id %>/join" method="POST" class="event-button">
-          <button type="submit">Join Event</button>
-        </form>
+    <!-- Event Hero Section -->
+    <div class="event-hero">
+      <% if (event.game && event.game.steamData && event.game.steamData.header_image) { %>
+        <img src="<%= event.game.steamData.header_image %>" alt="<%= event.game.name %>" class="event-hero-image">
+      <% } else if (event.game && event.game.rawgData && event.game.rawgData.background_image) { %>
+        <img src="<%= event.game.rawgData.background_image %>" alt="<%= event.game.name %>" class="event-hero-image">
       <% } else { %>
-        <p>Event is full</p>
+        <div class="event-hero-placeholder">
+          <span class="game-icon">🎮</span>
+        </div>
       <% } %>
+      
+      <div class="event-hero-overlay">
+        <h1 class="event-hero-title"><%= event.name %></h1>
+        <p class="event-hero-subtitle">
+          <%= event.game ? event.game.name : 'Unknown Game' %>
+          <% if (event.game && event.game.source === 'steam') { %>
+            <span class="exists-indicator">STEAM</span>
+          <% } else if (event.game && event.game.source === 'rawg') { %>
+            <span class="exists-indicator">RAWG</span>
+          <% } %>
+        </p>
+      </div>
+    </div>
+
+    <!-- Updates Notification (Less Intrusive) -->
+    <% if (event.hasUpdate) { %>
+      <div class="update-notification" id="updateNotification">
+        <div class="update-notification-header" onclick="toggleUpdateContent()">
+          <div class="update-notification-title">
+            <span class="update-notification-icon">🔄</span>
+            <span>Game Update Available</span>
+          </div>
+          <button class="update-notification-toggle" id="updateToggle">Show Details</button>
+        </div>
+        <div class="update-notification-content hidden" id="updateContent">
+          <% event.updateNews.forEach(newsItem => { %>
+            <div class="update-news-item">
+              <div class="update-news-title"><%= newsItem.title %></div>
+              <div class="update-news-content"><%= newsItem.contents %></div>
+            </div>
+          <% }) %>
+        </div>
+      </div>
+    <% } %>
+
+    <!-- Event Detail Grid -->
+    <div class="event-detail-grid">
+      <!-- Main Content -->
+      <div class="event-main-content">
+        <!-- Event Description -->
+        <div class="info-card">
+          <div class="info-card-header">
+            <span class="info-card-icon">📝</span>
+            <h3 class="info-card-title">Event Description</h3>
+          </div>
+          <div class="info-card-content">
+            <p><%= event.description %></p>
+          </div>
+        </div>
+
+        <!-- Game Information -->
+        <% if (event.game) { %>
+          <div class="info-card">
+            <div class="info-card-header">
+              <span class="info-card-icon">🎮</span>
+              <h3 class="info-card-title">Game Information</h3>
+            </div>
+            <div class="info-card-content">
+              <div class="game-info-grid">
+                <div class="game-info-item">
+                  <span class="game-info-label">Game Title</span>
+                  <span class="game-info-value"><%= event.game.name %></span>
+                </div>
+                
+                <% if (event.game.steamData || event.game.rawgData) { %>
+                  <% const gameData = event.game.steamData || event.game.rawgData; %>
+                  
+                  <% if (gameData.developers && gameData.developers.length > 0) { %>
+                    <div class="game-info-item">
+                      <span class="game-info-label">Developer</span>
+                      <span class="game-info-value"><%= gameData.developers.join(', ') %></span>
+                    </div>
+                  <% } %>
+                  
+                  <% if (gameData.publishers && gameData.publishers.length > 0) { %>
+                    <div class="game-info-item">
+                      <span class="game-info-label">Publisher</span>
+                      <span class="game-info-value"><%= gameData.publishers.join(', ') %></span>
+                    </div>
+                  <% } %>
+                  
+                  <% if (event.game.rawgData && event.game.rawgData.released) { %>
+                    <div class="game-info-item">
+                      <span class="game-info-label">Release Date</span>
+                      <span class="game-info-value"><%= new Date(event.game.rawgData.released).toLocaleDateString() %></span>
+                    </div>
+                  <% } %>
+                  
+                  <% if (event.game.rawgData && event.game.rawgData.rating) { %>
+                    <div class="game-info-item">
+                      <span class="game-info-label">Rating</span>
+                      <div class="game-rating">
+                        <span class="rating-stars">
+                          <% const rating = Math.round(event.game.rawgData.rating); %>
+                          <% for (let i = 0; i < 5; i++) { %>
+                            <%= i < rating ? '★' : '☆' %>
+                          <% } %>
+                        </span>
+                        <span class="rating-value">(<%= event.game.rawgData.rating %>/5)</span>
+                      </div>
+                    </div>
+                  <% } %>
+                <% } %>
+                
+                <% if (event.game.source) { %>
+                  <div class="game-info-item">
+                    <span class="game-info-label">Source</span>
+                    <span class="game-info-value"><%= event.game.source.toUpperCase() %></span>
+                  </div>
+                <% } %>
+              </div>
+              
+              <% if (event.game.rawgData && event.game.rawgData.genres && event.game.rawgData.genres.length > 0) { %>
+                <div class="game-genres">
+                  <% event.game.rawgData.genres.forEach(genre => { %>
+                    <span class="genre-tag"><%= genre %></span>
+                  <% }) %>
+                </div>
+              <% } else if (event.game.categories && event.game.categories.length > 0) { %>
+                <div class="game-genres">
+                  <% event.game.categories.forEach(category => { %>
+                    <span class="genre-tag"><%= category %></span>
+                  <% }) %>
+                </div>
+              <% } %>
+            </div>
+          </div>
+        <% } %>
+
+        <!-- Required Extensions -->
+        <% if (event.requiredExtensions && event.requiredExtensions.length > 0) { %>
+          <div class="info-card">
+            <div class="info-card-header">
+              <span class="info-card-icon">🔧</span>
+              <h3 class="info-card-title">Required Extensions</h3>
+            </div>
+            <div class="info-card-content">
+              <div class="extensions-list">
+                <% event.requiredExtensions.forEach(extension => { %>
+                  <div class="extension-item">
+                    <div class="extension-header">
+                      <span class="extension-name"><%= extension.name %></span>
+                      <span class="extension-time"><%= extension.installationTime %> min install</span>
+                    </div>
+                    <% if (extension.description) { %>
+                      <div class="extension-description"><%= extension.description %></div>
+                    <% } %>
+                    <a href="<%= extension.downloadLink %>" target="_blank" class="extension-download">
+                      Download Extension
+                    </a>
+                  </div>
+                <% }) %>
+              </div>
+            </div>
+          </div>
+        <% } %>
+
+        <!-- Platforms -->
+        <% if (event.platforms && event.platforms.length > 0) { %>
+          <div class="info-card">
+            <div class="info-card-header">
+              <span class="info-card-icon">🖥️</span>
+              <h3 class="info-card-title">Supported Platforms</h3>
+            </div>
+            <div class="info-card-content">
+              <div class="platforms">
+                <% event.platforms.forEach(platform => { %>
+                  <span class="platform-tag" data-platform="<%= platform %>"><%= platform %></span>
+                <% }) %>
+              </div>
+            </div>
+          </div>
+        <% } %>
+      </div>
+
+      <!-- Sidebar -->
+      <div class="event-sidebar">
+        <!-- Event Details -->
+        <div class="info-card">
+          <div class="info-card-header">
+            <span class="info-card-icon">📅</span>
+            <h3 class="info-card-title">Event Details</h3>
+          </div>
+          <div class="info-card-content">
+            <div class="event-detail-item">
+              <span class="event-detail-label">Date & Time</span>
+              <span class="event-detail-value">
+                <%= new Date(event.date).toLocaleDateString('en-GB', { 
+                  weekday: 'long', 
+                  day: '2-digit', 
+                  month: 'long',
+                  year: 'numeric'
+                }) %><br>
+                <%= new Date(event.date).toLocaleTimeString('en-GB', { 
+                  hour: '2-digit', 
+                  minute: '2-digit'
+                }) %>
+              </span>
+            </div>
+            
+            <div class="event-detail-item">
+              <span class="event-detail-label">Player Limit</span>
+              <span class="event-detail-value"><%= event.playerLimit %> players</span>
+            </div>
+            
+            <div class="event-detail-item">
+              <span class="event-detail-label">Current Players</span>
+              <span class="event-detail-value"><%= event.players.length %>/<%= event.playerLimit %></span>
+            </div>
+            
+            <div class="event-detail-item">
+              <span class="event-detail-label">Event Host</span>
+              <span class="event-detail-value">
+                <% if (event.createdBy) { %>
+                  <%= event.createdBy.gameNickname ? event.createdBy.gameNickname : event.createdBy.name %>
+                <% } else if (event.players.length > 0) { %>
+                  <%= event.players[0].gameNickname ? event.players[0].gameNickname : event.players[0].name %>
+                <% } else { %>
+                  Unknown
+                <% } %>
+              </span>
+            </div>
+            
+            <div class="event-detail-item">
+              <span class="event-detail-label">Availability</span>
+              <% if (event.players.length < event.playerLimit) { %>
+                <span class="availability-status available">Slots Available</span>
+              <% } else { %>
+                <span class="availability-status full">Event Full</span>
+              <% } %>
+            </div>
+          </div>
+        </div>
+
+        <!-- Players List -->
+        <div class="info-card">
+          <div class="info-card-header">
+            <span class="info-card-icon">👥</span>
+            <h3 class="info-card-title">Players (<%= event.players.length %>/<%= event.playerLimit %>)</h3>
+          </div>
+          <div class="info-card-content">
+            <div class="players-list">
+              <% event.players.forEach((player, index) => { %>
+                <div class="player-item">
+                  <div class="player-avatar">
+                    <%= (player.gameNickname || player.name).charAt(0).toUpperCase() %>
+                  </div>
+                  <span class="player-name">
+                    <%= player.gameNickname ? player.gameNickname : player.name %>
+                  </span>
+                  <% if (index === 0 || (event.createdBy && event.createdBy._id.equals(player._id))) { %>
+                    <span class="player-status host">HOST</span>
+                  <% } else { %>
+                    <span class="player-status member">MEMBER</span>
+                  <% } %>
+                </div>
+              <% }) %>
+              
+              <!-- Empty slots -->
+              <% for (let i = event.players.length; i < event.playerLimit; i++) { %>
+                <div class="player-item" style="opacity: 0.5;">
+                  <div class="player-avatar" style="background: var(--dark-teal);">?</div>
+                  <span class="player-name">Open Slot</span>
+                  <span class="player-status member">AVAILABLE</span>
+                </div>
+              <% } %>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <% if (typeof user !== 'undefined') { %>
+      <div class="event-actions">
+        <% 
+          const isCreator = event.createdBy && event.createdBy._id.equals(user._id);
+          const isLegacyCreator = !event.createdBy && event.players.length > 0 && event.players[0]._id.equals(user._id);
+          const canEdit = isCreator || isLegacyCreator || user.isAdmin;
+          const canDelete = isCreator || isLegacyCreator || user.isAdmin;
+          const isPlayerInEvent = event.players.some(player => player._id.equals(user._id));
+        %>
+        
+        <% if (isPlayerInEvent) { %>
+          <form action="/event/<%= event._id %>/leave" method="POST" style="display: inline;">
+            <button type="submit" class="action-button secondary">Leave Event</button>
+          </form>
+        <% } else if (event.players.length < event.playerLimit) { %>
+          <form action="/event/<%= event._id %>/join" method="POST" style="display: inline;">
+            <button type="submit" class="action-button primary">Join Event</button>
+          </form>
+        <% } else { %>
+          <button class="action-button disabled" disabled>Event Full</button>
+        <% } %>
+        
+        <% if (canEdit) { %>
+          <form action="/event/<%= event._id %>/edit" method="GET" style="display: inline;">
+            <button type="submit" class="action-button secondary">Edit Event</button>
+          </form>
+        <% } %>
+        
+        <% if (canDelete) { %>
+          <form action="/event/<%= event._id %>/delete" method="POST" style="display: inline;" 
+                onsubmit="return confirm('Are you sure you want to delete this event? This action cannot be undone.');">
+            <button type="submit" class="action-button danger">Delete Event</button>
+          </form>
+        <% } %>
+      </div>
     <% } else { %>
-      <p>Please <a href="/login">log in</a> to join this event</p>
+      <div class="event-actions">
+        <p style="color: var(--muted-cyan); text-align: center; margin: 2rem 0;">
+          Please <a href="/login">log in</a> to join this event
+        </p>
+      </div>
     <% } %>
   </main>
+
+  <script>
+    // Toggle update notification content
+    function toggleUpdateContent() {
+      const content = document.getElementById('updateContent');
+      const toggle = document.getElementById('updateToggle');
+      
+      if (content.classList.contains('hidden')) {
+        content.classList.remove('hidden');
+        toggle.textContent = 'Hide Details';
+      } else {
+        content.classList.add('hidden');
+        toggle.textContent = 'Show Details';
+      }
+    }
+
+    // Auto-collapse update notification after 10 seconds
+    document.addEventListener('DOMContentLoaded', function() {
+      const notification = document.getElementById('updateNotification');
+      if (notification) {
+        setTimeout(() => {
+          notification.classList.add('collapsed');
+        }, 10000);
+      }
+    });
+  </script>
 </body>
 </html>
