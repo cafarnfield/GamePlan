@@ -758,6 +758,92 @@ app.get('/admin/events', ensureAdmin, async (req, res) => {
   }
 });
 
+// Route to show admin events calendar view
+app.get('/admin/events/calendar', ensureAdmin, async (req, res) => {
+  try {
+    const { 
+      status, 
+      game: selectedGame, 
+      dateFrom, 
+      dateTo, 
+      search, 
+      creator 
+    } = req.query;
+    
+    let query = {};
+    
+    // Apply filters
+    if (status === 'upcoming') {
+      query.date = { $gte: new Date() };
+    } else if (status === 'past') {
+      query.date = { $lt: new Date() };
+    } else if (status === 'live') {
+      const now = new Date();
+      const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+      query.date = { $gte: twoHoursAgo, $lte: now };
+    }
+    
+    if (selectedGame) {
+      query.game = selectedGame;
+    }
+    
+    if (dateFrom) {
+      query.date = { ...query.date, $gte: new Date(dateFrom) };
+    }
+    
+    if (dateTo) {
+      const endDate = new Date(dateTo);
+      endDate.setHours(23, 59, 59, 999);
+      query.date = { ...query.date, $lte: endDate };
+    }
+    
+    if (search && search.trim()) {
+      query.name = { $regex: search.trim(), $options: 'i' };
+    }
+    
+    const events = await Event.find(query)
+      .populate('game')
+      .populate('createdBy')
+      .populate('players')
+      .sort({ date: 1 });
+    
+    // Filter by creator if specified
+    let filteredEvents = events;
+    if (creator && creator.trim()) {
+      filteredEvents = events.filter(event => {
+        if (!event.createdBy) return false;
+        const creatorName = (event.createdBy.gameNickname || event.createdBy.name || '').toLowerCase();
+        return creatorName.includes(creator.trim().toLowerCase());
+      });
+    }
+    
+    const games = await Game.find().sort({ name: 1 });
+    const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
+    
+    // Get pending counts for navigation
+    const pendingUsers = await User.countDocuments({ status: 'pending' });
+    const pendingGames = await Game.countDocuments({ status: 'pending' });
+    
+    res.render('adminEventsCalendar', { 
+      events: filteredEvents, 
+      games,
+      filter: status || null,
+      selectedGame: selectedGame || null,
+      dateFrom: dateFrom || null,
+      dateTo: dateTo || null,
+      search: search || null,
+      creator: creator || null,
+      pendingUsers,
+      pendingGames,
+      isDevelopmentAutoLogin,
+      user: req.user
+    });
+  } catch (err) {
+    console.error('Error fetching events for calendar:', err);
+    res.status(500).send('Error fetching events for calendar');
+  }
+});
+
 // Route for admin to delete events
 app.post('/admin/event/:id/delete', ensureAdmin, async (req, res) => {
   try {

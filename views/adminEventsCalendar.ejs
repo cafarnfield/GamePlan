@@ -1,0 +1,635 @@
+<% 
+  const layoutData = {
+    title: 'Events Calendar',
+    currentPage: 'events',
+    pageTitle: 'Events Calendar',
+    pageSubtitle: 'View and manage gaming events in calendar format',
+    breadcrumbs: [
+      { name: 'Events', url: '/admin/events' },
+      { name: 'Calendar', url: null }
+    ],
+    pendingUsers: typeof pendingUsers !== 'undefined' ? pendingUsers : 0,
+    pendingEvents: typeof pendingEvents !== 'undefined' ? pendingEvents : 0,
+    pendingGames: typeof pendingGames !== 'undefined' ? pendingGames : 0,
+    totalPending: (typeof pendingUsers !== 'undefined' ? pendingUsers : 0) + (typeof pendingEvents !== 'undefined' ? pendingEvents : 0) + (typeof pendingGames !== 'undefined' ? pendingGames : 0),
+    isDevelopmentAutoLogin: isDevelopmentAutoLogin,
+    user: typeof user !== 'undefined' ? user : null
+  };
+%>
+
+<%- include('partials/adminLayoutHeader', layoutData) %>
+
+<!-- FullCalendar CSS -->
+<link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css' rel='stylesheet' />
+
+<style>
+  .calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+    gap: 15px;
+  }
+  
+  .calendar-stats {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  
+  .stat-badge {
+    background: rgba(0, 50, 0, 0.8);
+    border: 1px solid #00ff00;
+    padding: 8px 15px;
+    font-size: 10px;
+    color: #00ff00;
+  }
+  
+  .stat-badge.highlight {
+    background: rgba(0, 100, 255, 0.2);
+    border-color: #0066ff;
+    color: #00ffff;
+  }
+  
+  .calendar-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  
+  .action-btn {
+    background: rgba(0, 255, 0, 0.8);
+    color: #000;
+    border: 1px solid #00ff00;
+    padding: 10px 15px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    transition: all 0.3s ease;
+  }
+  
+  .action-btn:hover {
+    background: rgba(0, 255, 0, 0.9);
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+  }
+  
+  .action-btn.secondary {
+    background: rgba(0, 100, 255, 0.8);
+    color: #fff;
+    border-color: #0066ff;
+  }
+  
+  .action-btn.secondary:hover {
+    background: rgba(0, 150, 255, 0.9);
+  }
+  
+  .filters-section {
+    background: rgba(0, 20, 0, 0.8);
+    border: 1px solid #00ff00;
+    padding: 20px;
+    margin-bottom: 30px;
+  }
+  
+  .filters-title {
+    font-size: 12px;
+    color: #00ff00;
+    margin: 0 0 15px 0;
+  }
+  
+  .filters-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 15px;
+  }
+  
+  .filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  
+  .filter-label {
+    font-size: 8px;
+    color: #888;
+  }
+  
+  .filter-input, .filter-select {
+    background: #000;
+    color: #00ff00;
+    border: 1px solid #00ff00;
+    padding: 8px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+  }
+  
+  .filter-input:focus, .filter-select:focus {
+    outline: none;
+    border-color: #00ffff;
+    box-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
+  }
+  
+  .filter-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+  
+  .calendar-container {
+    background: rgba(0, 10, 0, 0.8);
+    border: 2px solid #00ff00;
+    padding: 20px;
+    margin-bottom: 30px;
+  }
+  
+  /* FullCalendar Custom Styling */
+  .fc {
+    font-family: 'Press Start 2P', monospace;
+  }
+  
+  .fc-theme-standard .fc-scrollgrid {
+    border: 1px solid #00ff00;
+  }
+  
+  .fc-theme-standard td, .fc-theme-standard th {
+    border: 1px solid #00ff00;
+  }
+  
+  .fc-col-header-cell {
+    background: rgba(0, 50, 0, 0.8) !important;
+    color: #00ff00 !important;
+    font-size: 8px !important;
+    padding: 10px 5px !important;
+  }
+  
+  .fc-daygrid-day {
+    background: rgba(0, 0, 0, 0.8) !important;
+    color: #00ff00 !important;
+  }
+  
+  .fc-daygrid-day:hover {
+    background: rgba(0, 50, 0, 0.3) !important;
+  }
+  
+  .fc-daygrid-day-number {
+    color: #00ff00 !important;
+    font-size: 8px !important;
+    padding: 5px !important;
+  }
+  
+  .fc-day-today {
+    background: rgba(0, 100, 0, 0.3) !important;
+  }
+  
+  .fc-day-today .fc-daygrid-day-number {
+    color: #00ffff !important;
+    font-weight: bold !important;
+  }
+  
+  .fc-toolbar {
+    margin-bottom: 20px !important;
+  }
+  
+  .fc-toolbar-title {
+    color: #00ff00 !important;
+    font-size: 14px !important;
+    font-family: 'Press Start 2P', monospace !important;
+  }
+  
+  .fc-button {
+    background: rgba(0, 100, 255, 0.8) !important;
+    border: 1px solid #0066ff !important;
+    color: #fff !important;
+    font-family: 'Press Start 2P', monospace !important;
+    font-size: 6px !important;
+    padding: 8px 12px !important;
+    margin: 0 2px !important;
+  }
+  
+  .fc-button:hover {
+    background: rgba(0, 150, 255, 0.9) !important;
+    box-shadow: 0 0 5px rgba(0, 150, 255, 0.5) !important;
+  }
+  
+  .fc-button:disabled {
+    background: rgba(50, 50, 50, 0.8) !important;
+    border-color: #666 !important;
+    color: #888 !important;
+  }
+  
+  .fc-button-active {
+    background: rgba(0, 255, 0, 0.8) !important;
+    border-color: #00ff00 !important;
+    color: #000 !important;
+  }
+  
+  /* Event Styling */
+  .fc-event {
+    border: none !important;
+    font-size: 6px !important;
+    font-family: 'Press Start 2P', monospace !important;
+    padding: 2px 4px !important;
+    margin: 1px 0 !important;
+    cursor: pointer !important;
+  }
+  
+  .fc-event-title {
+    font-weight: normal !important;
+  }
+  
+  .fc-event.event-upcoming {
+    background: rgba(0, 255, 0, 0.8) !important;
+    color: #000 !important;
+  }
+  
+  .fc-event.event-live {
+    background: rgba(255, 255, 0, 0.8) !important;
+    color: #000 !important;
+    animation: pulse 2s infinite;
+  }
+  
+  .fc-event.event-past {
+    background: rgba(100, 100, 100, 0.8) !important;
+    color: #ccc !important;
+  }
+  
+  @keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+  }
+  
+  /* Event Tooltip */
+  .event-tooltip {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.95);
+    border: 2px solid #00ff00;
+    padding: 15px;
+    font-size: 8px;
+    color: #00ff00;
+    z-index: 1000;
+    max-width: 300px;
+    display: none;
+    font-family: 'Press Start 2P', monospace;
+  }
+  
+  .tooltip-title {
+    color: #00ffff;
+    font-size: 10px;
+    margin-bottom: 10px;
+  }
+  
+  .tooltip-detail {
+    margin: 5px 0;
+    display: flex;
+    justify-content: space-between;
+  }
+  
+  .tooltip-label {
+    color: #888;
+  }
+  
+  .tooltip-value {
+    color: #00ff00;
+  }
+  
+  .tooltip-actions {
+    margin-top: 10px;
+    display: flex;
+    gap: 5px;
+  }
+  
+  .tooltip-btn {
+    background: rgba(0, 100, 255, 0.8);
+    color: #fff;
+    border: 1px solid #0066ff;
+    padding: 4px 8px;
+    font-size: 6px;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  
+  .tooltip-btn:hover {
+    background: rgba(0, 150, 255, 0.9);
+  }
+  
+  .tooltip-btn.edit {
+    background: rgba(255, 165, 0, 0.8);
+    border-color: #ffa500;
+  }
+  
+  .tooltip-btn.delete {
+    background: rgba(255, 0, 0, 0.8);
+    border-color: #ff0000;
+  }
+  
+  /* Mobile optimizations */
+  @media (max-width: 768px) {
+    .calendar-header {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    
+    .calendar-stats {
+      justify-content: center;
+    }
+    
+    .calendar-actions {
+      justify-content: center;
+    }
+    
+    .filters-grid {
+      grid-template-columns: 1fr;
+    }
+    
+    .fc-toolbar {
+      flex-direction: column !important;
+      gap: 10px !important;
+    }
+    
+    .fc-toolbar-chunk {
+      display: flex !important;
+      justify-content: center !important;
+    }
+    
+    .fc-button {
+      font-size: 5px !important;
+      padding: 6px 8px !important;
+    }
+    
+    .fc-toolbar-title {
+      font-size: 10px !important;
+    }
+    
+    .fc-event {
+      font-size: 5px !important;
+    }
+  }
+</style>
+
+<!-- Calendar Header -->
+<div class="calendar-header">
+  <div class="calendar-stats">
+    <div class="stat-badge highlight">
+      Total: <%= events.length %>
+    </div>
+    <div class="stat-badge">
+      Upcoming: <%= events.filter(e => new Date(e.date) >= new Date()).length %>
+    </div>
+    <div class="stat-badge">
+      Past: <%= events.filter(e => new Date(e.date) < new Date()).length %>
+    </div>
+    <div class="stat-badge">
+      Live: <%= events.filter(e => {
+        const now = new Date();
+        const eventDate = new Date(e.date);
+        const twoHoursLater = new Date(eventDate.getTime() + 2 * 60 * 60 * 1000);
+        return eventDate <= now && now <= twoHoursLater;
+      }).length %>
+    </div>
+  </div>
+  
+  <div class="calendar-actions">
+    <a href="/event/new" class="action-btn">➕ Create Event</a>
+    <a href="/admin/events" class="action-btn secondary">📋 List View</a>
+  </div>
+</div>
+
+<!-- Filters Section -->
+<div class="filters-section">
+  <h3 class="filters-title">🔍 Filter Events</h3>
+  
+  <form method="GET" action="/admin/events/calendar" id="filterForm">
+    <div class="filters-grid">
+      <div class="filter-group">
+        <label class="filter-label">Status</label>
+        <select name="status" class="filter-select" id="statusFilter">
+          <option value="">All Events</option>
+          <option value="upcoming" <%= filter === 'upcoming' ? 'selected' : '' %>>Upcoming</option>
+          <option value="live" <%= filter === 'live' ? 'selected' : '' %>>Live Now</option>
+          <option value="past" <%= filter === 'past' ? 'selected' : '' %>>Past</option>
+        </select>
+      </div>
+      
+      <div class="filter-group">
+        <label class="filter-label">Game</label>
+        <select name="game" class="filter-select" id="gameFilter">
+          <option value="">All Games</option>
+          <% games.forEach(game => { %>
+            <option value="<%= game._id %>" <%= selectedGame === game._id.toString() ? 'selected' : '' %>>
+              <%= game.name %>
+            </option>
+          <% }) %>
+        </select>
+      </div>
+      
+      <div class="filter-group">
+        <label class="filter-label">Date From</label>
+        <input type="date" name="dateFrom" class="filter-input" value="<%= dateFrom || '' %>" id="dateFromFilter">
+      </div>
+      
+      <div class="filter-group">
+        <label class="filter-label">Date To</label>
+        <input type="date" name="dateTo" class="filter-input" value="<%= dateTo || '' %>" id="dateToFilter">
+      </div>
+      
+      <div class="filter-group">
+        <label class="filter-label">Search</label>
+        <input type="text" name="search" class="filter-input" placeholder="Event name..." value="<%= search || '' %>" id="searchFilter">
+      </div>
+      
+      <div class="filter-group">
+        <label class="filter-label">Creator</label>
+        <input type="text" name="creator" class="filter-input" placeholder="Creator name..." value="<%= creator || '' %>" id="creatorFilter">
+      </div>
+    </div>
+    
+    <div class="filter-actions">
+      <button type="submit" class="action-btn">Apply Filters</button>
+      <a href="/admin/events/calendar" class="action-btn secondary">Clear All</a>
+    </div>
+  </form>
+</div>
+
+<!-- Calendar Container -->
+<div class="calendar-container">
+  <div id="calendar"></div>
+</div>
+
+<!-- Event Tooltip -->
+<div id="eventTooltip" class="event-tooltip"></div>
+
+<!-- FullCalendar JS -->
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const calendarEl = document.getElementById('calendar');
+    const tooltip = document.getElementById('eventTooltip');
+    
+    // Prepare events data for FullCalendar using JSON to avoid escaping issues
+    const eventsData = <%- JSON.stringify(events.map(event => {
+      const now = new Date();
+      const eventDate = new Date(event.date);
+      const twoHoursLater = new Date(eventDate.getTime() + 2 * 60 * 60 * 1000);
+      
+      let status = 'upcoming';
+      let className = 'event-upcoming';
+      if (eventDate <= now && now <= twoHoursLater) {
+        status = 'live';
+        className = 'event-live';
+      } else if (eventDate < now) {
+        status = 'past';
+        className = 'event-past';
+      }
+      
+      const creatorName = event.createdBy ? 
+        (event.createdBy.gameNickname || event.createdBy.name) : 
+        (event.players && event.players.length > 0 ? 
+          (event.players[0].gameNickname || event.players[0].name) + ' (Legacy)' : 
+          'Unknown');
+      
+      return {
+        id: event._id.toString(),
+        title: event.name || '',
+        start: event.date.toISOString(),
+        className: className,
+        extendedProps: {
+          game: event.game ? event.game.name || 'Unknown Game' : 'Unknown Game',
+          creator: creatorName || 'Unknown',
+          players: event.players ? event.players.length : 0,
+          playerLimit: event.playerLimit || 0,
+          description: (event.description || '').substring(0, 100),
+          status: status
+        }
+      };
+    })) %>;
+    
+    const calendar = new FullCalendar.Calendar(calendarEl, {
+      initialView: 'dayGridMonth',
+      headerToolbar: {
+        left: 'prev,next today',
+        center: 'title',
+        right: 'dayGridMonth'
+      },
+      events: eventsData,
+      eventDisplay: 'block',
+      dayMaxEvents: 3,
+      moreLinkClick: 'popover',
+      
+      // Event interactions
+      eventMouseEnter: function(info) {
+        const event = info.event;
+        const rect = info.el.getBoundingClientRect();
+        
+        tooltip.innerHTML = `
+          <div class="tooltip-title">${event.title}</div>
+          <div class="tooltip-detail">
+            <span class="tooltip-label">Game:</span>
+            <span class="tooltip-value">${event.extendedProps.game}</span>
+          </div>
+          <div class="tooltip-detail">
+            <span class="tooltip-label">Creator:</span>
+            <span class="tooltip-value">${event.extendedProps.creator}</span>
+          </div>
+          <div class="tooltip-detail">
+            <span class="tooltip-label">Time:</span>
+            <span class="tooltip-value">${new Date(event.start).toLocaleString()}</span>
+          </div>
+          <div class="tooltip-detail">
+            <span class="tooltip-label">Players:</span>
+            <span class="tooltip-value">${event.extendedProps.players}/${event.extendedProps.playerLimit}</span>
+          </div>
+          <div class="tooltip-detail">
+            <span class="tooltip-label">Status:</span>
+            <span class="tooltip-value">${event.extendedProps.status.toUpperCase()}</span>
+          </div>
+          ${event.extendedProps.description ? `
+            <div class="tooltip-detail" style="margin-top: 10px;">
+              <span class="tooltip-value">${event.extendedProps.description}${event.extendedProps.description.length >= 100 ? '...' : ''}</span>
+            </div>
+          ` : ''}
+          <div class="tooltip-actions">
+            <a href="/event/${event.id}" class="tooltip-btn">👁️ View</a>
+            <a href="/event/${event.id}/edit" class="tooltip-btn edit">✏️ Edit</a>
+            <button onclick="deleteEvent('${event.id}', '${event.title.replace(/'/g, "\\'")}'); hideTooltip();" class="tooltip-btn delete">🗑️ Delete</button>
+          </div>
+        `;
+        
+        tooltip.style.left = (rect.left + window.scrollX) + 'px';
+        tooltip.style.top = (rect.bottom + window.scrollY + 5) + 'px';
+        tooltip.style.display = 'block';
+      },
+      
+      eventMouseLeave: function(info) {
+        tooltip.style.display = 'none';
+      },
+      
+      eventClick: function(info) {
+        window.location.href = `/event/${info.event.id}`;
+      },
+      
+      // Custom rendering
+      eventDidMount: function(info) {
+        // Add custom styling based on event status
+        info.el.classList.add(info.event.classNames[0]);
+      }
+    });
+    
+    calendar.render();
+    
+    // Filter functionality
+    function applyFilters() {
+      const formData = new FormData(document.getElementById('filterForm'));
+      const params = new URLSearchParams(formData);
+      window.location.href = '/admin/events/calendar?' + params.toString();
+    }
+    
+    // Auto-apply filters on change (optional)
+    document.querySelectorAll('.filter-select, .filter-input').forEach(element => {
+      element.addEventListener('change', function() {
+        // Uncomment to auto-apply filters
+        // applyFilters();
+      });
+    });
+    
+    // Hide tooltip when clicking elsewhere
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.fc-event') && !e.target.closest('.event-tooltip')) {
+        tooltip.style.display = 'none';
+      }
+    });
+    
+    window.hideTooltip = function() {
+      tooltip.style.display = 'none';
+    };
+    
+    // Delete event function
+    window.deleteEvent = async function(eventId, eventName) {
+      if (!confirm(`Are you sure you want to delete "${eventName}"? This action cannot be undone.`)) {
+        return;
+      }
+      
+      try {
+        const response = await fetch(`/admin/event/${eventId}/delete`, {
+          method: 'POST'
+        });
+        
+        if (response.ok) {
+          location.reload();
+        } else {
+          alert('Error deleting event');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Error deleting event');
+      }
+    };
+  });
+</script>
+
+<%- include('partials/adminLayoutFooter') %>
