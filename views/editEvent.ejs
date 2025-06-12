@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edit Event - GamePlan</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="scanlines"></div>
+  <header>
+    <h1>GamePlan</h1>
+    <nav>
+      <% if (typeof user !== 'undefined') { %>
+        <a href="/profile">Profile</a>
+        <% if (!isDevelopmentAutoLogin) { %>
+          <a href="/logout">Logout</a>
+        <% } %>
+        <a href="/">Home</a>
+        <p>Welcome, <%= user.gameNickname ? user.gameNickname : user.name %></p>
+      <% } else { %>
+        <a href="/register">Register</a>
+        <a href="/login">Login</a>
+        <a href="/">Home</a>
+      <% } %>
+    </nav>
+  </header>
+  <main>
+    <% if (typeof user === 'undefined' || !user) { %>
+      <p>You need to <a href="/login">log in</a> to edit events.</p>
+    <% } else { %>
+      <h2>Edit Event</h2>
+      <form action="/event/<%= event._id %>/edit" method="POST">
+        <label for="name">Event Name:</label>
+        <input type="text" id="name" name="name" value="<%= event.name %>" required>
+        
+        <label for="game">Game:</label>
+        <select id="game" name="gameId" required>
+          <% games.forEach(game => { %>
+            <option value="<%= game._id %>" <%= event.game._id.equals(game._id) ? 'selected' : '' %>><%= game.name %></option>
+          <% }); %>
+        </select>
+        
+        <label for="description">Description:</label>
+        <textarea id="description" name="description" required><%= event.description %></textarea>
+        
+        <label for="playerLimit">Player Limit:</label>
+        <input type="number" id="playerLimit" name="playerLimit" value="<%= event.playerLimit %>" required>
+        
+        <label for="date">Date & Time:</label>
+        <input type="datetime-local" id="date" name="date" value="<%= new Date(event.date).toISOString().slice(0, 16) %>" required>
+        
+        <div id="steam-info" style="margin: 15px 0; padding: 10px; border: 1px solid #00ff00; background: rgba(0, 255, 0, 0.1); display: none;">
+          <h4>Steam Integration</h4>
+          <p id="steam-status">Steam App ID will be automatically set based on selected game</p>
+        </div>
+        
+        <h3>Platforms</h3>
+        <div>
+          <p>Select platforms:</p>
+          <div class="platform-checkboxes">
+            <div>
+              <input type="checkbox" id="pc" name="platforms" value="PC" <%= event.platforms && event.platforms.includes('PC') ? 'checked' : '' %>>
+              <label for="pc">PC</label>
+            </div>
+            <div>
+              <input type="checkbox" id="playstation" name="platforms" value="PlayStation" <%= event.platforms && event.platforms.includes('PlayStation') ? 'checked' : '' %>>
+              <label for="playstation">PlayStation</label>
+            </div>
+            <div>
+              <input type="checkbox" id="xbox" name="platforms" value="Xbox" <%= event.platforms && event.platforms.includes('Xbox') ? 'checked' : '' %>>
+              <label for="xbox">Xbox</label>
+            </div>
+            <div>
+              <input type="checkbox" id="switch" name="platforms" value="Nintendo Switch" <%= event.platforms && event.platforms.includes('Nintendo Switch') ? 'checked' : '' %>>
+              <label for="switch">Nintendo Switch</label>
+            </div>
+          </div>
+        </div>
+        
+        <h3>Extensions</h3>
+        <div>
+          <input type="checkbox" id="add-extensions" name="add-extensions" <%= event.requiredExtensions && event.requiredExtensions.length > 0 ? 'checked' : '' %>>
+          <label for="add-extensions">I want to add extensions</label>
+        </div>
+        
+        <div id="extensions-container" <% if (event.requiredExtensions && event.requiredExtensions.length > 0) { %>style="display: block;"<% } else { %>style="display: none;"<% } %>>
+          <h4>Required Extensions</h4>
+          <% if (event.requiredExtensions && event.requiredExtensions.length > 0) { %>
+            <% event.requiredExtensions.forEach(extension => { %>
+              <div class="extension">
+                <label for="extension-name">Extension Name:</label>
+                <input type="text" name="extension-name" value="<%= extension.name %>">
+                <label for="extension-link">Download Link:</label>
+                <input type="url" name="extension-link" value="<%= extension.downloadLink %>">
+                <label for="extension-time">Installation Time (minutes):</label>
+                <input type="number" name="extension-time" value="<%= extension.installationTime %>">
+              </div>
+            <% }); %>
+          <% } else { %>
+            <div class="extension">
+              <label for="extension-name">Extension Name:</label>
+              <input type="text" name="extension-name">
+              <label for="extension-link">Download Link:</label>
+              <input type="url" name="extension-link">
+              <label for="extension-time">Installation Time (minutes):</label>
+              <input type="number" name="extension-time">
+            </div>
+          <% } %>
+        </div>
+        
+        <button type="button" id="add-extension-btn" onclick="addExtensionField()" <% if (event.requiredExtensions && event.requiredExtensions.length > 0) { %>style="display: inline-block;"<% } else { %>style="display: none;"<% } %>>Add Another Extension</button>
+        
+        <div style="margin-top: 20px;">
+          <button type="submit">Update Event</button>
+          <a href="/event/<%= event._id %>" style="margin-left: 10px; padding: 10px 15px; background-color: #333; color: #00ff00; text-decoration: none; border: 1px solid #00ff00;">Cancel</a>
+        </div>
+      </form>
+      
+      <script>
+        document.getElementById('add-extensions').addEventListener('change', function() {
+          const extensionsContainer = document.getElementById('extensions-container');
+          const addExtensionBtn = document.getElementById('add-extension-btn');
+          if (this.checked) {
+            extensionsContainer.style.display = 'block';
+            addExtensionBtn.style.display = 'inline-block';
+          } else {
+            extensionsContainer.style.display = 'none';
+            addExtensionBtn.style.display = 'none';
+          }
+        });
+
+        function addExtensionField() {
+          const container = document.getElementById('extensions-container');
+          const newExtension = document.createElement('div');
+          newExtension.className = 'extension';
+          newExtension.innerHTML = `
+            <label for="extension-name">Extension Name:</label>
+            <input type="text" name="extension-name">
+            <label for="extension-link">Download Link:</label>
+            <input type="url" name="extension-link">
+            <label for="extension-time">Installation Time (minutes):</label>
+            <input type="number" name="extension-time">
+            <button type="button" onclick="removeExtensionField(this)" style="margin-left: 10px; padding: 5px 10px; background-color: #ff0000; color: #fff; border: 1px solid #ff0000;">Remove</button>
+          `;
+          container.appendChild(newExtension);
+        }
+
+        function removeExtensionField(button) {
+          button.parentElement.remove();
+        }
+
+        // Game selection handler for Steam integration info
+        const gameSelect = document.getElementById('game');
+        const steamInfo = document.getElementById('steam-info');
+        const steamStatus = document.getElementById('steam-status');
+        
+        // Simple Steam integration display (without complex data parsing)
+        gameSelect.addEventListener('change', function() {
+          steamStatus.innerHTML = 'Steam integration will be automatically configured based on the selected game.';
+          steamInfo.style.display = 'block';
+        });
+        
+        // Trigger initial check
+        if (gameSelect.value) {
+          gameSelect.dispatchEvent(new Event('change'));
+        }
+
+        document.querySelector('form').addEventListener('submit', function(event) {
+          // Check if at least one platform is selected
+          const platformCheckboxes = document.querySelectorAll('input[name="platforms"]:checked');
+          if (platformCheckboxes.length === 0) {
+            alert('Please select at least one platform for this event.');
+            event.preventDefault();
+            return false;
+          }
+
+          // Remove any existing extensions hidden input
+          const existingExtensionsInput = document.querySelector('input[name="extensions"]');
+          if (existingExtensionsInput) {
+            existingExtensionsInput.remove();
+          }
+
+          // Only process extensions if the checkbox is checked
+          const addExtensionsCheckbox = document.getElementById('add-extensions');
+          if (addExtensionsCheckbox && addExtensionsCheckbox.checked) {
+            const extensions = document.querySelectorAll('.extension');
+            const extensionsData = [];
+
+            extensions.forEach(extension => {
+              const name = extension.querySelector('input[name="extension-name"]').value;
+              const link = extension.querySelector('input[name="extension-link"]').value;
+              const time = extension.querySelector('input[name="extension-time"]').value;
+
+              // Only add extension if all fields are filled
+              if (name && link && time) {
+                extensionsData.push({ name, downloadLink: link, installationTime: time });
+              }
+            });
+
+            // Only create hidden input if there are actual extensions to add
+            if (extensionsData.length > 0) {
+              const hiddenInput = document.createElement('input');
+              hiddenInput.type = 'hidden';
+              hiddenInput.name = 'extensions';
+              hiddenInput.value = JSON.stringify(extensionsData);
+              this.appendChild(hiddenInput);
+            }
+          }
+        });
+      </script>
+    <% } %>
+  </main>
+</body>
+</html>

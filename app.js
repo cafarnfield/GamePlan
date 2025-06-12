@@ -8,6 +8,7 @@ const session = require('express-session');
 const MongoStore = require('connect-mongo');
 const axios = require('axios'); // Add axios for HTTP requests
 const steamService = require('./services/steamService');
+const rawgService = require('./services/rawgService');
 
 // Initialize Express
 const app = express();
@@ -353,6 +354,276 @@ app.get('/admin', ensureAdmin, async (req, res) => {
   res.render('admin', { games, isDevelopmentAutoLogin });
 });
 
+// Route to show admin games management
+app.get('/admin/games', ensureAdmin, async (req, res) => {
+  try {
+    const { status, source } = req.query;
+    let query = {};
+    
+    // Apply filters
+    if (status === 'pending') {
+      query.status = 'pending';
+    } else if (status === 'approved') {
+      query.status = 'approved';
+    } else if (status === 'rejected') {
+      query.status = 'rejected';
+    }
+    
+    if (source === 'steam') {
+      query.source = 'steam';
+    } else if (source === 'manual') {
+      query.source = 'manual';
+    } else if (source === 'admin') {
+      query.source = 'admin';
+    }
+    
+    const games = await Game.find(query)
+      .populate('addedBy')
+      .populate('approvedBy')
+      .sort({ createdAt: -1 });
+    
+    // Get potential duplicates for pending games
+    const DuplicateDetectionService = require('./services/duplicateDetectionService');
+    const gamesWithDuplicates = await Promise.all(
+      games.map(async (game) => {
+        if (game.status === 'pending') {
+          const duplicates = await DuplicateDetectionService.findPotentialDuplicates(game.name, game._id);
+          return { ...game.toObject(), potentialDuplicates: duplicates };
+        }
+        return game.toObject();
+      })
+    );
+    
+    const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
+    
+    res.render('adminGames', { 
+      games: gamesWithDuplicates,
+      filter: status || null,
+      sourceFilter: source || null,
+      isDevelopmentAutoLogin 
+    });
+  } catch (err) {
+    console.error('Error fetching games:', err);
+    res.status(500).send('Error fetching games');
+  }
+});
+
+// Route to approve a game
+app.post('/admin/game/approve/:id', ensureAdmin, async (req, res) => {
+  try {
+    const { notes } = req.body;
+    const game = await Game.findById(req.params.id).populate('addedBy');
+    
+    if (!game) {
+      return res.status(404).json({ error: 'Game not found' });
+    }
+    
+    game.status = 'approved';
+    game.approvedAt = new Date();
+    game.approvedBy = req.user._id;
+    
+    await game.save();
+    
+    // Update all events using this game to be visible
+    await Event.updateMany(
+      { game: game._id, gameStatus: 'pending' },
+      { gameStatus: 'approved', isVisible: true }
+    );
+    
+    // Create audit log
+    await createAuditLog(
+      req.user, 
+      'approve_game', 
+      game.addedBy, 
+      `Approved game: ${game.name}. ${notes || ''}`, 
+      getClientIP(req),
+      1,
+      { gameId: game._id, gameName: game.name }
+    );
+    
+    console.log('Game approved:', game.name, 'by:', req.user.email);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error approving game:', err);
+    res.status(500).json({ error: 'Error approving game' });
+  }
+});
+
+// Route to reject a game
+app.post('/admin/game/reject/:id', ensureAdmin, async (req, res) => {
+  try {
+    const { notes } = req.body;
+    const game = await Game.findById(req.params.id).populate('addedBy');
+    
+    if (!game) {
+      return res.status(404).json({ error: 'Game not found' });
+    }
+    
+    game.status = 'rejected';
+    game.rejectedAt = new Date();
+    game.rejectedBy = req.user._id;
+    
+    await game.save();
+    
+    // Delete all events using this rejected game
+    await Event.deleteMany({ game: game._id, gameStatus: 'pending' });
+    
+    // Create audit log
+    await createAuditLog(
+      req.user, 
+      'reject_game', 
+      game.addedBy, 
+      `Rejected game: ${game.name}. ${notes || ''}`, 
+      getClientIP(req),
+      1,
+      { gameId: game._id, gameName: game.name }
+    );
+    
+    console.log('Game rejected:', game.name, 'by:', req.user.email);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error rejecting game:', err);
+    res.status(500).json({ error: 'Error rejecting game' });
+  }
+});
+
+// Route to merge duplicate games
+app.post('/admin/game/merge/:duplicateId/:canonicalId', ensureAdmin, async (req, res) => {
+  try {
+    const DuplicateDetectionService = require('./services/duplicateDetectionService');
+    const result = await DuplicateDetectionService.mergeDuplicateGames(
+      req.params.duplicateId,
+      req.params.canonicalId,
+      req.user
+    );
+    
+    if (result.success) {
+      // Create audit log
+      await createAuditLog(
+        req.user, 
+        'merge_games', 
+        null, 
+        result.message, 
+        getClientIP(req),
+        1,
+        { duplicateId: req.params.duplicateId, canonicalId: req.params.canonicalId }
+      );
+      
+      console.log('Games merged by admin:', req.user.email, result.message);
+      res.json({ success: true, message: result.message });
+    } else {
+      res.status(400).json({ error: result.message });
+    }
+  } catch (err) {
+    console.error('Error merging games:', err);
+    res.status(500).json({ error: 'Error merging games' });
+  }
+});
+
+// Route to show admin events management
+app.get('/admin/events', ensureAdmin, async (req, res) => {
+  try {
+    const { status, game: selectedGame } = req.query;
+    let query = {};
+    
+    // Apply filters
+    if (status === 'upcoming') {
+      query.date = { $gte: new Date() };
+    } else if (status === 'past') {
+      query.date = { $lt: new Date() };
+    }
+    
+    if (selectedGame) {
+      query.game = selectedGame;
+    }
+    
+    const events = await Event.find(query)
+      .populate('game')
+      .populate('createdBy')
+      .populate('players')
+      .sort({ date: -1 });
+    
+    const games = await Game.find().sort({ name: 1 });
+    const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
+    
+    res.render('adminEvents', { 
+      events, 
+      games,
+      filter: status || null,
+      selectedGame: selectedGame || null,
+      isDevelopmentAutoLogin 
+    });
+  } catch (err) {
+    console.error('Error fetching events:', err);
+    res.status(500).send('Error fetching events');
+  }
+});
+
+// Route for admin to delete events
+app.post('/admin/event/:id/delete', ensureAdmin, async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id).populate('createdBy');
+    
+    if (!event) {
+      return res.status(404).send('Event not found');
+    }
+    
+    // Create audit log for admin deletion
+    await createAuditLog(
+      req.user, 
+      'admin_delete_event', 
+      event.createdBy, 
+      `Admin deleted event: ${event.name}`, 
+      getClientIP(req),
+      1,
+      { eventId: event._id, eventName: event.name }
+    );
+    
+    // Delete the event
+    await Event.findByIdAndDelete(req.params.id);
+    
+    console.log(`Event "${event.name}" deleted by admin ${req.user.email}`);
+    res.redirect('/admin/events');
+  } catch (err) {
+    console.error('Error deleting event:', err);
+    res.status(500).send('Error deleting event');
+  }
+});
+
+// Bulk delete events (admin only)
+app.post('/admin/events/bulk-delete', ensureAdmin, async (req, res) => {
+  try {
+    const { eventIds, notes } = req.body;
+    
+    if (!Array.isArray(eventIds) || eventIds.length === 0) {
+      return res.status(400).send('No events selected');
+    }
+    
+    const events = await Event.find({ _id: { $in: eventIds } }).populate('createdBy');
+    const deletedCount = events.length;
+    
+    // Create audit log for bulk deletion
+    await createAuditLog(
+      req.user, 
+      'admin_bulk_delete_events', 
+      null, 
+      notes || 'Bulk deletion of events by admin', 
+      getClientIP(req),
+      deletedCount,
+      { eventIds, eventNames: events.map(e => e.name) }
+    );
+    
+    // Delete the events
+    await Event.deleteMany({ _id: { $in: eventIds } });
+    
+    console.log(`Bulk deleted ${deletedCount} events by admin ${req.user.email}`);
+    res.redirect('/admin/events');
+  } catch (err) {
+    console.error('Error bulk deleting events:', err);
+    res.status(500).send('Error bulk deleting events');
+  }
+});
+
 // Route to show all registered users with filtering
 app.get('/admin/users', ensureAdmin, async (req, res) => {
   try {
@@ -638,8 +909,8 @@ app.post('/admin/users/bulk-delete', ensureAdmin, async (req, res) => {
   }
 });
 
-// Steam API routes
-app.get('/api/steam/search', ensureAdmin, async (req, res) => {
+// Steam API routes - Updated to allow authenticated users (not just admins)
+app.get('/api/steam/search', ensureAuthenticated, async (req, res) => {
   try {
     const { q } = req.query;
     if (!q || q.trim().length < 2) {
@@ -647,10 +918,114 @@ app.get('/api/steam/search', ensureAdmin, async (req, res) => {
     }
     
     const results = await steamService.searchGames(q, 10);
-    res.json(results);
+    
+    // Check which games already exist in the database
+    const enrichedResults = await Promise.all(results.map(async (game) => {
+      const existingGame = await Game.findOne({ 
+        steamAppId: game.appid, 
+        status: 'approved' 
+      });
+      
+      return {
+        ...game,
+        existsInDatabase: !!existingGame,
+        existingGameId: existingGame ? existingGame._id : null,
+        existingGameName: existingGame ? existingGame.name : null
+      };
+    }));
+    
+    res.json(enrichedResults);
   } catch (error) {
     console.error('Error searching Steam games:', error);
     res.status(500).json({ error: 'Failed to search Steam games' });
+  }
+});
+
+// RAWG API routes
+app.get('/api/rawg/search', ensureAuthenticated, async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || q.trim().length < 2) {
+      return res.json([]);
+    }
+    
+    const results = await rawgService.searchGames(q, 10);
+    
+    // Check which games already exist in the database and if Steam equivalent exists
+    const enrichedResults = await Promise.all(results.map(async (game) => {
+      // Check if this RAWG game already exists
+      const existingRawgGame = await Game.findOne({ 
+        rawgId: game.id, 
+        status: 'approved' 
+      });
+      
+      // Check if a Steam equivalent exists (prefer Steam over RAWG)
+      const steamEquivalent = await Game.findOne({
+        name: { $regex: new RegExp(`^${game.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
+        source: 'steam',
+        status: 'approved'
+      });
+      
+      return {
+        ...game,
+        existsInDatabase: !!existingRawgGame,
+        existingGameId: existingRawgGame ? existingRawgGame._id : null,
+        existingGameName: existingRawgGame ? existingRawgGame.name : null,
+        hasSteamEquivalent: !!steamEquivalent,
+        steamEquivalentId: steamEquivalent ? steamEquivalent._id : null,
+        steamEquivalentName: steamEquivalent ? steamEquivalent.name : null
+      };
+    }));
+    
+    res.json(enrichedResults);
+  } catch (error) {
+    console.error('Error searching RAWG games:', error);
+    res.status(500).json({ error: 'Failed to search RAWG games' });
+  }
+});
+
+// API route to check if RAWG game has Steam equivalent
+app.post('/api/games/check-steam-equivalent', ensureAuthenticated, async (req, res) => {
+  try {
+    const { gameName } = req.body;
+    if (!gameName || gameName.trim().length < 2) {
+      return res.json({ hasSteamEquivalent: false });
+    }
+    
+    const steamEquivalent = await Game.findOne({
+      name: { $regex: new RegExp(`^${gameName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
+      source: 'steam',
+      status: 'approved'
+    });
+    
+    res.json({
+      hasSteamEquivalent: !!steamEquivalent,
+      steamGame: steamEquivalent ? {
+        id: steamEquivalent._id,
+        name: steamEquivalent.name,
+        steamAppId: steamEquivalent.steamAppId
+      } : null
+    });
+  } catch (error) {
+    console.error('Error checking Steam equivalent:', error);
+    res.status(500).json({ error: 'Failed to check Steam equivalent' });
+  }
+});
+
+// Duplicate detection API
+app.post('/api/games/check-duplicates', ensureAuthenticated, async (req, res) => {
+  try {
+    const { gameName } = req.body;
+    if (!gameName || gameName.trim().length < 3) {
+      return res.json([]);
+    }
+    
+    const DuplicateDetectionService = require('./services/duplicateDetectionService');
+    const duplicates = await DuplicateDetectionService.findPotentialDuplicates(gameName);
+    res.json(duplicates);
+  } catch (error) {
+    console.error('Error checking for duplicates:', error);
+    res.status(500).json({ error: 'Failed to check for duplicates' });
   }
 });
 
@@ -760,12 +1135,228 @@ app.get('/api/admin/pending-count', ensureAdmin, async (req, res) => {
   }
 });
 
+// API endpoint for filtering events
+app.get('/api/events/filter', async (req, res) => {
+  try {
+    const {
+      search,
+      gameSearch,
+      dateFrom,
+      dateTo,
+      status,
+      platforms,
+      playerAvailability,
+      host,
+      categories,
+      sortBy
+    } = req.query;
+
+    let query = {};
+    
+    // Base visibility filter based on user role
+    if (!req.user) {
+      query.isVisible = true;
+    } else if (!req.user.isAdmin) {
+      query = {
+        $or: [
+          { isVisible: true },
+          { createdBy: req.user._id, gameStatus: 'pending' }
+        ]
+      };
+    }
+
+    // Default: Hide events that started more than 1 hour ago
+    const oneHourAgo = new Date(Date.now() - 3600000);
+    if (!status || status !== 'past') {
+      query.date = { $gte: oneHourAgo };
+    }
+
+    // Event name search
+    if (search && search.trim()) {
+      query.name = { $regex: search.trim(), $options: 'i' };
+    }
+
+    // Date range filter
+    if (dateFrom) {
+      query.date = { ...query.date, $gte: new Date(dateFrom) };
+    }
+    if (dateTo) {
+      const endDate = new Date(dateTo);
+      endDate.setHours(23, 59, 59, 999); // End of day
+      query.date = { ...query.date, $lte: endDate };
+    }
+
+    // Status filter
+    if (status) {
+      const now = new Date();
+      const twoHoursAgo = new Date(now.getTime() - 7200000);
+      
+      if (status === 'live') {
+        query.date = {
+          $gte: twoHoursAgo,
+          $lte: now
+        };
+      } else if (status === 'upcoming') {
+        query.date = { $gt: now };
+      } else if (status === 'past') {
+        query.date = { $lt: twoHoursAgo };
+      }
+    }
+
+    // Platform filter
+    if (platforms) {
+      const platformArray = Array.isArray(platforms) ? platforms : [platforms];
+      query.platforms = { $in: platformArray };
+    }
+
+    // Build aggregation pipeline
+    let pipeline = [
+      { $match: query },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'createdBy',
+          foreignField: '_id',
+          as: 'createdBy'
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'players',
+          foreignField: '_id',
+          as: 'players'
+        }
+      },
+      {
+        $lookup: {
+          from: 'extensions',
+          localField: 'requiredExtensions',
+          foreignField: '_id',
+          as: 'requiredExtensions'
+        }
+      },
+      {
+        $lookup: {
+          from: 'games',
+          localField: 'game',
+          foreignField: '_id',
+          as: 'game'
+        }
+      },
+      { $unwind: { path: '$createdBy', preserveNullAndEmptyArrays: true } },
+      { $unwind: { path: '$game', preserveNullAndEmptyArrays: true } }
+    ];
+
+    // Game name search
+    if (gameSearch && gameSearch.trim()) {
+      pipeline.push({
+        $match: {
+          'game.name': { $regex: gameSearch.trim(), $options: 'i' }
+        }
+      });
+    }
+
+    // Host filter
+    if (host && host.trim()) {
+      pipeline.push({
+        $match: {
+          $or: [
+            { 'createdBy.name': { $regex: host.trim(), $options: 'i' } },
+            { 'createdBy.gameNickname': { $regex: host.trim(), $options: 'i' } }
+          ]
+        }
+      });
+    }
+
+    // Game categories filter
+    if (categories) {
+      const categoryArray = Array.isArray(categories) ? categories : [categories];
+      pipeline.push({
+        $match: {
+          'game.categories': { $in: categoryArray }
+        }
+      });
+    }
+
+    // Player availability filter
+    if (playerAvailability) {
+      if (playerAvailability === 'available') {
+        pipeline.push({
+          $match: {
+            $expr: { $lt: [{ $size: '$players' }, '$playerLimit'] }
+          }
+        });
+      } else if (playerAvailability === 'full') {
+        pipeline.push({
+          $match: {
+            $expr: { $gte: [{ $size: '$players' }, '$playerLimit'] }
+          }
+        });
+      }
+    }
+
+    // Sorting
+    let sortOptions = { date: 1 }; // Default: next game order
+    if (sortBy) {
+      switch (sortBy) {
+        case 'recent':
+          sortOptions = { createdAt: -1 };
+          break;
+        case 'players':
+          sortOptions = { playerLimit: -1 };
+          break;
+        case 'alphabetical':
+          sortOptions = { name: 1 };
+          break;
+        default:
+          sortOptions = { date: 1 };
+      }
+    }
+
+    pipeline.push({ $sort: sortOptions });
+
+    const events = await Event.aggregate(pipeline);
+    
+    res.json({
+      events,
+      total: events.length
+    });
+
+  } catch (error) {
+    console.error('Error filtering events:', error);
+    res.status(500).json({ error: 'Failed to filter events' });
+  }
+});
+
 // Routes
 app.get('/', async (req, res) => {
-  const events = await Event.find().populate({
+  let query = {};
+  
+  // Filter events based on user role and visibility
+  if (!req.user) {
+    // Non-authenticated users only see visible events
+    query.isVisible = true;
+  } else if (!req.user.isAdmin) {
+    // Regular authenticated users see visible events + their own pending events
+    query = {
+      $or: [
+        { isVisible: true },
+        { createdBy: req.user._id, gameStatus: 'pending' }
+      ]
+    };
+  }
+  // Admins see all events (no query filter)
+  
+  // Default: Hide events that started more than 1 hour ago
+  const oneHourAgo = new Date(Date.now() - 3600000);
+  query.date = { $gte: oneHourAgo };
+  
+  const events = await Event.find(query).populate('createdBy').populate({
     path: 'players',
     populate: { path: 'players' }
-  }).populate('requiredExtensions').populate('game');
+  }).populate('requiredExtensions').populate('game').sort({ date: 1 }); // Sort by date ascending (soonest first)
+  
   const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
   res.render('index', { events, user: req.user, isDevelopmentAutoLogin });
 });
@@ -927,38 +1518,163 @@ app.post('/event/new', ensureAuthenticated, ensureNotBlocked, async (req, res) =
     console.log('Event creation request received');
     console.log('Request body:', req.body);
 
-    const { name, gameId, description, playerLimit, date, extensions, platforms } = req.body;
+    const { name, description, playerLimit, date, extensions, platforms, gameSelection } = req.body;
 
-    // Validate game ID
-    console.log('Validating game ID:', gameId);
-    const game = await Game.findById(gameId);
-    if (!game) {
-      console.error('Invalid game ID:', gameId);
-      return res.status(400).send('Invalid game ID');
+    // Parse game selection data
+    let gameSelectionData;
+    try {
+      gameSelectionData = JSON.parse(gameSelection);
+    } catch (parseError) {
+      console.error('Error parsing game selection:', parseError);
+      return res.status(400).send('Invalid game selection data');
     }
-    console.log('Game found:', game);
 
-// Create the event with automatic Steam App ID from game
+    console.log('Game selection data:', gameSelectionData);
+
+    let game;
+    let gameStatus = 'approved';
+    let isVisible = true;
+
+    // Handle different game selection types
+    if (gameSelectionData.type === 'existing') {
+      // Use existing game
+      game = await Game.findById(gameSelectionData.gameId);
+      if (!game) {
+        console.error('Invalid existing game ID:', gameSelectionData.gameId);
+        return res.status(400).send('Invalid game selection');
+      }
+      console.log('Using existing game:', game.name);
+
+    } else if (gameSelectionData.type === 'steam') {
+      // Create or find Steam game
+      const steamData = gameSelectionData.data;
+      
+      // Check if this Steam game already exists
+      let existingGame = await Game.findOne({ steamAppId: steamData.appid });
+      
+      if (existingGame) {
+        game = existingGame;
+        console.log('Using existing Steam game:', game.name);
+      } else {
+        // Create new Steam game
+        game = new Game({
+          name: steamData.name,
+          description: steamData.short_description || '',
+          steamAppId: steamData.appid,
+          steamData: {
+            name: steamData.name,
+            short_description: steamData.short_description,
+            header_image: steamData.header_image,
+            developers: steamData.developers || [],
+            publishers: steamData.publishers || []
+          },
+          source: 'steam',
+          status: 'approved',
+          platforms: steamData.platforms || ['PC'],
+          createdAt: new Date()
+        });
+        
+        await game.save();
+        console.log('Created new Steam game:', game.name);
+      }
+
+    } else if (gameSelectionData.type === 'rawg') {
+      // Create or find RAWG game
+      const rawgData = gameSelectionData.data;
+      
+      // Check if this RAWG game already exists
+      let existingGame = await Game.findOne({ rawgId: rawgData.id });
+      
+      if (existingGame) {
+        game = existingGame;
+        console.log('Using existing RAWG game:', game.name);
+      } else {
+        // Create new RAWG game
+        game = new Game({
+          name: rawgData.name,
+          description: rawgData.short_description || rawgData.description || '',
+          rawgId: rawgData.id,
+          rawgData: {
+            name: rawgData.name,
+            description: rawgData.description || rawgData.short_description || '',
+            background_image: rawgData.background_image,
+            developers: rawgData.developers || [],
+            publishers: rawgData.publishers || [],
+            genres: rawgData.genres || [],
+            rating: rawgData.rating,
+            released: rawgData.released
+          },
+          source: 'rawg',
+          status: 'approved',
+          platforms: rawgData.platforms || [],
+          categories: rawgData.genres || [],
+          createdAt: new Date()
+        });
+        
+        await game.save();
+        console.log('Created new RAWG game:', game.name);
+      }
+
+    } else if (gameSelectionData.type === 'manual') {
+      // Create manual game (pending approval)
+      const manualData = gameSelectionData.data;
+      
+      game = new Game({
+        name: manualData.name,
+        description: manualData.description,
+        categories: manualData.categories || [],
+        tags: manualData.tags || [],
+        source: 'manual',
+        status: 'pending',
+        addedBy: req.user._id,
+        createdAt: new Date()
+      });
+      
+      await game.save();
+      console.log('Created new manual game (pending approval):', game.name);
+      
+      // Set event status to pending and invisible
+      gameStatus = 'pending';
+      isVisible = false;
+    } else {
+      return res.status(400).send('Invalid game selection type');
+    }
+
+    // Process platforms properly - handle single string, array, or undefined
+    let processedPlatforms = [];
+    console.log('Raw platforms received:', platforms, 'Type:', typeof platforms);
+    
+    if (platforms) {
+      if (Array.isArray(platforms)) {
+        processedPlatforms = platforms;
+      } else if (typeof platforms === 'string') {
+        processedPlatforms = [platforms];
+      }
+    }
+    console.log('Processed platforms:', processedPlatforms);
+
+    // Create the event
     const event = new Event({
       name,
-      game: gameId,
+      game: game._id,
       description,
       playerLimit,
-      date: new Date(date), // Ensure date is a Date object
+      date: new Date(date),
       players: [req.user._id], // Add the creator as the first player
-      platforms: Array.isArray(platforms) ? platforms : [],
-      steamAppId: game.steamAppId || req.body.steamAppId // Use game's Steam App ID or manual override
+      platforms: processedPlatforms,
+      steamAppId: game.steamAppId || null,
+      createdBy: req.user._id,
+      gameStatus: gameStatus,
+      isVisible: isVisible
     });
 
-    // Process extensions if provided
-    if (extensions) {
+    // Process extensions if provided and not empty
+    if (extensions && extensions.trim() !== '' && extensions.trim() !== '[]') {
       try {
         console.log('Processing extensions:', extensions);
 
-        // Handle case where extensions might be an array (from old form)
         let extensionData;
         if (Array.isArray(extensions)) {
-          // Take the last valid entry if it's an array
           const lastEntry = extensions[extensions.length - 1];
           if (lastEntry && lastEntry.trim() !== '[]') {
             extensionData = JSON.parse(lastEntry);
@@ -966,26 +1682,28 @@ app.post('/event/new', ensureAuthenticated, ensureNotBlocked, async (req, res) =
             extensionData = [];
           }
         } else {
-          // Normal case - single string
           extensionData = JSON.parse(extensions);
         }
 
-        for (const ext of extensionData) {
-          // Validate extension data structure
-          if (typeof ext.name !== 'string' ||
-              typeof ext.downloadLink !== 'string' ||
-              typeof ext.installationTime !== 'string') {
-            console.error('Invalid extension data structure:', ext);
-            return res.status(400).send('Invalid extension data structure');
-          }
+        if (Array.isArray(extensionData) && extensionData.length > 0) {
+          for (const ext of extensionData) {
+            if (typeof ext.name !== 'string' ||
+                typeof ext.downloadLink !== 'string' ||
+                typeof ext.installationTime !== 'string') {
+              console.error('Invalid extension data structure:', ext);
+              return res.status(400).send('Invalid extension data structure');
+            }
 
-          const extension = new Extension({
-            name: ext.name,
-            downloadLink: ext.downloadLink,
-            installationTime: ext.installationTime
-          });
-          await extension.save();
-          event.requiredExtensions.push(extension._id);
+            if (ext.name.trim() && ext.downloadLink.trim() && ext.installationTime.trim()) {
+              const extension = new Extension({
+                name: ext.name,
+                downloadLink: ext.downloadLink,
+                installationTime: ext.installationTime
+              });
+              await extension.save();
+              event.requiredExtensions.push(extension._id);
+            }
+          }
         }
       } catch (parseError) {
         console.error('Error parsing extensions:', parseError);
@@ -997,8 +1715,13 @@ app.post('/event/new', ensureAuthenticated, ensureNotBlocked, async (req, res) =
     const savedEvent = await event.save();
     console.log('Saved event:', savedEvent);
 
-    // Redirect to the event page
-    res.redirect(`/event/${savedEvent._id}`);
+    // Redirect with appropriate message
+    if (gameStatus === 'pending') {
+      // Redirect to a pending approval page or show message
+      res.redirect(`/event/${savedEvent._id}?pending=true`);
+    } else {
+      res.redirect(`/event/${savedEvent._id}`);
+    }
   } catch (err) {
     console.error('Error creating event:', err);
     res.status(500).send('Error creating event');
@@ -1043,7 +1766,7 @@ app.get('/event/:id', async (req, res) => {
     console.log('Authenticated user:', req.isAuthenticated(), req.user);
     
     // First, try to fetch the event
-    const event = await Event.findById(req.params.id).populate('players').populate('requiredExtensions').populate('game');
+    const event = await Event.findById(req.params.id).populate('players').populate('requiredExtensions').populate('game').populate('createdBy');
     
     if (!event) {
       console.error('Event not found with ID:', req.params.id);
@@ -1110,15 +1833,216 @@ app.post('/event/:id/leave', ensureAuthenticated, ensureNotBlocked, async (req, 
   }
 });
 
+// Route to show event edit form
+app.get('/event/:id/edit', ensureAuthenticated, ensureNotBlocked, async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id)
+      .populate('createdBy')
+      .populate('requiredExtensions')
+      .populate('game');
+    
+    if (!event) {
+      return res.status(404).send('Event not found');
+    }
+    
+    // Check if user is authorized to edit (event creator or admin)
+    const isCreator = event.createdBy && event.createdBy._id.equals(req.user._id);
+    const isAdmin = req.user.isAdmin;
+    
+    if (!isCreator && !isAdmin) {
+      return res.status(403).send('You are not authorized to edit this event');
+    }
+    
+    const games = await Game.find();
+    const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
+    
+    // Prepare games data for client-side JavaScript
+    const gamesData = games.map(game => ({
+      _id: game._id.toString(),
+      name: game.name,
+      steamAppId: game.steamAppId || null,
+      description: game.description || ''
+    }));
+    
+    res.render('editEvent', { 
+      event, 
+      games, 
+      gamesData: JSON.stringify(gamesData), 
+      user: req.user, 
+      isDevelopmentAutoLogin 
+    });
+  } catch (err) {
+    console.error('Error loading event edit form:', err);
+    res.status(500).send('Error loading event edit form');
+  }
+});
+
+// Route to process event edit form
+app.post('/event/:id/edit', ensureAuthenticated, ensureNotBlocked, async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id).populate('createdBy').populate('requiredExtensions');
+    
+    if (!event) {
+      return res.status(404).send('Event not found');
+    }
+    
+    // Check if user is authorized to edit (event creator or admin)
+    const isCreator = event.createdBy && event.createdBy._id.equals(req.user._id);
+    const isAdmin = req.user.isAdmin;
+    
+    if (!isCreator && !isAdmin) {
+      return res.status(403).send('You are not authorized to edit this event');
+    }
+    
+    const { name, gameId, description, playerLimit, date, extensions, platforms } = req.body;
+    
+    // Validate game ID
+    const game = await Game.findById(gameId);
+    if (!game) {
+      return res.status(400).send('Invalid game ID');
+    }
+    
+    // Store original values for audit log
+    const originalValues = {
+      name: event.name,
+      game: event.game.toString(),
+      description: event.description,
+      playerLimit: event.playerLimit,
+      date: event.date,
+      platforms: event.platforms
+    };
+    
+    // Process platforms properly
+    let processedPlatforms = [];
+    if (platforms) {
+      if (Array.isArray(platforms)) {
+        processedPlatforms = platforms;
+      } else if (typeof platforms === 'string') {
+        processedPlatforms = [platforms];
+      }
+    }
+    
+    // Update event fields
+    event.name = name;
+    event.game = gameId;
+    event.description = description;
+    event.playerLimit = playerLimit;
+    event.date = new Date(date);
+    event.platforms = processedPlatforms;
+    event.steamAppId = game.steamAppId || req.body.steamAppId;
+    
+    // Handle extensions - remove old ones and add new ones
+    if (event.requiredExtensions && event.requiredExtensions.length > 0) {
+      // Delete old extensions
+      await Extension.deleteMany({ _id: { $in: event.requiredExtensions } });
+    }
+    event.requiredExtensions = [];
+    
+    // Process new extensions if provided
+    if (extensions && extensions.trim() !== '' && extensions.trim() !== '[]') {
+      try {
+        let extensionData;
+        if (Array.isArray(extensions)) {
+          const lastEntry = extensions[extensions.length - 1];
+          if (lastEntry && lastEntry.trim() !== '[]') {
+            extensionData = JSON.parse(lastEntry);
+          } else {
+            extensionData = [];
+          }
+        } else {
+          extensionData = JSON.parse(extensions);
+        }
+        
+        if (Array.isArray(extensionData) && extensionData.length > 0) {
+          for (const ext of extensionData) {
+            if (typeof ext.name !== 'string' ||
+                typeof ext.downloadLink !== 'string' ||
+                typeof ext.installationTime !== 'string') {
+              return res.status(400).send('Invalid extension data structure');
+            }
+            
+            if (ext.name.trim() && ext.downloadLink.trim() && ext.installationTime.trim()) {
+              const extension = new Extension({
+                name: ext.name,
+                downloadLink: ext.downloadLink,
+                installationTime: ext.installationTime
+              });
+              await extension.save();
+              event.requiredExtensions.push(extension._id);
+            }
+          }
+        }
+      } catch (parseError) {
+        console.error('Error parsing extensions:', parseError);
+        return res.status(400).send('Invalid extensions data');
+      }
+    }
+    
+    await event.save();
+    
+    // Create audit log for admin edits
+    if (isAdmin && !isCreator) {
+      const changes = [];
+      if (originalValues.name !== name) changes.push(`name: "${originalValues.name}" → "${name}"`);
+      if (originalValues.game !== gameId) changes.push(`game changed`);
+      if (originalValues.description !== description) changes.push(`description updated`);
+      if (originalValues.playerLimit !== parseInt(playerLimit)) changes.push(`player limit: ${originalValues.playerLimit} → ${playerLimit}`);
+      if (originalValues.date.getTime() !== new Date(date).getTime()) changes.push(`date changed`);
+      if (JSON.stringify(originalValues.platforms) !== JSON.stringify(processedPlatforms)) changes.push(`platforms updated`);
+      
+      await createAuditLog(
+        req.user, 
+        'admin_edit_event', 
+        event.createdBy, 
+        `Admin edited event: ${event.name}. Changes: ${changes.join(', ')}`, 
+        getClientIP(req),
+        1,
+        { eventId: event._id, eventName: event.name, changes }
+      );
+    }
+    
+    console.log(`Event "${event.name}" edited by ${req.user.email} (${isAdmin && !isCreator ? 'admin' : 'creator'})`);
+    res.redirect(`/event/${event._id}`);
+  } catch (err) {
+    console.error('Error updating event:', err);
+    res.status(500).send('Error updating event');
+  }
+});
+
 // Add event deletion route
 app.post('/event/:id/delete', ensureAuthenticated, ensureNotBlocked, async (req, res) => {
   try {
-    const event = await Event.findById(req.params.id).populate('players');
-    // Only allow the event creator or admins to delete the event
-    if (event.players.length === 0 || (!event.players[0]._id.equals(req.user._id) && !req.user.isAdmin)) {
+    const event = await Event.findById(req.params.id).populate('createdBy').populate('players');
+    
+    if (!event) {
+      return res.status(404).send('Event not found');
+    }
+    
+    // Check if user is authorized to delete (event creator or admin)
+    const isCreator = event.createdBy && event.createdBy._id.equals(req.user._id);
+    const isAdmin = req.user.isAdmin;
+    
+    if (!isCreator && !isAdmin) {
       return res.status(403).send('You are not authorized to delete this event');
     }
-    await event.remove();
+    
+    // Create audit log for admin deletions
+    if (isAdmin && !isCreator) {
+      await createAuditLog(
+        req.user, 
+        'delete_event', 
+        event.createdBy, 
+        `Deleted event: ${event.name}`, 
+        getClientIP(req),
+        1,
+        { eventId: event._id, eventName: event.name }
+      );
+    }
+    
+    // Delete the event using the modern method
+    await Event.findByIdAndDelete(req.params.id);
+    
+    console.log(`Event "${event.name}" deleted by ${req.user.email} (${isAdmin ? 'admin' : 'creator'})`);
     res.redirect('/');
   } catch (err) {
     console.error('Error deleting event:', err);

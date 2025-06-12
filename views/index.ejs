@@ -63,12 +63,163 @@
       <% } %>
     <% } %>
 
-    <div class="events-grid">
+    <!-- Filter Panel -->
+    <div class="filter-panel" id="filterPanel">
+      <div class="filter-toggle" onclick="toggleFilterPanel()">
+        <span class="filter-icon">🔍</span>
+        <span class="filter-text">FILTERS</span>
+        <span class="filter-arrow" id="filterArrow">▼</span>
+      </div>
+      
+      <div class="filter-content" id="filterContent">
+        <!-- Row 1 - Primary Filters -->
+        <div class="filter-row">
+          <div class="filter-group">
+            <label for="eventSearch">Event Name</label>
+            <input type="text" id="eventSearch" placeholder="Search events..." />
+          </div>
+          
+          <div class="filter-group">
+            <label for="gameSearch">Game Name</label>
+            <input type="text" id="gameSearch" placeholder="Search games..." />
+          </div>
+          
+          <div class="filter-group">
+            <label for="dateFrom">Start Date</label>
+            <input type="date" id="dateFrom" />
+          </div>
+          
+          <div class="filter-group">
+            <label for="dateTo">End Date</label>
+            <input type="date" id="dateTo" />
+          </div>
+        </div>
+
+        <!-- Row 2 - Status and Availability -->
+        <div class="filter-row">
+          <div class="filter-group">
+            <label>Event Status</label>
+            <div class="status-buttons">
+              <button type="button" class="status-btn" data-status="upcoming">Upcoming</button>
+              <button type="button" class="status-btn" data-status="live">Live</button>
+              <button type="button" class="status-btn" data-status="past">Past</button>
+            </div>
+          </div>
+          
+          <div class="filter-group">
+            <label>Player Availability</label>
+            <div class="availability-buttons">
+              <button type="button" class="availability-btn" data-availability="all">All Events</button>
+              <button type="button" class="availability-btn" data-availability="available">Has Slots</button>
+              <button type="button" class="availability-btn" data-availability="full">Full</button>
+            </div>
+          </div>
+          
+          <div class="filter-group">
+            <label for="hostSearch">Event Host</label>
+            <input type="text" id="hostSearch" placeholder="Search hosts..." />
+          </div>
+        </div>
+
+        <!-- Row 3 - Platforms and Categories -->
+        <div class="filter-row">
+          <div class="filter-group">
+            <label>Platforms</label>
+            <div class="platform-checkboxes">
+              <label class="checkbox-label">
+                <input type="checkbox" value="PC" class="platform-checkbox" />
+                <span>PC</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" value="PlayStation" class="platform-checkbox" />
+                <span>PlayStation</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" value="Xbox" class="platform-checkbox" />
+                <span>Xbox</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" value="Nintendo Switch" class="platform-checkbox" />
+                <span>Nintendo Switch</span>
+              </label>
+            </div>
+          </div>
+          
+          <div class="filter-group">
+            <label for="categorySelect">Game Categories</label>
+            <select id="categorySelect" multiple>
+              <option value="Action">Action</option>
+              <option value="Adventure">Adventure</option>
+              <option value="Strategy">Strategy</option>
+              <option value="RPG">RPG</option>
+              <option value="FPS">FPS</option>
+              <option value="Racing">Racing</option>
+              <option value="Sports">Sports</option>
+              <option value="Simulation">Simulation</option>
+              <option value="Puzzle">Puzzle</option>
+              <option value="Platformer">Platformer</option>
+              <option value="Fighting">Fighting</option>
+              <option value="Horror">Horror</option>
+              <option value="Survival">Survival</option>
+              <option value="MMO">MMO</option>
+              <option value="Indie">Indie</option>
+              <option value="Casual">Casual</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Row 4 - Controls -->
+        <div class="filter-row filter-controls">
+          <div class="filter-group">
+            <label for="sortBy">Sort By</label>
+            <select id="sortBy">
+              <option value="date">Next Game</option>
+              <option value="recent">Recently Created</option>
+              <option value="players">Player Count</option>
+              <option value="alphabetical">Alphabetical</option>
+            </select>
+          </div>
+          
+          <div class="filter-group">
+            <label for="viewToggle">View</label>
+            <div class="view-buttons">
+              <button type="button" class="view-btn active" data-view="grid">Grid</button>
+              <button type="button" class="view-btn" data-view="list">List</button>
+            </div>
+          </div>
+          
+          <div class="filter-group">
+            <button type="button" class="clear-filters-btn" onclick="clearAllFilters()">Clear All</button>
+          </div>
+          
+          <div class="filter-group">
+            <div class="results-counter">
+              <span id="resultsCount">Loading...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Active Filters Display -->
+        <div class="active-filters" id="activeFilters" style="display: none;">
+          <span class="active-filters-label">Active Filters:</span>
+          <div class="filter-chips" id="filterChips"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div class="loading-indicator" id="loadingIndicator" style="display: none;">
+      <span class="loading-text">Filtering events...</span>
+    </div>
+
+    <div class="events-grid" id="eventsGrid">
       <% events.forEach(event => { %>
         <div class="event-card" onclick="window.location.href='/event/<%= event._id %>'">
           <div class="event-image-container">
             <% if (event.game && event.game.steamData && event.game.steamData.header_image) { %>
               <img src="<%= event.game.steamData.header_image %>" alt="<%= event.game.name %>" class="game-image">
+            <% } else if (event.game && event.game.rawgData && event.game.rawgData.background_image) { %>
+              <img src="<%= event.game.rawgData.background_image %>" alt="<%= event.game.name %>" class="game-image">
             <% } else { %>
               <div class="game-image-placeholder">
                 <span class="game-icon">🎮</span>
@@ -87,7 +238,21 @@
             <h3 class="event-title"><%= event.name %></h3>
             <div class="game-name">
               <span class="game-label">GAME:</span>
-              <span class="game-value"><%= event.game ? event.game.name : 'Unknown Game' %></span>
+              <span class="game-value">
+                <%= event.game ? event.game.name : 'Unknown Game' %>
+                <% if (event.game && event.game.source === 'steam') { %>
+                  <span class="exists-indicator">STEAM</span>
+                <% } else if (event.game && event.game.source === 'rawg') { %>
+                  <span class="exists-indicator">RAWG</span>
+                <% } %>
+              </span>
+            </div>
+            
+            <div class="creator-info">
+              <span class="creator-label">HOST:</span>
+              <span class="creator-value">
+                <%= event.createdBy ? (event.createdBy.gameNickname || event.createdBy.name) : 'Unknown' %>
+              </span>
             </div>
             
             <div class="player-info">
@@ -103,6 +268,10 @@
             </div>
             
             <div class="event-meta">
+              <div class="event-timer" data-event-date="<%= event.date.toISOString() %>">
+                <span class="timer-icon">⏰</span>
+                <span class="timer-text">Loading...</span>
+              </div>
               <div class="event-date">
                 <%= new Date(event.date).toLocaleDateString('en-GB', { 
                   weekday: 'short', 
@@ -131,6 +300,481 @@
       <% }) %>
     </div>
   </main>
+
+  <script>
+    // Global variables for filter system
+    let filterTimeout;
+    let currentFilters = {};
+    let isFilterPanelExpanded = false;
+
+    // Event countdown timer functionality
+    function updateEventTimers() {
+      const timers = document.querySelectorAll('.event-timer');
+      const now = new Date().getTime();
+      
+      timers.forEach(timer => {
+        const eventDate = new Date(timer.getAttribute('data-event-date')).getTime();
+        const timeDiff = eventDate - now;
+        const timerText = timer.querySelector('.timer-text');
+        const eventCard = timer.closest('.event-card');
+        
+        if (timeDiff > 0) {
+          // Event is in the future
+          const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+          const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+          const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+          
+          let timeString = '';
+          if (days > 0) {
+            timeString = `${days}d ${hours}h ${minutes}m`;
+          } else if (hours > 0) {
+            timeString = `${hours}h ${minutes}m`;
+          } else if (minutes > 0) {
+            timeString = `${minutes}m`;
+          } else {
+            timeString = 'Starting soon!';
+          }
+          
+          timerText.textContent = `STARTS IN: ${timeString}`;
+          
+          // Add visual states based on time remaining
+          eventCard.classList.remove('event-starting-soon', 'event-live', 'event-past');
+          
+          if (timeDiff <= 3600000) { // Less than 1 hour
+            eventCard.classList.add('event-starting-soon');
+            timerText.textContent = `STARTING SOON: ${timeString}`;
+          }
+          
+        } else if (timeDiff > -7200000) { // Event started less than 2 hours ago
+          // Event is currently happening
+          timerText.textContent = 'LIVE NOW!';
+          eventCard.classList.remove('event-starting-soon', 'event-past');
+          eventCard.classList.add('event-live');
+          
+        } else {
+          // Event has ended
+          const timeSinceEnd = Math.abs(timeDiff);
+          const daysSince = Math.floor(timeSinceEnd / (1000 * 60 * 60 * 24));
+          const hoursSince = Math.floor((timeSinceEnd % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+          
+          let endedString = '';
+          if (daysSince > 0) {
+            endedString = `${daysSince}d ago`;
+          } else if (hoursSince > 0) {
+            endedString = `${hoursSince}h ago`;
+          } else {
+            endedString = 'Recently ended';
+          }
+          
+          timerText.textContent = `ENDED: ${endedString}`;
+          eventCard.classList.remove('event-starting-soon', 'event-live');
+          eventCard.classList.add('event-past');
+        }
+      });
+    }
+
+    // Filter Panel Toggle
+    function toggleFilterPanel() {
+      const filterContent = document.getElementById('filterContent');
+      const filterArrow = document.getElementById('filterArrow');
+      
+      isFilterPanelExpanded = !isFilterPanelExpanded;
+      
+      if (isFilterPanelExpanded) {
+        filterContent.style.display = 'block';
+        filterArrow.textContent = '▲';
+      } else {
+        filterContent.style.display = 'none';
+        filterArrow.textContent = '▼';
+      }
+    }
+
+    // Debounced filter function
+    function debounceFilter() {
+      clearTimeout(filterTimeout);
+      filterTimeout = setTimeout(applyFilters, 300);
+    }
+
+    // Apply filters to events
+    async function applyFilters() {
+      const loadingIndicator = document.getElementById('loadingIndicator');
+      const eventsGrid = document.getElementById('eventsGrid');
+      const resultsCount = document.getElementById('resultsCount');
+
+      // Show loading
+      loadingIndicator.style.display = 'block';
+      eventsGrid.style.opacity = '0.5';
+
+      // Collect filter values
+      const filters = {
+        search: document.getElementById('eventSearch').value.trim(),
+        gameSearch: document.getElementById('gameSearch').value.trim(),
+        dateFrom: document.getElementById('dateFrom').value,
+        dateTo: document.getElementById('dateTo').value,
+        status: getActiveStatus(),
+        platforms: getSelectedPlatforms(),
+        playerAvailability: getActiveAvailability(),
+        host: document.getElementById('hostSearch').value.trim(),
+        categories: getSelectedCategories(),
+        sortBy: document.getElementById('sortBy').value
+      };
+
+      // Build query string
+      const queryParams = new URLSearchParams();
+      Object.keys(filters).forEach(key => {
+        if (filters[key] && filters[key] !== '' && filters[key] !== 'all') {
+          if (Array.isArray(filters[key])) {
+            filters[key].forEach(value => queryParams.append(key, value));
+          } else {
+            queryParams.append(key, filters[key]);
+          }
+        }
+      });
+
+      try {
+        const response = await fetch(`/api/events/filter?${queryParams.toString()}`);
+        const data = await response.json();
+
+        if (response.ok) {
+          renderEvents(data.events);
+          resultsCount.textContent = `Showing ${data.total} event${data.total !== 1 ? 's' : ''}`;
+          updateActiveFilters(filters);
+          updateURL(queryParams);
+        } else {
+          console.error('Filter error:', data.error);
+          resultsCount.textContent = 'Error loading events';
+        }
+      } catch (error) {
+        console.error('Filter request failed:', error);
+        resultsCount.textContent = 'Error loading events';
+      } finally {
+        // Hide loading
+        loadingIndicator.style.display = 'none';
+        eventsGrid.style.opacity = '1';
+      }
+    }
+
+    // Get active status filter
+    function getActiveStatus() {
+      const activeBtn = document.querySelector('.status-btn.active');
+      return activeBtn ? activeBtn.dataset.status : null;
+    }
+
+    // Get active availability filter
+    function getActiveAvailability() {
+      const activeBtn = document.querySelector('.availability-btn.active');
+      return activeBtn ? activeBtn.dataset.availability : 'all';
+    }
+
+    // Get selected platforms
+    function getSelectedPlatforms() {
+      const checkboxes = document.querySelectorAll('.platform-checkbox:checked');
+      return Array.from(checkboxes).map(cb => cb.value);
+    }
+
+    // Get selected categories
+    function getSelectedCategories() {
+      const select = document.getElementById('categorySelect');
+      return Array.from(select.selectedOptions).map(option => option.value);
+    }
+
+    // Render events in the grid
+    function renderEvents(events) {
+      const eventsGrid = document.getElementById('eventsGrid');
+      
+      if (events.length === 0) {
+        eventsGrid.innerHTML = `
+          <div class="no-events">
+            <h3>No events found</h3>
+            <p>Try adjusting your filters or check back later for new events.</p>
+          </div>
+        `;
+        return;
+      }
+
+      eventsGrid.innerHTML = events.map(event => {
+        const eventDate = new Date(event.date);
+        const formattedDate = eventDate.toLocaleDateString('en-GB', {
+          weekday: 'short',
+          day: '2-digit',
+          month: 'short',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+
+        const gameImage = event.game?.steamData?.header_image || 
+                         event.game?.rawgData?.background_image || null;
+
+        const platforms = event.platforms?.map(platform => 
+          `<span class="platform-tag">${platform}</span>`
+        ).join('') || '';
+
+        const extensions = event.requiredExtensions?.length > 0 ? `
+          <div class="extensions-badge">
+            <span class="extensions-icon">🔧</span>
+            <span class="extensions-text">MODS REQ</span>
+            <span class="extensions-count">${event.requiredExtensions.length}</span>
+          </div>
+        ` : '';
+
+        const playerSlots = Array.from({length: event.playerLimit}, (_, i) => 
+          `<span class="player-slot ${i < event.players.length ? 'filled' : 'empty'}">●</span>`
+        ).join('');
+
+        const gameSource = event.game?.source === 'steam' ? 'STEAM' : 
+                          event.game?.source === 'rawg' ? 'RAWG' : '';
+
+        const sourceIndicator = gameSource ? `<span class="exists-indicator">${gameSource}</span>` : '';
+
+        return `
+          <div class="event-card" onclick="window.location.href='/event/${event._id}'">
+            <div class="event-image-container">
+              ${gameImage ? 
+                `<img src="${gameImage}" alt="${event.game?.name || 'Game'}" class="game-image">` :
+                `<div class="game-image-placeholder"><span class="game-icon">🎮</span></div>`
+              }
+              ${extensions}
+            </div>
+            
+            <div class="event-details">
+              <h3 class="event-title">${event.name}</h3>
+              <div class="game-name">
+                <span class="game-label">GAME:</span>
+                <span class="game-value">
+                  ${event.game?.name || 'Unknown Game'}
+                  ${sourceIndicator}
+                </span>
+              </div>
+              
+              <div class="creator-info">
+                <span class="creator-label">HOST:</span>
+                <span class="creator-value">
+                  ${event.createdBy?.gameNickname || event.createdBy?.name || 'Unknown'}
+                </span>
+              </div>
+              
+              <div class="player-info">
+                <div class="player-count">
+                  <span class="player-label">PLAYERS:</span>
+                  <div class="player-slots">
+                    ${playerSlots}
+                    <span class="player-numbers">(${event.players.length}/${event.playerLimit})</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="event-meta">
+                <div class="event-timer" data-event-date="${event.date}">
+                  <span class="timer-icon">⏰</span>
+                  <span class="timer-text">Loading...</span>
+                </div>
+                <div class="event-date">${formattedDate}</div>
+                ${platforms ? `<div class="platforms">${platforms}</div>` : ''}
+              </div>
+              
+              ${event.description ? `
+                <div class="event-description">
+                  ${event.description.length > 100 ? 
+                    event.description.substring(0, 100) + '...' : 
+                    event.description}
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Re-initialize timers for new events
+      updateEventTimers();
+    }
+
+    // Update active filters display
+    function updateActiveFilters(filters) {
+      const activeFiltersDiv = document.getElementById('activeFilters');
+      const filterChips = document.getElementById('filterChips');
+      
+      const chips = [];
+      
+      if (filters.search) chips.push(`Event: "${filters.search}"`);
+      if (filters.gameSearch) chips.push(`Game: "${filters.gameSearch}"`);
+      if (filters.dateFrom) chips.push(`From: ${filters.dateFrom}`);
+      if (filters.dateTo) chips.push(`To: ${filters.dateTo}`);
+      if (filters.status) chips.push(`Status: ${filters.status}`);
+      if (filters.platforms?.length) chips.push(`Platforms: ${filters.platforms.join(', ')}`);
+      if (filters.playerAvailability && filters.playerAvailability !== 'all') {
+        chips.push(`Availability: ${filters.playerAvailability}`);
+      }
+      if (filters.host) chips.push(`Host: "${filters.host}"`);
+      if (filters.categories?.length) chips.push(`Categories: ${filters.categories.join(', ')}`);
+      if (filters.sortBy && filters.sortBy !== 'date') chips.push(`Sort: ${filters.sortBy}`);
+
+      if (chips.length > 0) {
+        filterChips.innerHTML = chips.map(chip => 
+          `<span class="filter-chip">${chip}</span>`
+        ).join('');
+        activeFiltersDiv.style.display = 'block';
+      } else {
+        activeFiltersDiv.style.display = 'none';
+      }
+    }
+
+    // Update URL with current filters
+    function updateURL(queryParams) {
+      const newURL = queryParams.toString() ? 
+        `${window.location.pathname}?${queryParams.toString()}` : 
+        window.location.pathname;
+      
+      window.history.replaceState({}, '', newURL);
+    }
+
+    // Clear all filters
+    function clearAllFilters() {
+      // Clear text inputs
+      document.getElementById('eventSearch').value = '';
+      document.getElementById('gameSearch').value = '';
+      document.getElementById('dateFrom').value = '';
+      document.getElementById('dateTo').value = '';
+      document.getElementById('hostSearch').value = '';
+      
+      // Clear status buttons
+      document.querySelectorAll('.status-btn').forEach(btn => btn.classList.remove('active'));
+      
+      // Clear availability buttons (set to 'all')
+      document.querySelectorAll('.availability-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelector('[data-availability="all"]').classList.add('active');
+      
+      // Clear platform checkboxes
+      document.querySelectorAll('.platform-checkbox').forEach(cb => cb.checked = false);
+      
+      // Clear category select
+      document.getElementById('categorySelect').selectedIndex = -1;
+      
+      // Reset sort to default
+      document.getElementById('sortBy').value = 'date';
+      
+      // Apply filters (will show all events)
+      applyFilters();
+    }
+
+    // Load filters from URL on page load
+    function loadFiltersFromURL() {
+      const urlParams = new URLSearchParams(window.location.search);
+      
+      // Set text inputs
+      if (urlParams.get('search')) document.getElementById('eventSearch').value = urlParams.get('search');
+      if (urlParams.get('gameSearch')) document.getElementById('gameSearch').value = urlParams.get('gameSearch');
+      if (urlParams.get('dateFrom')) document.getElementById('dateFrom').value = urlParams.get('dateFrom');
+      if (urlParams.get('dateTo')) document.getElementById('dateTo').value = urlParams.get('dateTo');
+      if (urlParams.get('host')) document.getElementById('hostSearch').value = urlParams.get('host');
+      
+      // Set status
+      const status = urlParams.get('status');
+      if (status) {
+        document.querySelector(`[data-status="${status}"]`)?.classList.add('active');
+      }
+      
+      // Set availability
+      const availability = urlParams.get('playerAvailability') || 'all';
+      document.querySelector(`[data-availability="${availability}"]`)?.classList.add('active');
+      
+      // Set platforms
+      const platforms = urlParams.getAll('platforms');
+      platforms.forEach(platform => {
+        const checkbox = document.querySelector(`[value="${platform}"]`);
+        if (checkbox) checkbox.checked = true;
+      });
+      
+      // Set categories
+      const categories = urlParams.getAll('categories');
+      categories.forEach(category => {
+        const option = document.querySelector(`#categorySelect option[value="${category}"]`);
+        if (option) option.selected = true;
+      });
+      
+      // Set sort
+      const sortBy = urlParams.get('sortBy');
+      if (sortBy) document.getElementById('sortBy').value = sortBy;
+    }
+
+    // Initialize filter system
+    function initializeFilters() {
+      // Load filters from URL
+      loadFiltersFromURL();
+      
+      // Set up event listeners
+      document.getElementById('eventSearch').addEventListener('input', debounceFilter);
+      document.getElementById('gameSearch').addEventListener('input', debounceFilter);
+      document.getElementById('dateFrom').addEventListener('change', applyFilters);
+      document.getElementById('dateTo').addEventListener('change', applyFilters);
+      document.getElementById('hostSearch').addEventListener('input', debounceFilter);
+      document.getElementById('sortBy').addEventListener('change', applyFilters);
+      document.getElementById('categorySelect').addEventListener('change', applyFilters);
+      
+      // Status buttons
+      document.querySelectorAll('.status-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active'));
+          this.classList.toggle('active');
+          applyFilters();
+        });
+      });
+      
+      // Availability buttons
+      document.querySelectorAll('.availability-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          document.querySelectorAll('.availability-btn').forEach(b => b.classList.remove('active'));
+          this.classList.add('active');
+          applyFilters();
+        });
+      });
+      
+      // Platform checkboxes
+      document.querySelectorAll('.platform-checkbox').forEach(cb => {
+        cb.addEventListener('change', applyFilters);
+      });
+      
+      // View toggle buttons
+      document.querySelectorAll('.view-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+          this.classList.add('active');
+          
+          const view = this.dataset.view;
+          const eventsGrid = document.getElementById('eventsGrid');
+          
+          if (view === 'list') {
+            eventsGrid.classList.add('list-view');
+          } else {
+            eventsGrid.classList.remove('list-view');
+          }
+        });
+      });
+      
+      // Set default availability to 'all'
+      if (!document.querySelector('.availability-btn.active')) {
+        document.querySelector('[data-availability="all"]').classList.add('active');
+      }
+      
+      // Apply initial filters if any are set
+      if (window.location.search) {
+        applyFilters();
+      } else {
+        // Show initial count
+        const initialCount = document.querySelectorAll('.event-card').length;
+        document.getElementById('resultsCount').textContent = 
+          `Showing ${initialCount} event${initialCount !== 1 ? 's' : ''}`;
+      }
+    }
+    
+    // Initialize everything on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      updateEventTimers();
+      initializeFilters();
+      
+      // Update timers every minute
+      setInterval(updateEventTimers, 60000);
+    });
+  </script>
 
   <% if (typeof user !== 'undefined' && user.isAdmin) { %>
   <script>

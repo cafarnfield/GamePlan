@@ -32,12 +32,131 @@
       <form action="/event/new" method="POST">
         <label for="name">Event Name:</label>
         <input type="text" id="name" name="name" required>
-        <label for="game">Game:</label>
-        <select id="game" name="gameId" required>
-          <% games.forEach(game => { %>
-            <option value="<%= game._id %>"><%= game.name %></option>
-          <% }); %>
-        </select>
+        <label>Game Selection:</label>
+        <div class="game-selection-mode">
+          <div class="radio-group">
+            <div>
+              <input type="radio" id="steam-mode" name="gameMode" value="steam" checked>
+              <label for="steam-mode">🎮 Search Steam Games</label>
+              <small>Best for PC games available on Steam</small>
+            </div>
+            <div>
+              <input type="radio" id="rawg-mode" name="gameMode" value="rawg">
+              <label for="rawg-mode">🎯 Search RAWG Games</label>
+              <small>Best for console games and broader game database</small>
+            </div>
+            <div>
+              <input type="radio" id="existing-mode" name="gameMode" value="existing">
+              <label for="existing-mode">📚 Browse Existing Games</label>
+              <small>Games already in our database</small>
+            </div>
+            <div>
+              <input type="radio" id="manual-mode" name="gameMode" value="manual">
+              <label for="manual-mode">✏️ Add New Game Manually</label>
+              <small>For games not found in either database</small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Steam Game Search -->
+        <div id="steam-search-container" class="game-input-container">
+          <label for="steam-search">Search Steam Games:</label>
+          <input type="text" id="steam-search" placeholder="Type to search Steam games..." autocomplete="off">
+          <div id="steam-results" class="search-results"></div>
+          <input type="hidden" id="selected-steam-game" name="steamGameData">
+        </div>
+
+        <!-- RAWG Game Search -->
+        <div id="rawg-search-container" class="game-input-container" style="display: none;">
+          <label for="rawg-search">Search RAWG Games:</label>
+          <input type="text" id="rawg-search" placeholder="Type to search RAWG games..." autocomplete="off">
+          <div id="rawg-results" class="search-results"></div>
+          <input type="hidden" id="selected-rawg-game" name="rawgGameData">
+        </div>
+
+        <!-- Existing Games Browser -->
+        <div id="existing-games-container" class="game-input-container" style="display: none;">
+          <label for="existing-game">Select Existing Game:</label>
+          <div class="game-filters">
+            <select id="category-filter">
+              <option value="">All Categories</option>
+              <option value="Action">Action</option>
+              <option value="Adventure">Adventure</option>
+              <option value="Strategy">Strategy</option>
+              <option value="RPG">RPG</option>
+              <option value="FPS">FPS</option>
+              <option value="Racing">Racing</option>
+              <option value="Sports">Sports</option>
+              <option value="Simulation">Simulation</option>
+              <option value="Puzzle">Puzzle</option>
+              <option value="Platformer">Platformer</option>
+              <option value="Fighting">Fighting</option>
+              <option value="Horror">Horror</option>
+              <option value="Survival">Survival</option>
+              <option value="MMO">MMO</option>
+              <option value="Indie">Indie</option>
+              <option value="Casual">Casual</option>
+              <option value="Other">Other</option>
+            </select>
+            <input type="text" id="game-search" placeholder="Search games...">
+          </div>
+          <select id="existing-game" name="gameId" size="8">
+            <% games.filter(game => game.status === 'approved').forEach(game => { %>
+              <option value="<%= game._id %>" data-categories="<%= game.categories ? game.categories.join(',') : '' %>" data-source="<%= game.source || 'admin' %>">
+                <%= game.name %> 
+                <% if (game.source === 'steam') { %>(Steam)<% } %>
+                <% if (game.source === 'manual') { %>(User Added)<% } %>
+              </option>
+            <% }); %>
+          </select>
+        </div>
+
+        <!-- Manual Game Entry -->
+        <div id="manual-game-container" class="game-input-container" style="display: none;">
+          <div id="duplicate-warning" class="warning-box" style="display: none;">
+            <h4>⚠️ Similar Games Found</h4>
+            <p>We found games with similar names. Please check if one of these matches what you're looking for:</p>
+            <div id="duplicate-list"></div>
+            <p>If none of these match, you can continue adding your game.</p>
+          </div>
+          
+          <label for="manual-game-name">Game Name:</label>
+          <input type="text" id="manual-game-name" name="manualGameName" placeholder="Enter game name">
+          
+          <label for="manual-game-description">Description:</label>
+          <textarea id="manual-game-description" name="manualGameDescription" placeholder="Brief description of the game"></textarea>
+          
+          <label>Categories:</label>
+          <div class="category-checkboxes">
+            <div><input type="checkbox" name="manualGameCategories" value="Action" id="cat-action"><label for="cat-action">Action</label></div>
+            <div><input type="checkbox" name="manualGameCategories" value="Adventure" id="cat-adventure"><label for="cat-adventure">Adventure</label></div>
+            <div><input type="checkbox" name="manualGameCategories" value="Strategy" id="cat-strategy"><label for="cat-strategy">Strategy</label></div>
+            <div><input type="checkbox" name="manualGameCategories" value="RPG" id="cat-rpg"><label for="cat-rpg">RPG</label></div>
+            <div><input type="checkbox" name="manualGameCategories" value="FPS" id="cat-fps"><label for="cat-fps">FPS</label></div>
+            <div><input type="checkbox" name="manualGameCategories" value="Racing" id="cat-racing"><label for="cat-racing">Racing</label></div>
+            <div><input type="checkbox" name="manualGameCategories" value="Sports" id="cat-sports"><label for="cat-sports">Sports</label></div>
+            <div><input type="checkbox" name="manualGameCategories" value="Simulation" id="cat-simulation"><label for="cat-simulation">Simulation</label></div>
+            <div><input type="checkbox" name="manualGameCategories" value="Puzzle" id="cat-puzzle"><label for="cat-puzzle">Puzzle</label></div>
+            <div><input type="checkbox" name="manualGameCategories" value="Platformer" id="cat-platformer"><label for="cat-platformer">Platformer</label></div>
+            <div><input type="checkbox" name="manualGameCategories" value="Fighting" id="cat-fighting"><label for="cat-fighting">Fighting</label></div>
+            <div><input type="checkbox" name="manualGameCategories" value="Horror" id="cat-horror"><label for="cat-horror">Horror</label></div>
+            <div><input type="checkbox" name="manualGameCategories" value="Survival" id="cat-survival"><label for="cat-survival">Survival</label></div>
+            <div><input type="checkbox" name="manualGameCategories" value="MMO" id="cat-mmo"><label for="cat-mmo">MMO</label></div>
+            <div><input type="checkbox" name="manualGameCategories" value="Indie" id="cat-indie"><label for="cat-indie">Indie</label></div>
+            <div><input type="checkbox" name="manualGameCategories" value="Casual" id="cat-casual"><label for="cat-casual">Casual</label></div>
+            <div><input type="checkbox" name="manualGameCategories" value="Other" id="cat-other"><label for="cat-other">Other</label></div>
+          </div>
+          
+          <label for="manual-game-tags">Custom Tags (comma-separated):</label>
+          <input type="text" id="manual-game-tags" name="manualGameTags" placeholder="e.g., multiplayer, co-op, competitive">
+          
+          <div class="manual-game-note">
+            <p><strong>Note:</strong> Manually added games require admin approval before your event becomes visible to other users.</p>
+          </div>
+        </div>
+
+        <!-- Hidden field to store final game selection -->
+        <input type="hidden" id="final-game-selection" name="gameSelection" required>
         <label for="description">Description:</label>
         <textarea id="description" name="description" required></textarea>
         <label for="playerLimit">Player Limit:</label>
@@ -90,6 +209,507 @@
         <button type="submit">Create Event</button>
       </form>
       <script>
+        // Game selection mode variables
+        let steamSearchTimeout;
+        let selectedGameData = null;
+
+        // Utility function to show messages to the user
+        function showMessage(message, type = 'info') {
+          // Create a temporary message element
+          const messageDiv = document.createElement('div');
+          messageDiv.className = `message ${type}`;
+          messageDiv.textContent = message;
+          messageDiv.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 15px;
+            background: ${type === 'info' ? '#4CAF50' : '#f44336'};
+            color: white;
+            border-radius: 4px;
+            z-index: 1000;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+          `;
+          
+          document.body.appendChild(messageDiv);
+          
+          // Remove the message after 3 seconds
+          setTimeout(() => {
+            if (messageDiv.parentNode) {
+              messageDiv.parentNode.removeChild(messageDiv);
+            }
+          }, 3000);
+        }
+
+        // Game mode switching
+        document.querySelectorAll('input[name="gameMode"]').forEach(radio => {
+          radio.addEventListener('change', function() {
+            const steamContainer = document.getElementById('steam-search-container');
+            const rawgContainer = document.getElementById('rawg-search-container');
+            const existingContainer = document.getElementById('existing-games-container');
+            const manualContainer = document.getElementById('manual-game-container');
+            
+            // Hide all containers
+            steamContainer.style.display = 'none';
+            rawgContainer.style.display = 'none';
+            existingContainer.style.display = 'none';
+            manualContainer.style.display = 'none';
+            
+            // Show selected container
+            if (this.value === 'steam') {
+              steamContainer.style.display = 'block';
+            } else if (this.value === 'rawg') {
+              rawgContainer.style.display = 'block';
+            } else if (this.value === 'existing') {
+              existingContainer.style.display = 'block';
+            } else if (this.value === 'manual') {
+              manualContainer.style.display = 'block';
+            }
+            
+            // Clear previous selections
+            selectedGameData = null;
+            document.getElementById('final-game-selection').value = '';
+          });
+        });
+
+        // Steam game search functionality
+        document.getElementById('steam-search').addEventListener('input', function() {
+          const query = this.value.trim();
+          const resultsContainer = document.getElementById('steam-results');
+          
+          if (query.length < 2) {
+            resultsContainer.innerHTML = '';
+            return;
+          }
+          
+          clearTimeout(steamSearchTimeout);
+          steamSearchTimeout = setTimeout(() => {
+            searchSteamGames(query);
+          }, 300);
+        });
+
+        async function searchSteamGames(query) {
+          const resultsContainer = document.getElementById('steam-results');
+          resultsContainer.innerHTML = '<div class="loading">Searching Steam games...</div>';
+          
+          try {
+            const response = await fetch(`/api/steam/search?q=${encodeURIComponent(query)}`);
+            const games = await response.json();
+            
+            if (games.length === 0) {
+              resultsContainer.innerHTML = '<div class="no-results">No games found</div>';
+              return;
+            }
+            
+            let html = '';
+            games.forEach(game => {
+              const existsIndicator = game.existsInDatabase ? ' <span class="exists-indicator">(Already in database)</span>' : '';
+              // Properly escape the JSON data for HTML attribute
+              const gameDataJson = JSON.stringify(game).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+              html += `
+                <div class="steam-game-result" data-game="${gameDataJson}">
+                  <div class="game-info">
+                    <h4>${game.name}${existsIndicator}</h4>
+                    <p>${game.short_description || 'No description available'}</p>
+                    <small>Steam App ID: ${game.appid}</small>
+                  </div>
+                  ${game.header_image ? `<img src="${game.header_image}" alt="${game.name}" class="game-image">` : ''}
+                </div>
+              `;
+            });
+            
+            resultsContainer.innerHTML = html;
+            
+            // Add click handlers
+            document.querySelectorAll('.steam-game-result').forEach(result => {
+              result.addEventListener('click', function() {
+                try {
+                  console.log('Steam game clicked, raw data:', this.dataset.game);
+                  // Decode HTML entities back to proper JSON
+                  const decodedData = this.dataset.game.replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+                  console.log('Decoded data:', decodedData);
+                  const gameData = JSON.parse(decodedData);
+                  console.log('Parsed game data:', gameData);
+                  selectSteamGame(gameData);
+                } catch (error) {
+                  console.error('Error parsing game data:', error);
+                  console.error('Raw data that failed to parse:', this.dataset.game);
+                  showMessage('Error selecting game. Please try again.', 'error');
+                }
+              });
+            });
+            
+          } catch (error) {
+            console.error('Error searching Steam games:', error);
+            resultsContainer.innerHTML = '<div class="error">Error searching games. Please try again.</div>';
+          }
+        }
+
+        function selectSteamGame(gameData) {
+          console.log('selectSteamGame called with:', gameData);
+          
+          // Check if this game already exists in the database
+          if (gameData.existsInDatabase && gameData.existingGameId) {
+            console.log('Game exists in database, switching to existing mode');
+            // Switch to existing game mode and select the existing game
+            document.getElementById('existing-mode').checked = true;
+            document.getElementById('existing-mode').dispatchEvent(new Event('change'));
+            
+            // Set the existing game selection
+            document.getElementById('existing-game').value = gameData.existingGameId;
+            document.getElementById('existing-game').dispatchEvent(new Event('change'));
+            
+            // Show feedback message
+            showMessage(`Using existing game: ${gameData.existingGameName || gameData.name}`, 'info');
+            
+            // Update the Steam search results to show what happened
+            const resultsContainer = document.getElementById('steam-results');
+            resultsContainer.innerHTML = `
+              <div class="selected-game">
+                <h4>✓ Using Existing Game: ${gameData.existingGameName || gameData.name}</h4>
+                <p>This game already exists in our database, so we've selected the existing version.</p>
+                <button type="button" onclick="clearSteamSelection()">Search Again</button>
+              </div>
+            `;
+            
+            return;
+          }
+          
+          // Original Steam game selection logic for new games
+          selectedGameData = {
+            type: 'steam',
+            data: gameData
+          };
+          
+          document.getElementById('final-game-selection').value = JSON.stringify(selectedGameData);
+          document.getElementById('selected-steam-game').value = JSON.stringify(gameData);
+          
+          // Update UI to show selection
+          const resultsContainer = document.getElementById('steam-results');
+          resultsContainer.innerHTML = `
+            <div class="selected-game">
+              <h4>✓ Selected: ${gameData.name}</h4>
+              <p>${gameData.short_description || 'No description available'}</p>
+              <button type="button" onclick="clearSteamSelection()">Change Selection</button>
+            </div>
+          `;
+          
+          // Show Steam info
+          document.getElementById('steam-info').style.display = 'block';
+          document.getElementById('steam-status').innerHTML = `Steam integration enabled for ${gameData.name}`;
+        }
+
+        function clearSteamSelection() {
+          selectedGameData = null;
+          document.getElementById('final-game-selection').value = '';
+          document.getElementById('selected-steam-game').value = '';
+          document.getElementById('steam-results').innerHTML = '';
+          document.getElementById('steam-search').value = '';
+          document.getElementById('steam-info').style.display = 'none';
+        }
+
+        // RAWG game search functionality
+        document.getElementById('rawg-search').addEventListener('input', function() {
+          const query = this.value.trim();
+          const resultsContainer = document.getElementById('rawg-results');
+          
+          if (query.length < 2) {
+            resultsContainer.innerHTML = '';
+            return;
+          }
+          
+          clearTimeout(steamSearchTimeout);
+          steamSearchTimeout = setTimeout(() => {
+            searchRawgGames(query);
+          }, 300);
+        });
+
+        async function searchRawgGames(query) {
+          const resultsContainer = document.getElementById('rawg-results');
+          resultsContainer.innerHTML = '<div class="loading">Searching RAWG games...</div>';
+          
+          try {
+            const response = await fetch(`/api/rawg/search?q=${encodeURIComponent(query)}`);
+            const games = await response.json();
+            
+            if (games.length === 0) {
+              resultsContainer.innerHTML = '<div class="no-results">No games found</div>';
+              return;
+            }
+            
+            let html = '';
+            games.forEach(game => {
+              const existsIndicator = game.existsInDatabase ? ' <span class="exists-indicator">(Already in database)</span>' : '';
+              const steamEquivalentIndicator = game.hasSteamEquivalent ? ' <span class="steam-equivalent">⚠️ Steam version available</span>' : '';
+              const platforms = game.platforms && game.platforms.length > 0 ? game.platforms.join(', ') : 'Unknown platforms';
+              const rating = game.rating ? `⭐ ${game.rating}/5` : '';
+              
+              // Properly escape the JSON data for HTML attribute
+              const gameDataJson = JSON.stringify(game).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+              html += `
+                <div class="rawg-game-result" data-game="${gameDataJson}">
+                  <div class="game-info">
+                    <h4>🎯 ${game.name}${existsIndicator}${steamEquivalentIndicator}</h4>
+                    <p>${game.short_description || 'No description available'}</p>
+                    <small>Platforms: ${platforms} ${rating}</small>
+                  </div>
+                  ${game.background_image ? `<img src="${game.background_image}" alt="${game.name}" class="game-image">` : ''}
+                </div>
+              `;
+            });
+            
+            resultsContainer.innerHTML = html;
+            
+            // Add click handlers
+            document.querySelectorAll('.rawg-game-result').forEach(result => {
+              result.addEventListener('click', function() {
+                try {
+                  console.log('RAWG game clicked, raw data:', this.dataset.game);
+                  // Decode HTML entities back to proper JSON
+                  const decodedData = this.dataset.game.replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+                  console.log('Decoded data:', decodedData);
+                  const gameData = JSON.parse(decodedData);
+                  console.log('Parsed game data:', gameData);
+                  selectRawgGame(gameData);
+                } catch (error) {
+                  console.error('Error parsing game data:', error);
+                  console.error('Raw data that failed to parse:', this.dataset.game);
+                  showMessage('Error selecting game. Please try again.', 'error');
+                }
+              });
+            });
+            
+          } catch (error) {
+            console.error('Error searching RAWG games:', error);
+            resultsContainer.innerHTML = '<div class="error">Error searching games. Please try again.</div>';
+          }
+        }
+
+        function selectRawgGame(gameData) {
+          console.log('selectRawgGame called with:', gameData);
+          
+          // Check if this game already exists in the database
+          if (gameData.existsInDatabase && gameData.existingGameId) {
+            console.log('Game exists in database, switching to existing mode');
+            // Switch to existing game mode and select the existing game
+            document.getElementById('existing-mode').checked = true;
+            document.getElementById('existing-mode').dispatchEvent(new Event('change'));
+            
+            // Set the existing game selection
+            document.getElementById('existing-game').value = gameData.existingGameId;
+            document.getElementById('existing-game').dispatchEvent(new Event('change'));
+            
+            // Show feedback message
+            showMessage(`Using existing game: ${gameData.existingGameName || gameData.name}`, 'info');
+            
+            // Update the RAWG search results to show what happened
+            const resultsContainer = document.getElementById('rawg-results');
+            resultsContainer.innerHTML = `
+              <div class="selected-game">
+                <h4>✓ Using Existing Game: ${gameData.existingGameName || gameData.name}</h4>
+                <p>This game already exists in our database, so we've selected the existing version.</p>
+                <button type="button" onclick="clearRawgSelection()">Search Again</button>
+              </div>
+            `;
+            
+            return;
+          }
+          
+          // Check if Steam equivalent exists (prefer Steam over RAWG)
+          if (gameData.hasSteamEquivalent && gameData.steamEquivalentId) {
+            console.log('Steam equivalent exists, switching to existing mode');
+            // Switch to existing game mode and select the Steam equivalent
+            document.getElementById('existing-mode').checked = true;
+            document.getElementById('existing-mode').dispatchEvent(new Event('change'));
+            
+            // Set the existing game selection
+            document.getElementById('existing-game').value = gameData.steamEquivalentId;
+            document.getElementById('existing-game').dispatchEvent(new Event('change'));
+            
+            // Show feedback message
+            showMessage(`Using Steam version: ${gameData.steamEquivalentName || gameData.name}`, 'info');
+            
+            // Update the RAWG search results to show what happened
+            const resultsContainer = document.getElementById('rawg-results');
+            resultsContainer.innerHTML = `
+              <div class="selected-game">
+                <h4>✓ Using Steam Version: ${gameData.steamEquivalentName || gameData.name}</h4>
+                <p>We found this game on Steam, so we're using the Steam version instead for better integration.</p>
+                <button type="button" onclick="clearRawgSelection()">Search Again</button>
+              </div>
+            `;
+            
+            return;
+          }
+          
+          // Original RAWG game selection logic for new games
+          selectedGameData = {
+            type: 'rawg',
+            data: gameData
+          };
+          
+          document.getElementById('final-game-selection').value = JSON.stringify(selectedGameData);
+          document.getElementById('selected-rawg-game').value = JSON.stringify(gameData);
+          
+          // Update UI to show selection
+          const resultsContainer = document.getElementById('rawg-results');
+          resultsContainer.innerHTML = `
+            <div class="selected-game">
+              <h4>✓ Selected: ${gameData.name}</h4>
+              <p>${gameData.short_description || 'No description available'}</p>
+              <small>Platforms: ${gameData.platforms ? gameData.platforms.join(', ') : 'Unknown'}</small>
+              <button type="button" onclick="clearRawgSelection()">Change Selection</button>
+            </div>
+          `;
+        }
+
+        function clearRawgSelection() {
+          selectedGameData = null;
+          document.getElementById('final-game-selection').value = '';
+          document.getElementById('selected-rawg-game').value = '';
+          document.getElementById('rawg-results').innerHTML = '';
+          document.getElementById('rawg-search').value = '';
+        }
+
+        // Existing games filtering
+        document.getElementById('category-filter').addEventListener('change', filterExistingGames);
+        document.getElementById('game-search').addEventListener('input', filterExistingGames);
+
+        function filterExistingGames() {
+          const categoryFilter = document.getElementById('category-filter').value;
+          const searchFilter = document.getElementById('game-search').value.toLowerCase();
+          const gameSelect = document.getElementById('existing-game');
+          
+          Array.from(gameSelect.options).forEach(option => {
+            const categories = option.dataset.categories.split(',');
+            const matchesCategory = !categoryFilter || categories.includes(categoryFilter);
+            const matchesSearch = !searchFilter || option.text.toLowerCase().includes(searchFilter);
+            
+            option.style.display = (matchesCategory && matchesSearch) ? 'block' : 'none';
+          });
+        }
+
+        // Existing game selection
+        document.getElementById('existing-game').addEventListener('change', function() {
+          if (this.value) {
+            selectedGameData = {
+              type: 'existing',
+              gameId: this.value
+            };
+            document.getElementById('final-game-selection').value = JSON.stringify(selectedGameData);
+          }
+        });
+
+        // Manual game duplicate detection
+        document.getElementById('manual-game-name').addEventListener('input', function() {
+          const gameName = this.value.trim();
+          if (gameName.length >= 3) {
+            clearTimeout(steamSearchTimeout);
+            steamSearchTimeout = setTimeout(() => {
+              checkForDuplicates(gameName);
+            }, 500);
+          } else {
+            document.getElementById('duplicate-warning').style.display = 'none';
+          }
+        });
+
+        async function checkForDuplicates(gameName) {
+          try {
+            const response = await fetch('/api/games/check-duplicates', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ gameName })
+            });
+            
+            const duplicates = await response.json();
+            
+            if (duplicates.length > 0) {
+              showDuplicateWarning(duplicates);
+            } else {
+              document.getElementById('duplicate-warning').style.display = 'none';
+            }
+          } catch (error) {
+            console.error('Error checking for duplicates:', error);
+          }
+        }
+
+        function showDuplicateWarning(duplicates) {
+          const warningBox = document.getElementById('duplicate-warning');
+          const duplicateList = document.getElementById('duplicate-list');
+          
+          let html = '';
+          duplicates.forEach(duplicate => {
+            html += `
+              <div class="duplicate-item">
+                <strong>${duplicate.game.name}</strong> 
+                <span class="similarity">(${duplicate.similarity}% similar)</span>
+                <p>${duplicate.game.description || 'No description'}</p>
+                <small>${duplicate.reason}</small>
+                <button type="button" onclick="selectExistingDuplicate('${duplicate.game._id}')">Use This Game</button>
+              </div>
+            `;
+          });
+          
+          duplicateList.innerHTML = html;
+          warningBox.style.display = 'block';
+        }
+
+        function selectExistingDuplicate(gameId) {
+          // Switch to existing games mode and select the game
+          document.getElementById('existing-mode').checked = true;
+          document.getElementById('existing-mode').dispatchEvent(new Event('change'));
+          document.getElementById('existing-game').value = gameId;
+          document.getElementById('existing-game').dispatchEvent(new Event('change'));
+        }
+
+        // Manual game form validation
+        function validateManualGame() {
+          const name = document.getElementById('manual-game-name').value.trim();
+          const description = document.getElementById('manual-game-description').value.trim();
+          const categories = document.querySelectorAll('input[name="manualGameCategories"]:checked');
+          
+          if (!name) {
+            alert('Please enter a game name');
+            return false;
+          }
+          
+          if (!description) {
+            alert('Please enter a game description');
+            return false;
+          }
+          
+          if (categories.length === 0) {
+            alert('Please select at least one category');
+            return false;
+          }
+          
+          // Prepare manual game data
+          const tags = document.getElementById('manual-game-tags').value
+            .split(',')
+            .map(tag => tag.trim())
+            .filter(tag => tag.length > 0);
+          
+          const categoryValues = Array.from(categories).map(cb => cb.value);
+          
+          selectedGameData = {
+            type: 'manual',
+            data: {
+              name,
+              description,
+              categories: categoryValues,
+              tags
+            }
+          };
+          
+          document.getElementById('final-game-selection').value = JSON.stringify(selectedGameData);
+          return true;
+        }
+
+        // Extensions functionality
         document.getElementById('add-extensions').addEventListener('change', function() {
           const extensionsContainer = document.getElementById('extensions-container');
           const addExtensionBtn = document.getElementById('add-extension-btn');
@@ -117,72 +737,92 @@
           container.appendChild(newExtension);
         }
 
-        // Game selection handler for Steam integration info
-        const gameSelect = document.getElementById('game');
-        const steamInfo = document.getElementById('steam-info');
-        const steamStatus = document.getElementById('steam-status');
-        
-        // Games data with Steam App IDs (passed from server)
-        const gamesData = <%- gamesData %>;
-        const gamesMap = {};
-        gamesData.forEach(game => {
-          gamesMap[game._id] = game;
-        });
-        
-        gameSelect.addEventListener('change', function() {
-          const selectedGameId = this.value;
-          const gameData = gamesMap[selectedGameId];
+        // Auto-populate date/time field with current time + 1 hour
+        function setDefaultDateTime() {
+          const now = new Date();
+          const oneHourLater = new Date(now.getTime() + (60 * 60 * 1000));
           
-          if (gameData && gameData.steamAppId) {
-            steamStatus.innerHTML = `
-              <strong>✓ Steam Integration Active</strong><br>
-              <small>Game: ${gameData.name}</small><br>
-              <small>Steam App ID: ${gameData.steamAppId}</small><br>
-              <small>Update notifications will be automatically enabled for this event</small>
-            `;
-            steamInfo.style.display = 'block';
-          } else if (gameData) {
-            steamStatus.innerHTML = `
-              <strong>⚠ No Steam Integration</strong><br>
-              <small>Game: ${gameData.name}</small><br>
-              <small>This game doesn't have Steam integration configured</small>
-            `;
-            steamInfo.style.display = 'block';
-            steamInfo.style.background = 'rgba(255, 255, 0, 0.1)';
-            steamInfo.style.borderColor = '#ffff00';
-          } else {
-            steamInfo.style.display = 'none';
+          const year = oneHourLater.getFullYear();
+          const month = String(oneHourLater.getMonth() + 1).padStart(2, '0');
+          const day = String(oneHourLater.getDate()).padStart(2, '0');
+          const hours = String(oneHourLater.getHours()).padStart(2, '0');
+          const minutes = String(oneHourLater.getMinutes()).padStart(2, '0');
+          
+          const formattedDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
+          
+          const dateInput = document.getElementById('date');
+          if (dateInput && !dateInput.value) {
+            dateInput.value = formattedDateTime;
           }
-        });
-        
-        // Trigger initial check
-        if (gameSelect.value) {
-          gameSelect.dispatchEvent(new Event('change'));
         }
 
+        // Set default date/time when page loads
+        setDefaultDateTime();
+
+        // Form submission
         document.querySelector('form').addEventListener('submit', function(event) {
-          // Remove any existing extensions hidden input
+          // Check if at least one platform is selected
+          const platformCheckboxes = document.querySelectorAll('input[name="platforms"]:checked');
+          if (platformCheckboxes.length === 0) {
+            alert('Please select at least one platform for this event.');
+            event.preventDefault();
+            return false;
+          }
+
+          // Validate game selection
+          const gameMode = document.querySelector('input[name="gameMode"]:checked').value;
+          
+          if (gameMode === 'steam' && !selectedGameData) {
+            alert('Please select a Steam game.');
+            event.preventDefault();
+            return false;
+          }
+          
+          if (gameMode === 'existing') {
+            const existingGame = document.getElementById('existing-game').value;
+            if (!existingGame) {
+              alert('Please select an existing game.');
+              event.preventDefault();
+              return false;
+            }
+          }
+          
+          if (gameMode === 'manual') {
+            if (!validateManualGame()) {
+              event.preventDefault();
+              return false;
+            }
+          }
+
+          // Process extensions
           const existingExtensionsInput = document.querySelector('input[name="extensions"]');
           if (existingExtensionsInput) {
             existingExtensionsInput.remove();
           }
 
-          const extensions = document.querySelectorAll('.extension');
-          const extensionsData = [];
+          const addExtensionsCheckbox = document.getElementById('add-extensions');
+          if (addExtensionsCheckbox && addExtensionsCheckbox.checked) {
+            const extensions = document.querySelectorAll('.extension');
+            const extensionsData = [];
 
-          extensions.forEach(extension => {
-            const name = extension.querySelector('input[name="extension-name"]').value;
-            const link = extension.querySelector('input[name="extension-link"]').value;
-            const time = extension.querySelector('input[name="extension-time"]').value;
+            extensions.forEach(extension => {
+              const name = extension.querySelector('input[name="extension-name"]').value;
+              const link = extension.querySelector('input[name="extension-link"]').value;
+              const time = extension.querySelector('input[name="extension-time"]').value;
 
-            extensionsData.push({ name, downloadLink: link, installationTime: time });
-          });
+              if (name && link && time) {
+                extensionsData.push({ name, downloadLink: link, installationTime: time });
+              }
+            });
 
-          const hiddenInput = document.createElement('input');
-          hiddenInput.type = 'hidden';
-          hiddenInput.name = 'extensions';
-          hiddenInput.value = JSON.stringify(extensionsData);
-          this.appendChild(hiddenInput);
+            if (extensionsData.length > 0) {
+              const hiddenInput = document.createElement('input');
+              hiddenInput.type = 'hidden';
+              hiddenInput.name = 'extensions';
+              hiddenInput.value = JSON.stringify(extensionsData);
+              this.appendChild(hiddenInput);
+            }
+          }
         });
       </script>
     <% } %>

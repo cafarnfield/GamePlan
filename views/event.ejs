@@ -20,7 +20,9 @@
     <p><%= event.description %></p>
     <p>Player Limit: <%= event.playerLimit %></p>
     <p>Current Players: <%= event.players.length %></p>
-      <% if (event.players.length > 0) { %>
+      <% if (event.createdBy) { %>
+        <p>Created by: <%= event.createdBy.gameNickname ? event.createdBy.gameNickname : event.createdBy.name %></p>
+      <% } else if (event.players.length > 0) { %>
         <p>Created by: <%= event.players[0].gameNickname ? event.players[0].gameNickname : event.players[0].name %></p>
       <% } %>
 
@@ -36,6 +38,15 @@
             </li>
           <% }) %>
         </ul>
+      </div>
+    <% } %>
+
+    <% if (event.platforms && event.platforms.length > 0) { %>
+      <h3>Platforms</h3>
+      <div class="platforms">
+        <% event.platforms.forEach(platform => { %>
+          <span class="platform-tag"><%= platform %></span>
+        <% }) %>
       </div>
     <% } %>
 
@@ -59,8 +70,19 @@
       <% }) %>
     </ul>
 <% if (typeof user !== 'undefined') { %>
-      <% if (event.players.length > 0 && (event.players[0]._id.equals(user._id) || user.isAdmin)) { %> <!-- Show delete button to event creator or admins -->
-        <form action="/event/<%= event._id %>/delete" method="POST" class="event-button">
+      <% 
+        const isCreator = event.createdBy && event.createdBy._id.equals(user._id);
+        const isLegacyCreator = !event.createdBy && event.players.length > 0 && event.players[0]._id.equals(user._id);
+        const canEdit = isCreator || isLegacyCreator || user.isAdmin;
+        const canDelete = isCreator || isLegacyCreator || user.isAdmin;
+      %>
+      <% if (canEdit) { %> <!-- Show edit button to event creator or admins -->
+        <form action="/event/<%= event._id %>/edit" method="GET" class="event-button" style="display: inline-block; margin-right: 10px;">
+          <button type="submit">Edit Event</button>
+        </form>
+      <% } %>
+      <% if (canDelete) { %> <!-- Show delete button to event creator or admins -->
+        <form action="/event/<%= event._id %>/delete" method="POST" class="event-button" style="display: inline-block;" onsubmit="return confirm('Are you sure you want to delete this event? This action cannot be undone.');">
           <button type="submit">Delete Event</button>
         </form>
       <% } %>
