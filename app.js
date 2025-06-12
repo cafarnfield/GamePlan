@@ -408,7 +408,7 @@ app.get('/admin/dashboard', ensureAdmin, async (req, res) => {
     const searchFilters = { status, blocked, admin, dateFrom, dateTo };
     const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
     
-    res.render('adminDashboardNew', { 
+    res.render('adminDashboard', { 
       stats, 
       recentActivity, 
       searchQuery, 
@@ -498,12 +498,6 @@ app.get('/admin/system', ensureAdmin, async (req, res) => {
   }
 });
 
-// Legacy admin panel route (for game management)
-app.get('/admin/legacy', ensureAdmin, async (req, res) => {
-  const games = await Game.find();
-  const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
-  res.render('admin', { games, isDevelopmentAutoLogin });
-});
 
 // Route to show admin games management
 app.get('/admin/games', ensureAdmin, async (req, res) => {
@@ -547,7 +541,7 @@ app.get('/admin/games', ensureAdmin, async (req, res) => {
     
     const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
     
-    res.render('adminGamesNew', { 
+    res.render('adminGames', { 
       games: gamesWithDuplicates,
       filter: status || null,
       sourceFilter: source || null,
@@ -738,7 +732,7 @@ app.get('/admin/events', ensureAdmin, async (req, res) => {
     const pendingUsers = await User.countDocuments({ status: 'pending' });
     const pendingGames = await Game.countDocuments({ status: 'pending' });
     
-    res.render('adminEventsNew', { 
+    res.render('adminEvents', { 
       events: filteredEvents, 
       games,
       filter: status || null,
@@ -958,7 +952,7 @@ app.get('/admin/users', ensureAdmin, async (req, res) => {
     const pendingEvents = await Event.countDocuments({ gameStatus: 'pending' });
     const pendingGames = await Game.countDocuments({ status: 'pending' });
     
-    res.render('adminUsersNew', { 
+    res.render('adminUsers', { 
       users, 
       filter: filter || null,
       search: search || null,

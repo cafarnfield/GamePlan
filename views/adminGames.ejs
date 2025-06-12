@@ -1,81 +1,513 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin - Games Management - GamePlan</title>
-  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/styles.css">
-</head>
-<body>
-  <div class="scanlines"></div>
-  <% if (isDevelopmentAutoLogin) { %>
-    <div class="dev-banner">
-      🚧 DEVELOPMENT MODE - Auto-logged in as admin 🚧
-    </div>
-  <% } %>
-  
-  <header>
-    <h1>GamePlan Admin</h1>
-    <nav>
-      <a href="/admin/dashboard">Dashboard</a>
-      <a href="/admin/users">Users</a>
-      <a href="/admin/events">Events</a>
-      <a href="/admin/games">Games</a>
-      <a href="/admin">Legacy Admin</a>
-      <a href="/">Home</a>
-      <a href="/logout">Logout</a>
-    </nav>
-  </header>
+<% 
+  const layoutData = {
+    title: 'Games Management',
+    currentPage: 'games',
+    pageTitle: 'Games Management',
+    pageSubtitle: 'Manage game library and approvals',
+    breadcrumbs: [
+      { name: 'Games', url: null }
+    ],
+    pendingUsers: typeof pendingUsers !== 'undefined' ? pendingUsers : 0,
+    pendingEvents: typeof pendingEvents !== 'undefined' ? pendingEvents : 0,
+    pendingGames: games.filter(g => g.status === 'pending').length,
+    totalPending: (typeof pendingUsers !== 'undefined' ? pendingUsers : 0) + (typeof pendingEvents !== 'undefined' ? pendingEvents : 0) + games.filter(g => g.status === 'pending').length,
+    isDevelopmentAutoLogin: isDevelopmentAutoLogin,
+    user: typeof user !== 'undefined' ? user : null
+  };
+%>
 
-  <main>
-    <h2>Games Management</h2>
+<%- include('partials/adminLayoutHeader', layoutData) %>
+
+<style>
+  .games-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+    gap: 15px;
+  }
+  
+  .games-stats {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  
+  .stat-badge {
+    background: rgba(0, 50, 0, 0.8);
+    border: 1px solid #00ff00;
+    padding: 8px 15px;
+    font-size: 10px;
+    color: #00ff00;
+  }
+  
+  .stat-badge.pending {
+    background: rgba(255, 165, 0, 0.2);
+    border-color: #ffa500;
+    color: #ffa500;
+    animation: pulse 2s infinite;
+  }
+  
+  .stat-badge.approved {
+    background: rgba(0, 255, 0, 0.2);
+    border-color: #00ff00;
+    color: #00ff00;
+  }
+  
+  .stat-badge.steam {
+    background: rgba(0, 100, 255, 0.2);
+    border-color: #0066ff;
+    color: #00ffff;
+  }
+  
+  .games-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  
+  .action-btn {
+    background: rgba(0, 255, 0, 0.8);
+    color: #000;
+    border: 1px solid #00ff00;
+    padding: 10px 15px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    transition: all 0.3s ease;
+  }
+  
+  .action-btn:hover {
+    background: rgba(0, 255, 0, 0.9);
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+  }
+  
+  .action-btn.secondary {
+    background: rgba(0, 100, 255, 0.8);
+    color: #fff;
+    border-color: #0066ff;
+  }
+  
+  .action-btn.secondary:hover {
+    background: rgba(0, 150, 255, 0.9);
+  }
+  
+  .action-btn.danger {
+    background: rgba(255, 0, 0, 0.8);
+    color: #fff;
+    border-color: #ff0000;
+  }
+  
+  .action-btn.danger:hover {
+    background: rgba(255, 0, 0, 0.9);
+  }
+  
+  .filters-section {
+    background: rgba(0, 20, 0, 0.8);
+    border: 1px solid #00ff00;
+    padding: 20px;
+    margin-bottom: 30px;
+  }
+  
+  .filters-title {
+    font-size: 12px;
+    color: #00ff00;
+    margin: 0 0 15px 0;
+  }
+  
+  .filters-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 15px;
+  }
+  
+  .filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  
+  .filter-label {
+    font-size: 8px;
+    color: #888;
+  }
+  
+  .filter-input, .filter-select {
+    background: #000;
+    color: #00ff00;
+    border: 1px solid #00ff00;
+    padding: 8px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+  }
+  
+  .filter-input:focus, .filter-select:focus {
+    outline: none;
+    border-color: #00ffff;
+    box-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
+  }
+  
+  .filter-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+  
+  .bulk-actions {
+    background: rgba(0, 0, 100, 0.1);
+    border: 2px solid #0066ff;
+    padding: 20px;
+    margin-bottom: 30px;
+    display: none;
+  }
+  
+  .bulk-actions.show {
+    display: block;
+  }
+  
+  .bulk-actions-title {
+    font-size: 12px;
+    color: #0066ff;
+    margin: 0 0 15px 0;
+  }
+  
+  .bulk-actions-content {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  
+  .selected-count {
+    font-size: 10px;
+    color: #00ffff;
+  }
+  
+  .bulk-notes {
+    flex: 1;
+    min-width: 200px;
+    background: #000;
+    color: #00ff00;
+    border: 1px solid #00ff00;
+    padding: 8px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+  }
+  
+  
+  .game-tag {
+    background: rgba(0, 100, 255, 0.2);
+    color: #00ffff;
+    padding: 2px 6px;
+    font-size: 6px;
+    border-radius: 3px;
+    border: 1px solid #0066ff;
+  }
+  
+  .source-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    font-size: 6px;
+    border-radius: 3px;
+    margin-right: 5px;
+  }
+  
+  .source-steam {
+    background: rgba(0, 100, 255, 0.2);
+    color: #00ffff;
+    border: 1px solid #0066ff;
+  }
+  
+  .source-manual {
+    background: rgba(255, 165, 0, 0.2);
+    color: #ffa500;
+    border: 1px solid #ffa500;
+  }
+  
+  .source-admin {
+    background: rgba(0, 255, 0, 0.2);
+    color: #00ff00;
+    border: 1px solid #00ff00;
+  }
+  
+  .game-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  
+  .game-btn {
+    background: rgba(0, 100, 255, 0.8);
+    color: #fff;
+    border: 1px solid #0066ff;
+    padding: 6px 10px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 6px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    transition: all 0.3s ease;
+  }
+  
+  .game-btn:hover {
+    background: rgba(0, 150, 255, 0.9);
+  }
+  
+  .game-btn.approve {
+    background: rgba(0, 255, 0, 0.8);
+    border-color: #00ff00;
+    color: #000;
+  }
+  
+  .game-btn.approve:hover {
+    background: rgba(0, 255, 0, 0.9);
+  }
+  
+  .game-btn.reject {
+    background: rgba(255, 0, 0, 0.8);
+    border-color: #ff0000;
+  }
+  
+  .game-btn.reject:hover {
+    background: rgba(255, 0, 0, 0.9);
+  }
+  
+  .game-btn.edit {
+    background: rgba(255, 165, 0, 0.8);
+    border-color: #ffa500;
+  }
+  
+  .game-btn.edit:hover {
+    background: rgba(255, 165, 0, 0.9);
+  }
+  
+  .game-btn.duplicates {
+    background: rgba(255, 255, 0, 0.8);
+    border-color: #ffff00;
+    color: #000;
+  }
+  
+  .game-btn.duplicates:hover {
+    background: rgba(255, 255, 0, 0.9);
+  }
+  
+  .games-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: rgba(0, 10, 0, 0.8);
+    border: 1px solid #00ff00;
+    margin-bottom: 30px;
+  }
+  
+  .games-table th,
+  .games-table td {
+    border: 1px solid #00ff00;
+    padding: 10px;
+    text-align: left;
+    font-size: 8px;
+  }
+  
+  .games-table th {
+    background: rgba(0, 50, 0, 0.8);
+    color: #00ff00;
+    font-size: 10px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  
+  .games-table tr:nth-child(even) {
+    background: rgba(0, 20, 0, 0.5);
+  }
+  
+  .games-table tr:hover {
+    background: rgba(0, 255, 0, 0.1);
+  }
+  
+  .table-checkbox {
+    width: 16px;
+    height: 16px;
+  }
+  
+  .no-games {
+    text-align: center;
+    padding: 60px 20px;
+    color: #888;
+    font-size: 12px;
+  }
+  
+  .no-games-icon {
+    font-size: 48px;
+    margin-bottom: 20px;
+    display: block;
+  }
+  
+  .duplicates-alert {
+    background: rgba(255, 255, 0, 0.1);
+    border: 1px solid #ffff00;
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 3px;
+  }
+  
+  .duplicates-alert h4 {
+    color: #ffff00;
+    margin: 0 0 10px 0;
+    font-size: 8px;
+  }
+  
+  .duplicate-item {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 8px;
+    margin: 5px 0;
+    border-radius: 3px;
+    font-size: 7px;
+  }
+  
+  .duplicate-similarity {
+    color: #ffff00;
+    font-weight: bold;
+  }
+  
+  /* Mobile optimizations */
+  @media (max-width: 768px) {
+    .games-header {
+      flex-direction: column;
+      align-items: stretch;
+    }
     
-    <!-- Filter Controls -->
-    <div class="filter-controls">
-      <form method="GET" action="/admin/games" style="display: inline-block;">
-        <select name="status" onchange="this.form.submit()">
-          <option value="">All Status</option>
+    .games-stats {
+      justify-content: center;
+    }
+    
+    .games-actions {
+      justify-content: center;
+    }
+    
+    .filters-grid {
+      grid-template-columns: 1fr;
+    }
+    
+    .bulk-actions-content {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    
+    .games-table {
+      font-size: 6px;
+    }
+    
+    .games-table th,
+    .games-table td {
+      padding: 5px;
+    }
+  }
+</style>
+
+<!-- Games Header -->
+<div class="games-header">
+  <div class="games-stats">
+    <div class="stat-badge">
+      Total: <%= games.length %>
+    </div>
+    <div class="stat-badge pending">
+      Pending: <%= games.filter(g => g.status === 'pending').length %>
+    </div>
+    <div class="stat-badge approved">
+      Approved: <%= games.filter(g => g.status === 'approved').length %>
+    </div>
+    <div class="stat-badge steam">
+      Steam: <%= games.filter(g => g.source === 'steam').length %>
+    </div>
+  </div>
+  
+  <div class="games-actions">
+    <button onclick="toggleBulkActions()" class="action-btn secondary">📋 Bulk Actions</button>
+    <% if (games.filter(g => g.status === 'pending').length > 0) { %>
+      <a href="/admin/games?status=pending" class="action-btn">⏳ Review Pending</a>
+    <% } %>
+  </div>
+</div>
+
+<!-- Filters Section -->
+<div class="filters-section">
+  <h3 class="filters-title">🔍 Filter Games</h3>
+  
+  <form method="GET" action="/admin/games" id="filterForm">
+    <div class="filters-grid">
+      <div class="filter-group">
+        <label class="filter-label">Status</label>
+        <select name="status" class="filter-select">
+          <option value="">All Games</option>
           <option value="pending" <%= filter === 'pending' ? 'selected' : '' %>>Pending</option>
           <option value="approved" <%= filter === 'approved' ? 'selected' : '' %>>Approved</option>
           <option value="rejected" <%= filter === 'rejected' ? 'selected' : '' %>>Rejected</option>
         </select>
-        
-        <select name="source" onchange="this.form.submit()">
+      </div>
+      
+      <div class="filter-group">
+        <label class="filter-label">Source</label>
+        <select name="source" class="filter-select">
           <option value="">All Sources</option>
           <option value="steam" <%= sourceFilter === 'steam' ? 'selected' : '' %>>Steam</option>
           <option value="manual" <%= sourceFilter === 'manual' ? 'selected' : '' %>>Manual</option>
           <option value="admin" <%= sourceFilter === 'admin' ? 'selected' : '' %>>Admin</option>
         </select>
-        
-        <input type="hidden" name="status" value="<%= filter || '' %>">
-        <input type="hidden" name="source" value="<%= sourceFilter || '' %>">
-      </form>
+      </div>
       
-      <a href="/admin/games" class="admin-link">Clear Filters</a>
-    </div>
-
-    <!-- Games Statistics -->
-    <div class="stats-summary">
-      <div class="stat-item">
-        <span class="stat-label">Total Games:</span>
-        <span class="stat-value"><%= games.length %></span>
+      <div class="filter-group">
+        <label class="filter-label">Search Name</label>
+        <input type="text" name="search" class="filter-input" placeholder="Game name..." value="<%= typeof search !== 'undefined' ? search : '' %>">
       </div>
-      <div class="stat-item">
-        <span class="stat-label">Pending:</span>
-        <span class="stat-value"><%= games.filter(g => g.status === 'pending').length %></span>
-      </div>
-      <div class="stat-item">
-        <span class="stat-label">Approved:</span>
-        <span class="stat-value"><%= games.filter(g => g.status === 'approved').length %></span>
+      
+      <div class="filter-group">
+        <label class="filter-label">Added By</label>
+        <input type="text" name="addedBy" class="filter-input" placeholder="User name..." value="<%= typeof addedBy !== 'undefined' ? addedBy : '' %>">
       </div>
     </div>
+    
+    <div class="filter-actions">
+      <button type="submit" class="action-btn">Apply Filters</button>
+      <a href="/admin/games" class="action-btn secondary">Clear All</a>
+    </div>
+  </form>
+</div>
 
-    <!-- Games Table -->
-    <div class="table-container">
-      <table>
+
+<!-- Bulk Actions -->
+<div class="bulk-actions" id="bulkActions">
+  <h3 class="bulk-actions-title">📋 Bulk Actions</h3>
+  <div class="bulk-actions-content">
+    <span class="selected-count" id="selectedCount">0 games selected</span>
+    <input type="text" class="bulk-notes" id="bulkNotes" placeholder="Add notes for bulk action...">
+    <button onclick="bulkApprove()" class="action-btn">✅ Approve Selected</button>
+    <button onclick="bulkReject()" class="action-btn danger">❌ Reject Selected</button>
+    <button onclick="bulkDelete()" class="action-btn danger">🗑️ Delete Selected</button>
+    <button onclick="clearSelection()" class="action-btn secondary">Clear Selection</button>
+  </div>
+</div>
+
+<!-- Games Content -->
+<div id="gamesContent">
+  <% if (games.length === 0) { %>
+    <div class="no-games">
+      <span class="no-games-icon">🎮</span>
+      <h3>No games found</h3>
+      <p>No games match your current filters.</p>
+    </div>
+  <% } else { %>
+    
+    <!-- Table View -->
+    <div id="tableView">
+      <table class="games-table">
         <thead>
           <tr>
+            <th><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
             <th>Game Name</th>
             <th>Source</th>
             <th>Status</th>
@@ -87,580 +519,276 @@
         </thead>
         <tbody>
           <% games.forEach(game => { %>
-            <tr class="<%= game.status === 'pending' ? 'pending-row' : '' %>">
+            <tr>
+              <td><input type="checkbox" class="table-checkbox game-checkbox" value="<%= game._id %>" onchange="updateBulkActions()"></td>
               <td>
-                <div class="game-name-cell">
-                  <strong><%= game.name %></strong>
-                  <% if (game.description) { %>
-                    <p class="game-description"><%= game.description.substring(0, 100) %><%= game.description.length > 100 ? '...' : '' %></p>
-                  <% } %>
-                  <% if (game.steamAppId) { %>
-                    <small class="steam-id">Steam ID: <%= game.steamAppId %></small>
-                  <% } %>
-                </div>
+                <strong><%= game.name %></strong>
+                <% if (game.description) { %>
+                  <br><small style="color: #888;"><%= game.description.substring(0, 50) %>...</small>
+                <% } %>
+                <% if (game.steamAppId) { %>
+                  <br><small style="color: #666;">Steam: <%= game.steamAppId %></small>
+                <% } %>
               </td>
-              
               <td>
                 <span class="source-badge source-<%= game.source || 'admin' %>">
                   <%= (game.source || 'admin').toUpperCase() %>
                 </span>
               </td>
-              
               <td>
-                <span class="status-badge status-<%= game.status %>">
-                  <%= game.status.toUpperCase() %>
-                </span>
+                <span class="game-status <%= game.status %>"><%= game.status.toUpperCase() %></span>
               </td>
-              
               <td>
                 <% if (game.addedBy) { %>
                   <%= game.addedBy.name %><br>
                   <small><%= game.addedBy.email %></small>
                 <% } else { %>
-                  <span class="system-added">System</span>
+                  System
                 <% } %>
               </td>
-              
               <td>
                 <% if (game.categories && game.categories.length > 0) { %>
-                  <div class="categories">
-                    <% game.categories.forEach(category => { %>
-                      <span class="category-tag"><%= category %></span>
-                    <% }); %>
-                  </div>
+                  <% game.categories.forEach(category => { %>
+                    <span class="game-tag"><%= category %></span>
+                  <% }); %>
                 <% } %>
                 <% if (game.tags && game.tags.length > 0) { %>
-                  <div class="tags">
-                    <% game.tags.forEach(tag => { %>
-                      <span class="custom-tag"><%= tag %></span>
-                    <% }); %>
-                  </div>
+                  <% game.tags.forEach(tag => { %>
+                    <span class="game-tag"><%= tag %></span>
+                  <% }); %>
                 <% } %>
               </td>
-              
+              <td><%= new Date(game.createdAt).toLocaleDateString() %></td>
               <td>
-                <%= new Date(game.createdAt).toLocaleDateString() %>
-              </td>
-              
-              <td>
-                <div class="action-buttons">
+                <div class="game-actions">
                   <% if (game.status === 'pending') { %>
-                    <button onclick="approveGame('<%= game._id %>')" class="approve-btn">Approve</button>
-                    <button onclick="rejectGame('<%= game._id %>')" class="reject-btn">Reject</button>
+                    <button onclick="approveGame('<%= game._id %>', '<%= game.name %>')" class="game-btn approve">Approve</button>
+                    <button onclick="rejectGame('<%= game._id %>', '<%= game.name %>')" class="game-btn reject">Reject</button>
                   <% } %>
-                  
-                  <% if (game.potentialDuplicates && game.potentialDuplicates.length > 0) { %>
-                    <button onclick="showDuplicates('<%= game._id %>')" class="duplicates-btn">
-                      Duplicates (<%= game.potentialDuplicates.length %>)
-                    </button>
-                  <% } %>
-                  
-                  <button onclick="editGame('<%= game._id %>')" class="edit-btn">Edit</button>
-                  <button onclick="deleteGame('<%= game._id %>')" class="delete-btn">Delete</button>
+                  <button onclick="editGame('<%= game._id %>')" class="game-btn edit">Edit</button>
+                  <button onclick="deleteGame('<%= game._id %>', '<%= game.name %>')" class="game-btn reject">Delete</button>
                 </div>
               </td>
             </tr>
-            
-            <!-- Potential Duplicates Row -->
-            <% if (game.potentialDuplicates && game.potentialDuplicates.length > 0) { %>
-              <tr id="duplicates-<%= game._id %>" class="duplicates-row" style="display: none;">
-                <td colspan="7">
-                  <div class="duplicates-container">
-                    <h4>⚠️ Potential Duplicates Found</h4>
-                    <% game.potentialDuplicates.forEach(duplicate => { %>
-                      <div class="duplicate-item">
-                        <div class="duplicate-info">
-                          <strong><%= duplicate.game.name %></strong>
-                          <span class="similarity">(<%= duplicate.similarity %>% similar)</span>
-                          <p><%= duplicate.game.description || 'No description' %></p>
-                          <small><%= duplicate.reason %></small>
-                        </div>
-                        <div class="duplicate-actions">
-                          <button onclick="mergeGames('<%= game._id %>', '<%= duplicate.game._id %>')" class="merge-btn">
-                            Merge into this game
-                          </button>
-                          <button onclick="mergeGames('<%= duplicate.game._id %>', '<%= game._id %>')" class="merge-btn">
-                            Use this as main
-                          </button>
-                        </div>
-                      </div>
-                    <% }); %>
-                  </div>
-                </td>
-              </tr>
-            <% } %>
           <% }); %>
         </tbody>
       </table>
     </div>
-
-    <% if (games.length === 0) { %>
-      <div class="no-results">
-        <p>No games found matching the current filters.</p>
-      </div>
-    <% } %>
-  </main>
-
-  <!-- Action Modals -->
-  <div id="actionModal" class="modal" style="display: none;">
-    <div class="modal-content">
-      <h3 id="modalTitle">Action</h3>
-      <p id="modalMessage">Are you sure?</p>
-      <textarea id="modalNotes" placeholder="Optional notes..." style="width: 100%; margin: 1rem 0;"></textarea>
-      <div class="modal-actions">
-        <button id="confirmAction" class="confirm-btn">Confirm</button>
-        <button onclick="closeModal()" class="cancel-btn">Cancel</button>
-      </div>
-    </div>
-  </div>
-
-  <style>
-    .filter-controls {
-      margin: 2rem 0;
-      padding: 1rem;
-      background: var(--dark-blue);
-      border: 1px solid var(--dark-teal);
-      display: flex;
-      gap: 1rem;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-
-    .stats-summary {
-      display: flex;
-      gap: 2rem;
-      margin: 1rem 0;
-      padding: 1rem;
-      background: var(--darker-blue);
-      border: 1px solid var(--dark-teal);
-      flex-wrap: wrap;
-    }
-
-    .stat-item {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .stat-label {
-      font-size: 0.5rem;
-      color: var(--muted-cyan);
-    }
-
-    .stat-value {
-      font-size: 0.8rem;
-      color: var(--teal-cyan);
-      text-shadow: 0 0 5px var(--teal-cyan);
-    }
-
-    .table-container {
-      overflow-x: auto;
-      margin: 2rem 0;
-    }
-
-    .game-name-cell {
-      max-width: 200px;
-    }
-
-    .game-description {
-      font-size: 0.4rem;
-      color: var(--muted-cyan);
-      margin: 0.5rem 0;
-      opacity: 0.8;
-      line-height: 1.3;
-    }
-
-    .steam-id {
-      font-size: 0.4rem;
-      color: var(--dark-teal);
-    }
-
-    .source-badge, .status-badge {
-      padding: 0.2rem 0.5rem;
-      font-size: 0.4rem;
-      border-radius: 3px;
-      font-weight: bold;
-    }
-
-    .source-steam {
-      background: #1b2838;
-      color: #66c0f4;
-    }
-
-    .source-manual {
-      background: #2d1b69;
-      color: #7c4dff;
-    }
-
-    .source-admin {
-      background: #1a472a;
-      color: #4caf50;
-    }
-
-    .status-pending {
-      background: #ff6b35;
-      color: #000;
-      animation: statusPulse 2s ease-in-out infinite;
-    }
-
-    .status-approved {
-      background: #4caf50;
-      color: #000;
-    }
-
-    .status-rejected {
-      background: #f44336;
-      color: #fff;
-    }
-
-    @keyframes statusPulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.7; }
-    }
-
-    .pending-row {
-      background: rgba(255, 107, 53, 0.1);
-      border-left: 4px solid #ff6b35;
-    }
-
-    .categories, .tags {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.3rem;
-      margin: 0.3rem 0;
-    }
-
-    .category-tag {
-      background: var(--dark-teal);
-      color: var(--teal-cyan);
-      padding: 0.1rem 0.3rem;
-      font-size: 0.35rem;
-      border-radius: 2px;
-    }
-
-    .custom-tag {
-      background: var(--darker-blue);
-      color: var(--muted-cyan);
-      padding: 0.1rem 0.3rem;
-      font-size: 0.35rem;
-      border-radius: 2px;
-      border: 1px solid var(--dark-teal);
-    }
-
-    .system-added {
-      color: var(--dark-teal);
-      font-style: italic;
-      font-size: 0.5rem;
-    }
-
-    .action-buttons {
-      display: flex;
-      flex-direction: column;
-      gap: 0.3rem;
-      min-width: 120px;
-    }
-
-    .action-buttons button {
-      padding: 0.3rem 0.6rem;
-      font-size: 0.4rem;
-      border: none;
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
-
-    .approve-btn {
-      background: #4caf50;
-      color: #000;
-    }
-
-    .approve-btn:hover {
-      background: #66bb6a;
-    }
-
-    .reject-btn {
-      background: #f44336;
-      color: #fff;
-    }
-
-    .reject-btn:hover {
-      background: #ef5350;
-    }
-
-    .duplicates-btn {
-      background: #ff9800;
-      color: #000;
-    }
-
-    .duplicates-btn:hover {
-      background: #ffb74d;
-    }
-
-    .edit-btn {
-      background: var(--teal-cyan);
-      color: #000;
-    }
-
-    .edit-btn:hover {
-      background: var(--muted-cyan);
-    }
-
-    .delete-btn {
-      background: #9e9e9e;
-      color: #000;
-    }
-
-    .delete-btn:hover {
-      background: #bdbdbd;
-    }
-
-    .duplicates-row {
-      background: rgba(255, 152, 0, 0.1);
-    }
-
-    .duplicates-container {
-      padding: 1rem;
-      border: 2px solid #ff9800;
-      border-radius: 5px;
-      background: rgba(255, 152, 0, 0.05);
-    }
-
-    .duplicates-container h4 {
-      color: #ff9800;
-      margin: 0 0 1rem 0;
-      font-size: 0.6rem;
-    }
-
-    .duplicate-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0.8rem;
-      margin: 0.5rem 0;
-      background: var(--dark-blue);
-      border: 1px solid var(--dark-teal);
-      border-radius: 3px;
-    }
-
-    .duplicate-info {
-      flex: 1;
-    }
-
-    .duplicate-info strong {
-      color: var(--teal-cyan);
-      font-size: 0.6rem;
-    }
-
-    .similarity {
-      color: #ff9800;
-      font-size: 0.5rem;
-      margin-left: 0.5rem;
-    }
-
-    .duplicate-info p {
-      margin: 0.3rem 0;
-      font-size: 0.45rem;
-      color: var(--muted-cyan);
-    }
-
-    .duplicate-info small {
-      color: var(--dark-teal);
-      font-size: 0.4rem;
-    }
-
-    .duplicate-actions {
-      display: flex;
-      flex-direction: column;
-      gap: 0.3rem;
-    }
-
-    .merge-btn {
-      background: #2196f3;
-      color: #fff;
-      padding: 0.3rem 0.6rem;
-      font-size: 0.4rem;
-      border: none;
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
-
-    .merge-btn:hover {
-      background: #42a5f5;
-    }
-
-    .modal {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.8);
-      z-index: 1000;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .modal-content {
-      background: var(--dark-blue);
-      border: 2px solid var(--teal-cyan);
-      padding: 2rem;
-      max-width: 500px;
-      width: 90%;
-      border-radius: 5px;
-      box-shadow: 0 0 20px rgba(0, 255, 204, 0.3);
-    }
-
-    .modal-content h3 {
-      color: var(--teal-cyan);
-      margin: 0 0 1rem 0;
-      text-shadow: 0 0 5px var(--teal-cyan);
-    }
-
-    .modal-content p {
-      color: var(--muted-cyan);
-      margin: 0 0 1rem 0;
-    }
-
-    .modal-actions {
-      display: flex;
-      gap: 1rem;
-      justify-content: flex-end;
-    }
-
-    .confirm-btn {
-      background: #4caf50;
-      color: #000;
-    }
-
-    .cancel-btn {
-      background: #9e9e9e;
-      color: #000;
-    }
-
-    .no-results {
-      text-align: center;
-      padding: 3rem;
-      color: var(--muted-cyan);
-      font-size: 0.6rem;
-    }
-
-    @media (max-width: 768px) {
-      .filter-controls {
-        flex-direction: column;
-        align-items: stretch;
-      }
-
-      .stats-summary {
-        flex-direction: column;
-        gap: 1rem;
-      }
-
-      .action-buttons {
-        flex-direction: row;
-        flex-wrap: wrap;
-      }
-
-      .duplicate-item {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 1rem;
-      }
-
-      .duplicate-actions {
-        flex-direction: row;
-      }
-    }
-  </style>
-
-  <script>
-    let currentAction = null;
-    let currentGameId = null;
-
-    function approveGame(gameId) {
-      showModal('Approve Game', 'Are you sure you want to approve this game? This will make all associated events visible.', () => {
-        performAction('/admin/game/approve/' + gameId, 'POST');
-      });
-    }
-
-    function rejectGame(gameId) {
-      showModal('Reject Game', 'Are you sure you want to reject this game? This will delete all associated pending events.', () => {
-        performAction('/admin/game/reject/' + gameId, 'POST');
-      });
-    }
-
-    function mergeGames(duplicateId, canonicalId) {
-      showModal('Merge Games', 'Are you sure you want to merge these games? This action cannot be undone.', () => {
-        performAction('/admin/game/merge/' + duplicateId + '/' + canonicalId, 'POST');
-      });
-    }
-
-    function deleteGame(gameId) {
-      showModal('Delete Game', 'Are you sure you want to delete this game? This will affect all associated events.', () => {
-        performAction('/admin/delete-game/' + gameId, 'POST');
-      });
-    }
-
-    function editGame(gameId) {
-      // For now, redirect to a simple edit page or show alert
-      alert('Edit functionality coming soon. Game ID: ' + gameId);
-    }
-
-    function showDuplicates(gameId) {
-      const duplicatesRow = document.getElementById('duplicates-' + gameId);
-      if (duplicatesRow.style.display === 'none') {
-        duplicatesRow.style.display = 'table-row';
-      } else {
-        duplicatesRow.style.display = 'none';
-      }
-    }
-
-    function showModal(title, message, confirmCallback) {
-      document.getElementById('modalTitle').textContent = title;
-      document.getElementById('modalMessage').textContent = message;
-      document.getElementById('modalNotes').value = '';
-      document.getElementById('actionModal').style.display = 'flex';
-      
-      document.getElementById('confirmAction').onclick = () => {
-        confirmCallback();
-        closeModal();
-      };
-    }
-
-    function closeModal() {
-      document.getElementById('actionModal').style.display = 'none';
-    }
-
-    async function performAction(url, method) {
-      const notes = document.getElementById('modalNotes').value;
-      
-      try {
-        const response = await fetch(url, {
-          method: method,
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ notes })
-        });
-
-        if (response.ok) {
-          location.reload();
-        } else {
-          const error = await response.json();
-          alert('Error: ' + (error.error || 'Unknown error occurred'));
-        }
-      } catch (error) {
-        console.error('Error:', error);
-        alert('Network error occurred');
-      }
-    }
-
-    // Close modal when clicking outside
-    document.getElementById('actionModal').addEventListener('click', function(e) {
-      if (e.target === this) {
-        closeModal();
-      }
+  <% } %>
+</div>
+
+<script>
+  
+  function toggleBulkActions() {
+    const bulkActions = document.getElementById('bulkActions');
+    bulkActions.classList.toggle('show');
+  }
+  
+  function updateBulkActions() {
+    const checkboxes = document.querySelectorAll('.game-checkbox:checked');
+    const bulkActions = document.getElementById('bulkActions');
+    const selectedCount = document.getElementById('selectedCount');
+    
+    selectedCount.textContent = `${checkboxes.length} games selected`;
+    
+    if (checkboxes.length > 0) {
+      bulkActions.classList.add('show');
+    }
+  }
+  
+  function toggleSelectAll() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.game-checkbox');
+    
+    checkboxes.forEach(checkbox => {
+      checkbox.checked = selectAll.checked;
     });
-  </script>
-</body>
-</html>
+    
+    updateBulkActions();
+  }
+  
+  function clearSelection() {
+    const checkboxes = document.querySelectorAll('.game-checkbox');
+    checkboxes.forEach(checkbox => checkbox.checked = false);
+    
+    const selectAll = document.getElementById('selectAll');
+    if (selectAll) selectAll.checked = false;
+    
+    updateBulkActions();
+  }
+  
+  async function approveGame(gameId, gameName) {
+    const notes = prompt(`Add notes for approving "${gameName}" (optional):`);
+    if (notes === null) return; // User cancelled
+    
+    try {
+      const response = await fetch(`/admin/game/approve/${gameId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes })
+      });
+      
+      if (response.ok) {
+        location.reload();
+      } else {
+        alert('Error approving game');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error approving game');
+    }
+  }
+  
+  async function rejectGame(gameId, gameName) {
+    const notes = prompt(`Add reason for rejecting "${gameName}":`);
+    if (!notes || notes.trim() === '') {
+      alert('Please provide a reason for rejection');
+      return;
+    }
+    
+    if (!confirm(`Are you sure you want to reject "${gameName}"? This will delete all associated pending events.`)) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/admin/game/reject/${gameId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes })
+      });
+      
+      if (response.ok) {
+        location.reload();
+      } else {
+        alert('Error rejecting game');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error rejecting game');
+    }
+  }
+  
+  async function deleteGame(gameId, gameName) {
+    if (!confirm(`Are you sure you want to delete "${gameName}"? This will affect all associated events.`)) return;
+    
+    try {
+      const response = await fetch(`/admin/delete-game/${gameId}`, { method: 'POST' });
+      if (response.ok) {
+        location.reload();
+      } else {
+        alert('Error deleting game');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error deleting game');
+    }
+  }
+  
+  function editGame(gameId) {
+    // For now, show alert - can be enhanced later
+    alert('Edit functionality coming soon. Game ID: ' + gameId);
+  }
+  
+  function showDuplicates(gameId) {
+    // This function can be enhanced to show a modal with duplicate details
+    alert('Duplicate details shown in the card. Merge functionality coming soon.');
+  }
+  
+  async function bulkApprove() {
+    const checkboxes = document.querySelectorAll('.game-checkbox:checked');
+    const gameIds = Array.from(checkboxes).map(cb => cb.value);
+    const notes = document.getElementById('bulkNotes').value;
+    
+    if (gameIds.length === 0) {
+      alert('Please select games first');
+      return;
+    }
+    
+    if (!confirm(`Are you sure you want to approve ${gameIds.length} game(s)?`)) return;
+    
+    try {
+      const response = await fetch('/admin/games/bulk-approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameIds, notes })
+      });
+      
+      if (response.ok) {
+        location.reload();
+      } else {
+        alert('Error approving games');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error approving games');
+    }
+  }
+  
+  async function bulkReject() {
+    const checkboxes = document.querySelectorAll('.game-checkbox:checked');
+    const gameIds = Array.from(checkboxes).map(cb => cb.value);
+    const notes = document.getElementById('bulkNotes').value;
+    
+    if (gameIds.length === 0) {
+      alert('Please select games first');
+      return;
+    }
+    
+    if (!notes || notes.trim() === '') {
+      alert('Please provide a reason for bulk rejection');
+      return;
+    }
+    
+    if (!confirm(`Are you sure you want to reject ${gameIds.length} game(s)? This will delete all associated pending events.`)) return;
+    
+    try {
+      const response = await fetch('/admin/games/bulk-reject', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameIds, notes })
+      });
+      
+      if (response.ok) {
+        location.reload();
+      } else {
+        alert('Error rejecting games');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error rejecting games');
+    }
+  }
+  
+  async function bulkDelete() {
+    const checkboxes = document.querySelectorAll('.game-checkbox:checked');
+    const gameIds = Array.from(checkboxes).map(cb => cb.value);
+    const notes = document.getElementById('bulkNotes').value;
+    
+    if (gameIds.length === 0) {
+      alert('Please select games first');
+      return;
+    }
+    
+    if (!confirm(`Are you sure you want to delete ${gameIds.length} game(s)? This action cannot be undone.`)) return;
+    
+    try {
+      const response = await fetch('/admin/games/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameIds, notes })
+      });
+      
+      if (response.ok) {
+        location.reload();
+      } else {
+        alert('Error deleting games');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error deleting games');
+    }
+  }
+  
+</script>
+
+<%- include('partials/adminLayoutFooter') %>
