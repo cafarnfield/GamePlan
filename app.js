@@ -2249,6 +2249,142 @@ app.post('/event/:id/leave', ensureAuthenticated, ensureNotBlocked, async (req, 
   }
 });
 
+// Route to show event duplicate form
+app.get('/event/:id/duplicate', ensureAuthenticated, ensureNotBlocked, async (req, res) => {
+  try {
+    const originalEvent = await Event.findById(req.params.id)
+      .populate('createdBy')
+      .populate('requiredExtensions')
+      .populate('game');
+    
+    if (!originalEvent) {
+      return res.status(404).send('Event not found');
+    }
+    
+    // Check if user is authorized to duplicate (event creator or admin)
+    const isCreator = originalEvent.createdBy && originalEvent.createdBy._id.equals(req.user._id);
+    const isLegacyCreator = !originalEvent.createdBy && originalEvent.players.length > 0 && originalEvent.players[0]._id.equals(req.user._id);
+    const isAdmin = req.user.isAdmin;
+    
+    if (!isCreator && !isLegacyCreator && !isAdmin) {
+      return res.status(403).send('You are not authorized to duplicate this event');
+    }
+    
+    const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
+    
+    res.render('duplicateEvent', { 
+      originalEvent, 
+      user: req.user, 
+      isDevelopmentAutoLogin 
+    });
+  } catch (err) {
+    console.error('Error loading event duplicate form:', err);
+    res.status(500).send('Error loading event duplicate form');
+  }
+});
+
+// Route to process event duplication
+app.post('/event/:id/duplicate', ensureAuthenticated, ensureNotBlocked, async (req, res) => {
+  try {
+    const originalEvent = await Event.findById(req.params.id)
+      .populate('createdBy')
+      .populate('requiredExtensions')
+      .populate('game');
+    
+    if (!originalEvent) {
+      return res.status(404).send('Original event not found');
+    }
+    
+    // Check if user is authorized to duplicate (event creator or admin)
+    const isCreator = originalEvent.createdBy && originalEvent.createdBy._id.equals(req.user._id);
+    const isLegacyCreator = !originalEvent.createdBy && originalEvent.players.length > 0 && originalEvent.players[0]._id.equals(req.user._id);
+    const isAdmin = req.user.isAdmin;
+    
+    if (!isCreator && !isLegacyCreator && !isAdmin) {
+      return res.status(403).send('You are not authorized to duplicate this event');
+    }
+    
+    const { name, description, playerLimit, date, platforms, originalGameId, originalSteamAppId } = req.body;
+    
+    // Validate the new date is in the future
+    const newDate = new Date(date);
+    const now = new Date();
+    if (newDate <= now) {
+      return res.status(400).send('Event date must be in the future');
+    }
+    
+    // Process platforms properly
+    let processedPlatforms = [];
+    if (platforms) {
+      if (Array.isArray(platforms)) {
+        processedPlatforms = platforms;
+      } else if (typeof platforms === 'string') {
+        processedPlatforms = [platforms];
+      }
+    }
+    
+    // Validate at least one platform is selected
+    if (processedPlatforms.length === 0) {
+      return res.status(400).send('Please select at least one platform');
+    }
+    
+    // Create the new event with copied data
+    const newEvent = new Event({
+      name: name || `${originalEvent.name} - Copy`,
+      game: originalGameId || originalEvent.game._id,
+      description: description || originalEvent.description,
+      playerLimit: parseInt(playerLimit) || originalEvent.playerLimit,
+      date: newDate,
+      players: [req.user._id], // Add the creator as the first player
+      platforms: processedPlatforms,
+      steamAppId: originalSteamAppId || originalEvent.steamAppId,
+      createdBy: req.user._id,
+      gameStatus: originalEvent.gameStatus || 'approved',
+      isVisible: originalEvent.isVisible !== false // Default to true unless explicitly false
+    });
+    
+    // Handle extensions duplication
+    if (req.body['copy-extensions'] && originalEvent.requiredExtensions && originalEvent.requiredExtensions.length > 0) {
+      for (const originalExtension of originalEvent.requiredExtensions) {
+        const newExtension = new Extension({
+          name: originalExtension.name,
+          downloadLink: originalExtension.downloadLink,
+          installationTime: originalExtension.installationTime,
+          description: originalExtension.description
+        });
+        await newExtension.save();
+        newEvent.requiredExtensions.push(newExtension._id);
+      }
+    }
+    
+    const savedEvent = await newEvent.save();
+    
+    // Create audit log for admin duplications
+    if (isAdmin && !isCreator && !isLegacyCreator) {
+      await createAuditLog(
+        req.user, 
+        'duplicate_event', 
+        originalEvent.createdBy, 
+        `Admin duplicated event: "${originalEvent.name}" → "${savedEvent.name}"`, 
+        getClientIP(req),
+        1,
+        { 
+          originalEventId: originalEvent._id, 
+          originalEventName: originalEvent.name,
+          newEventId: savedEvent._id,
+          newEventName: savedEvent.name
+        }
+      );
+    }
+    
+    console.log(`Event "${originalEvent.name}" duplicated as "${savedEvent.name}" by ${req.user.email} (${isAdmin && !isCreator && !isLegacyCreator ? 'admin' : 'creator'})`);
+    res.redirect(`/event/${savedEvent._id}`);
+  } catch (err) {
+    console.error('Error duplicating event:', err);
+    res.status(500).send('Error duplicating event');
+  }
+});
+
 // Route to show event edit form
 app.get('/event/:id/edit', ensureAuthenticated, ensureNotBlocked, async (req, res) => {
   try {

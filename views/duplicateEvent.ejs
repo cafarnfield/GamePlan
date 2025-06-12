@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Duplicate Event - GamePlan</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="scanlines"></div>
+  <header>
+    <h1>GamePlan</h1>
+    <nav>
+      <% if (typeof user !== 'undefined') { %>
+        <a href="/profile">Profile</a>
+        <a href="/logout">Logout</a>
+        <a href="/">Home</a>
+        <p>Welcome, <%= user.gameNickname ? user.gameNickname : user.name %></p>
+      <% } else { %>
+        <a href="/register">Register</a>
+        <a href="/login">Login</a>
+        <a href="/">Home</a>
+      <% } %>
+    </nav>
+  </header>
+  <main>
+    <% if (typeof user === 'undefined' || !user) { %>
+      <p>You need to <a href="/login">log in</a> to duplicate events.</p>
+    <% } else { %>
+      <h2>Duplicate Event</h2>
+      
+      <!-- Original Event Reference -->
+      <div class="info-card" style="margin-bottom: 2rem;">
+        <div class="info-card-header">
+          <span class="info-card-icon">📋</span>
+          <h3 class="info-card-title">Duplicating from: <%= originalEvent.name %></h3>
+        </div>
+        <div class="info-card-content">
+          <p><strong>Game:</strong> <%= originalEvent.game ? originalEvent.game.name : 'Unknown Game' %></p>
+          <p><strong>Original Date:</strong> <%= new Date(originalEvent.date).toLocaleDateString('en-GB', { 
+            weekday: 'long', 
+            day: '2-digit', 
+            month: 'long',
+            year: 'numeric'
+          }) %> at <%= new Date(originalEvent.date).toLocaleTimeString('en-GB', { 
+            hour: '2-digit', 
+            minute: '2-digit'
+          }) %></p>
+          <p><strong>Players:</strong> <%= originalEvent.playerLimit %> max</p>
+          <% if (originalEvent.platforms && originalEvent.platforms.length > 0) { %>
+            <p><strong>Platforms:</strong> <%= originalEvent.platforms.join(', ') %></p>
+          <% } %>
+        </div>
+      </div>
+
+      <form action="/event/<%= originalEvent._id %>/duplicate" method="POST">
+        <!-- Event Name -->
+        <label for="name">Event Name:</label>
+        <input type="text" id="name" name="name" value="<%= originalEvent.name %> - Copy" required>
+        
+        <!-- Date & Time (Required Fields) -->
+        <div class="duplicate-required-section">
+          <h3 style="color: var(--bright-cyan); margin: 1.5rem 0 1rem 0;">📅 Required: Set New Date & Time</h3>
+          <label for="date">New Date & Time:</label>
+          <input type="datetime-local" id="date" name="date" required style="border: 2px solid var(--bright-cyan);">
+          <small style="color: var(--bright-cyan);">This is the only required change - all other details are copied from the original event</small>
+        </div>
+
+        <!-- Optional Changes Section -->
+        <div class="duplicate-optional-section" style="margin-top: 2rem;">
+          <h3 style="color: var(--muted-cyan); margin: 1.5rem 0 1rem 0;">⚙️ Optional: Modify Other Details</h3>
+          
+          <!-- Description -->
+          <label for="description">Description:</label>
+          <textarea id="description" name="description"><%= originalEvent.description %></textarea>
+          
+          <!-- Player Limit -->
+          <label for="playerLimit">Player Limit:</label>
+          <input type="number" id="playerLimit" name="playerLimit" value="<%= originalEvent.playerLimit %>" required>
+          
+          <!-- Platforms -->
+          <h4>Platforms</h4>
+          <div class="platform-checkboxes">
+            <div>
+              <input type="checkbox" id="pc" name="platforms" value="PC" <%= originalEvent.platforms && originalEvent.platforms.includes('PC') ? 'checked' : '' %>>
+              <label for="pc">PC</label>
+            </div>
+            <div>
+              <input type="checkbox" id="playstation" name="platforms" value="PlayStation" <%= originalEvent.platforms && originalEvent.platforms.includes('PlayStation') ? 'checked' : '' %>>
+              <label for="playstation">PlayStation</label>
+            </div>
+            <div>
+              <input type="checkbox" id="xbox" name="platforms" value="Xbox" <%= originalEvent.platforms && originalEvent.platforms.includes('Xbox') ? 'checked' : '' %>>
+              <label for="xbox">Xbox</label>
+            </div>
+            <div>
+              <input type="checkbox" id="switch" name="platforms" value="Nintendo Switch" <%= originalEvent.platforms && originalEvent.platforms.includes('Nintendo Switch') ? 'checked' : '' %>>
+              <label for="switch">Nintendo Switch</label>
+            </div>
+          </div>
+
+          <!-- Extensions -->
+          <% if (originalEvent.requiredExtensions && originalEvent.requiredExtensions.length > 0) { %>
+            <h4>Extensions</h4>
+            <div>
+              <input type="checkbox" id="copy-extensions" name="copy-extensions" checked>
+              <label for="copy-extensions">Copy required extensions from original event</label>
+            </div>
+            <div id="extensions-preview" style="margin-top: 1rem; padding: 1rem; background: rgba(0, 255, 255, 0.1); border-radius: 4px;">
+              <h5>Extensions to be copied:</h5>
+              <% originalEvent.requiredExtensions.forEach(extension => { %>
+                <div style="margin: 0.5rem 0;">
+                  <strong><%= extension.name %></strong> - <%= extension.installationTime %> min install
+                  <% if (extension.description) { %>
+                    <br><small><%= extension.description %></small>
+                  <% } %>
+                </div>
+              <% }) %>
+            </div>
+          <% } %>
+        </div>
+
+        <!-- Hidden fields to preserve original event data -->
+        <input type="hidden" name="originalGameId" value="<%= originalEvent.game ? originalEvent.game._id : '' %>">
+        <input type="hidden" name="originalSteamAppId" value="<%= originalEvent.steamAppId || '' %>">
+        
+        <!-- Submit Button -->
+        <div style="margin-top: 2rem;">
+          <button type="submit" class="action-button primary">Create Duplicate Event</button>
+          <a href="/event/<%= originalEvent._id %>" class="action-button secondary" style="margin-left: 1rem;">Cancel</a>
+        </div>
+      </form>
+
+      <script>
+        // Auto-populate date/time field with current time + 1 hour
+        function setDefaultDateTime() {
+          const now = new Date();
+          const oneHourLater = new Date(now.getTime() + (60 * 60 * 1000));
+          
+          const year = oneHourLater.getFullYear();
+          const month = String(oneHourLater.getMonth() + 1).padStart(2, '0');
+          const day = String(oneHourLater.getDate()).padStart(2, '0');
+          const hours = String(oneHourLater.getHours()).padStart(2, '0');
+          const minutes = String(oneHourLater.getMinutes()).padStart(2, '0');
+          
+          const formattedDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
+          
+          const dateInput = document.getElementById('date');
+          if (dateInput && !dateInput.value) {
+            dateInput.value = formattedDateTime;
+          }
+        }
+
+        // Set default date/time when page loads
+        setDefaultDateTime();
+
+        // Form validation
+        document.querySelector('form').addEventListener('submit', function(event) {
+          // Check if at least one platform is selected
+          const platformCheckboxes = document.querySelectorAll('input[name="platforms"]:checked');
+          if (platformCheckboxes.length === 0) {
+            alert('Please select at least one platform for this event.');
+            event.preventDefault();
+            return false;
+          }
+
+          // Validate date is in the future
+          const selectedDate = new Date(document.getElementById('date').value);
+          const now = new Date();
+          if (selectedDate <= now) {
+            alert('Please select a date and time in the future.');
+            event.preventDefault();
+            return false;
+          }
+        });
+
+        // Toggle extensions preview based on checkbox
+        const copyExtensionsCheckbox = document.getElementById('copy-extensions');
+        const extensionsPreview = document.getElementById('extensions-preview');
+        
+        if (copyExtensionsCheckbox && extensionsPreview) {
+          copyExtensionsCheckbox.addEventListener('change', function() {
+            extensionsPreview.style.display = this.checked ? 'block' : 'none';
+          });
+        }
+      </script>
+    <% } %>
+  </main>
+</body>
+</html>

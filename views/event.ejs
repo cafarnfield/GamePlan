@@ -322,6 +322,12 @@
           </form>
         <% } %>
         
+        <% if (canEdit) { %>
+          <form action="/event/<%= event._id %>/duplicate" method="GET" style="display: inline;">
+            <button type="submit" class="action-button secondary">Duplicate Event</button>
+          </form>
+        <% } %>
+        
         <% if (canDelete) { %>
           <form action="/event/<%= event._id %>/delete" method="POST" style="display: inline;" 
                 onsubmit="return confirm('Are you sure you want to delete this event? This action cannot be undone.');">
