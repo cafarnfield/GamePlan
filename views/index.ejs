@@ -261,18 +261,6 @@
                       <span class="game-meta-value"><%= gameData.developers[0] %></span>
                     </div>
                   <% } %>
-                  <% if (event.game.rawgData && event.game.rawgData.rating) { %>
-                    <div class="game-meta-item">
-                      <span class="game-meta-label">Rating</span>
-                      <div class="game-rating">
-                        <span class="rating-stars">
-                          <% const rating = Math.round(event.game.rawgData.rating); %>
-                          <% for (let i = 0; i < Math.min(rating, 5); i++) { %>★<% } %>
-                        </span>
-                        <span class="rating-value"><%= event.game.rawgData.rating %></span>
-                      </div>
-                    </div>
-                  <% } %>
                 </div>
               <% } %>
             </div>

@@ -123,21 +123,6 @@
                       <span class="game-info-value"><%= new Date(event.game.rawgData.released).toLocaleDateString() %></span>
                     </div>
                   <% } %>
-                  
-                  <% if (event.game.rawgData && event.game.rawgData.rating) { %>
-                    <div class="game-info-item">
-                      <span class="game-info-label">Rating</span>
-                      <div class="game-rating">
-                        <span class="rating-stars">
-                          <% const rating = Math.round(event.game.rawgData.rating); %>
-                          <% for (let i = 0; i < 5; i++) { %>
-                            <%= i < rating ? '★' : '☆' %>
-                          <% } %>
-                        </span>
-                        <span class="rating-value">(<%= event.game.rawgData.rating %>/5)</span>
-                      </div>
-                    </div>
-                  <% } %>
                 <% } %>
                 
                 <% if (event.game.source) { %>
