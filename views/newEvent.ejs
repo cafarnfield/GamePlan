@@ -11,7 +11,7 @@
   <div class="scanlines"></div>
   <header>
     <h1>GamePlan</h1>
-  <nav>
+    <nav>
       <% if (typeof user !== 'undefined') { %>
         <a href="/profile">Profile</a>
         <a href="/logout">Logout</a>
@@ -24,808 +24,985 @@
       <% } %>
     </nav>
   </header>
+  
   <main>
     <% if (typeof user === 'undefined' || !user) { %>
-      <p>You need to <a href="/login">log in</a> to create events.</p>
+      <div class="auth-required">
+        <h2>🎮 Authentication Required</h2>
+        <p>You need to <a href="/login">log in</a> to create events.</p>
+        <div class="auth-actions">
+          <a href="/login" class="action-button primary">Login</a>
+          <a href="/register" class="action-button secondary">Register</a>
+        </div>
+      </div>
     <% } else { %>
-      <h2>Create Event</h2>
-      <form action="/event/new" method="POST">
-        <label for="name">Event Name:</label>
-        <input type="text" id="name" name="name" required>
-        <label>Game Selection:</label>
-        <div class="game-selection-mode">
-          <div class="radio-group">
-            <div>
-              <input type="radio" id="steam-mode" name="gameMode" value="steam" checked>
-              <label for="steam-mode">🎮 Search Steam Games</label>
-              <small>Best for PC games available on Steam</small>
+      <div class="event-wizard">
+        <!-- Progress Indicator -->
+        <div class="wizard-progress">
+          <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+          <div class="progress-steps">
+            <div class="step active" data-step="1">
+              <div class="step-number">1</div>
+              <div class="step-label">Event Details</div>
             </div>
-            <div>
-              <input type="radio" id="rawg-mode" name="gameMode" value="rawg">
-              <label for="rawg-mode">🎯 Search RAWG Games</label>
-              <small>Best for console games and broader game database</small>
+            <div class="step" data-step="2">
+              <div class="step-number">2</div>
+              <div class="step-label">Choose Game</div>
             </div>
-            <div>
-              <input type="radio" id="existing-mode" name="gameMode" value="existing">
-              <label for="existing-mode">📚 Browse Existing Games</label>
-              <small>Games already in our database</small>
+            <div class="step" data-step="3">
+              <div class="step-number">3</div>
+              <div class="step-label">Platforms</div>
             </div>
-            <div>
-              <input type="radio" id="manual-mode" name="gameMode" value="manual">
-              <label for="manual-mode">✏️ Add New Game Manually</label>
-              <small>For games not found in either database</small>
+            <div class="step" data-step="4">
+              <div class="step-number">4</div>
+              <div class="step-label">Review</div>
             </div>
           </div>
         </div>
 
-        <!-- Steam Game Search -->
-        <div id="steam-search-container" class="game-input-container">
-          <label for="steam-search">Search Steam Games:</label>
-          <input type="text" id="steam-search" placeholder="Type to search Steam games..." autocomplete="off">
-          <div id="steam-results" class="search-results"></div>
-          <input type="hidden" id="selected-steam-game" name="steamGameData">
-        </div>
-
-        <!-- RAWG Game Search -->
-        <div id="rawg-search-container" class="game-input-container" style="display: none;">
-          <label for="rawg-search">Search RAWG Games:</label>
-          <input type="text" id="rawg-search" placeholder="Type to search RAWG games..." autocomplete="off">
-          <div id="rawg-results" class="search-results"></div>
-          <input type="hidden" id="selected-rawg-game" name="rawgGameData">
-        </div>
-
-        <!-- Existing Games Browser -->
-        <div id="existing-games-container" class="game-input-container" style="display: none;">
-          <label for="existing-game">Select Existing Game:</label>
-          <div class="game-filters">
-            <select id="category-filter">
-              <option value="">All Categories</option>
-              <option value="Action">Action</option>
-              <option value="Adventure">Adventure</option>
-              <option value="Strategy">Strategy</option>
-              <option value="RPG">RPG</option>
-              <option value="FPS">FPS</option>
-              <option value="Racing">Racing</option>
-              <option value="Sports">Sports</option>
-              <option value="Simulation">Simulation</option>
-              <option value="Puzzle">Puzzle</option>
-              <option value="Platformer">Platformer</option>
-              <option value="Fighting">Fighting</option>
-              <option value="Horror">Horror</option>
-              <option value="Survival">Survival</option>
-              <option value="MMO">MMO</option>
-              <option value="Indie">Indie</option>
-              <option value="Casual">Casual</option>
-              <option value="Other">Other</option>
-            </select>
-            <input type="text" id="game-search" placeholder="Search games...">
-          </div>
-          <select id="existing-game" name="gameId" size="8">
-            <% games.filter(game => game.status === 'approved').forEach(game => { %>
-              <option value="<%= game._id %>" data-categories="<%= game.categories ? game.categories.join(',') : '' %>" data-source="<%= game.source || 'admin' %>">
-                <%= game.name %> 
-                <% if (game.source === 'steam') { %>(Steam)<% } %>
-                <% if (game.source === 'manual') { %>(User Added)<% } %>
-              </option>
-            <% }); %>
-          </select>
-        </div>
-
-        <!-- Manual Game Entry -->
-        <div id="manual-game-container" class="game-input-container" style="display: none;">
-          <div id="duplicate-warning" class="warning-box" style="display: none;">
-            <h4>⚠️ Similar Games Found</h4>
-            <p>We found games with similar names. Please check if one of these matches what you're looking for:</p>
-            <div id="duplicate-list"></div>
-            <p>If none of these match, you can continue adding your game.</p>
-          </div>
-          
-          <label for="manual-game-name">Game Name:</label>
-          <input type="text" id="manual-game-name" name="manualGameName" placeholder="Enter game name">
-          
-          <label for="manual-game-description">Description:</label>
-          <textarea id="manual-game-description" name="manualGameDescription" placeholder="Brief description of the game"></textarea>
-          
-          <label>Categories:</label>
-          <div class="category-checkboxes">
-            <div><input type="checkbox" name="manualGameCategories" value="Action" id="cat-action"><label for="cat-action">Action</label></div>
-            <div><input type="checkbox" name="manualGameCategories" value="Adventure" id="cat-adventure"><label for="cat-adventure">Adventure</label></div>
-            <div><input type="checkbox" name="manualGameCategories" value="Strategy" id="cat-strategy"><label for="cat-strategy">Strategy</label></div>
-            <div><input type="checkbox" name="manualGameCategories" value="RPG" id="cat-rpg"><label for="cat-rpg">RPG</label></div>
-            <div><input type="checkbox" name="manualGameCategories" value="FPS" id="cat-fps"><label for="cat-fps">FPS</label></div>
-            <div><input type="checkbox" name="manualGameCategories" value="Racing" id="cat-racing"><label for="cat-racing">Racing</label></div>
-            <div><input type="checkbox" name="manualGameCategories" value="Sports" id="cat-sports"><label for="cat-sports">Sports</label></div>
-            <div><input type="checkbox" name="manualGameCategories" value="Simulation" id="cat-simulation"><label for="cat-simulation">Simulation</label></div>
-            <div><input type="checkbox" name="manualGameCategories" value="Puzzle" id="cat-puzzle"><label for="cat-puzzle">Puzzle</label></div>
-            <div><input type="checkbox" name="manualGameCategories" value="Platformer" id="cat-platformer"><label for="cat-platformer">Platformer</label></div>
-            <div><input type="checkbox" name="manualGameCategories" value="Fighting" id="cat-fighting"><label for="cat-fighting">Fighting</label></div>
-            <div><input type="checkbox" name="manualGameCategories" value="Horror" id="cat-horror"><label for="cat-horror">Horror</label></div>
-            <div><input type="checkbox" name="manualGameCategories" value="Survival" id="cat-survival"><label for="cat-survival">Survival</label></div>
-            <div><input type="checkbox" name="manualGameCategories" value="MMO" id="cat-mmo"><label for="cat-mmo">MMO</label></div>
-            <div><input type="checkbox" name="manualGameCategories" value="Indie" id="cat-indie"><label for="cat-indie">Indie</label></div>
-            <div><input type="checkbox" name="manualGameCategories" value="Casual" id="cat-casual"><label for="cat-casual">Casual</label></div>
-            <div><input type="checkbox" name="manualGameCategories" value="Other" id="cat-other"><label for="cat-other">Other</label></div>
-          </div>
-          
-          <label for="manual-game-tags">Custom Tags (comma-separated):</label>
-          <input type="text" id="manual-game-tags" name="manualGameTags" placeholder="e.g., multiplayer, co-op, competitive">
-          
-          <div class="manual-game-note">
-            <p><strong>Note:</strong> Manually added games require admin approval before your event becomes visible to other users.</p>
-          </div>
-        </div>
-
-        <!-- Hidden field to store final game selection -->
-        <input type="hidden" id="final-game-selection" name="gameSelection" required>
-        <label for="description">Description:</label>
-        <textarea id="description" name="description" required></textarea>
-        <label for="playerLimit">Player Limit:</label>
-        <input type="number" id="playerLimit" name="playerLimit" required>
-        <label for="date">Date & Time:</label>
-        <input type="datetime-local" id="date" name="date" required>
-        <div id="steam-info" style="margin: 15px 0; padding: 10px; border: 1px solid #00ff00; background: rgba(0, 255, 0, 0.1); display: none;">
-          <h4>Steam Integration</h4>
-          <p id="steam-status">Steam App ID will be automatically set based on selected game</p>
-        </div>
-        <h3>Platforms</h3>
-        <div>
-          <p>Select platforms:</p>
-          <div class="platform-checkboxes">
-            <div>
-              <input type="checkbox" id="pc" name="platforms" value="PC">
-              <label for="pc">PC</label>
+        <form action="/event/new" method="POST" id="eventForm">
+          <!-- Step 1: Event Details -->
+          <div class="wizard-step active" id="step1">
+            <div class="step-header">
+              <h2>🎯 Event Details</h2>
+              <p>Let's start with the basics of your gaming event</p>
             </div>
-            <div>
-              <input type="checkbox" id="playstation" name="platforms" value="PlayStation">
-              <label for="playstation">PlayStation</label>
-            </div>
-            <div>
-              <input type="checkbox" id="xbox" name="platforms" value="Xbox">
-              <label for="xbox">Xbox</label>
-            </div>
-            <div>
-              <input type="checkbox" id="switch" name="platforms" value="Nintendo Switch">
-              <label for="switch">Nintendo Switch</label>
-            </div>
-          </div>
-        </div>
-        <h3>Add Extensions</h3>
-        <div>
-          <input type="checkbox" id="add-extensions" name="add-extensions">
-          <label for="add-extensions">I want to add extensions</label>
-        </div>
-        <div id="extensions-container" style="display: none;">
-          <h4>Required Extensions</h4>
-          <div class="extension">
-            <label for="extension-name">Extension Name:</label>
-            <input type="text" name="extension-name">
-            <label for="extension-link">Download Link:</label>
-            <input type="url" name="extension-link">
-            <label for="extension-time">Installation Time (minutes):</label>
-            <input type="number" name="extension-time">
-          </div>
-        </div>
-        <button type="button" id="add-extension-btn" onclick="addExtensionField()" style="display: none;">Add Another Extension</button>
-        <button type="submit">Create Event</button>
-      </form>
-      <script>
-        // Game selection mode variables
-        let steamSearchTimeout;
-        let selectedGameData = null;
-
-        // Utility function to show messages to the user
-        function showMessage(message, type = 'info') {
-          // Create a temporary message element
-          const messageDiv = document.createElement('div');
-          messageDiv.className = `message ${type}`;
-          messageDiv.textContent = message;
-          messageDiv.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 10px 15px;
-            background: ${type === 'info' ? '#4CAF50' : '#f44336'};
-            color: white;
-            border-radius: 4px;
-            z-index: 1000;
-            font-family: Arial, sans-serif;
-            font-size: 14px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-          `;
-          
-          document.body.appendChild(messageDiv);
-          
-          // Remove the message after 3 seconds
-          setTimeout(() => {
-            if (messageDiv.parentNode) {
-              messageDiv.parentNode.removeChild(messageDiv);
-            }
-          }, 3000);
-        }
-
-        // Game mode switching
-        document.querySelectorAll('input[name="gameMode"]').forEach(radio => {
-          radio.addEventListener('change', function() {
-            const steamContainer = document.getElementById('steam-search-container');
-            const rawgContainer = document.getElementById('rawg-search-container');
-            const existingContainer = document.getElementById('existing-games-container');
-            const manualContainer = document.getElementById('manual-game-container');
             
-            // Hide all containers
-            steamContainer.style.display = 'none';
-            rawgContainer.style.display = 'none';
-            existingContainer.style.display = 'none';
-            manualContainer.style.display = 'none';
-            
-            // Show selected container
-            if (this.value === 'steam') {
-              steamContainer.style.display = 'block';
-            } else if (this.value === 'rawg') {
-              rawgContainer.style.display = 'block';
-            } else if (this.value === 'existing') {
-              existingContainer.style.display = 'block';
-            } else if (this.value === 'manual') {
-              manualContainer.style.display = 'block';
-            }
-            
-            // Clear previous selections
-            selectedGameData = null;
-            document.getElementById('final-game-selection').value = '';
-          });
-        });
+            <div class="form-section">
+              <div class="input-group">
+                <label for="eventName">Event Name</label>
+                <input type="text" id="eventName" name="name" required 
+                       placeholder="e.g., Friday Night Raids, Weekend Tournament">
+                <div class="input-hint">Give your event a catchy name that describes what you're doing</div>
+              </div>
 
-        // Steam game search functionality
-        document.getElementById('steam-search').addEventListener('input', function() {
-          const query = this.value.trim();
-          const resultsContainer = document.getElementById('steam-results');
-          
-          if (query.length < 2) {
-            resultsContainer.innerHTML = '';
-            return;
-          }
-          
-          clearTimeout(steamSearchTimeout);
-          steamSearchTimeout = setTimeout(() => {
-            searchSteamGames(query);
-          }, 300);
-        });
+              <div class="input-group">
+                <label for="eventDescription">Description</label>
+                <textarea id="eventDescription" name="description" required 
+                          placeholder="Tell players what to expect, any special rules, or requirements..."></textarea>
+                <div class="input-hint">Help players understand what your event is about</div>
+              </div>
 
-        async function searchSteamGames(query) {
-          const resultsContainer = document.getElementById('steam-results');
-          resultsContainer.innerHTML = '<div class="loading">Searching Steam games...</div>';
-          
-          try {
-            const response = await fetch(`/api/steam/search?q=${encodeURIComponent(query)}`);
-            const games = await response.json();
-            
-            if (games.length === 0) {
-              resultsContainer.innerHTML = '<div class="no-results">No games found</div>';
-              return;
-            }
-            
-            let html = '';
-            games.forEach(game => {
-              const existsIndicator = game.existsInDatabase ? ' <span class="exists-indicator">(Already in database)</span>' : '';
-              // Properly escape the JSON data for HTML attribute
-              const gameDataJson = JSON.stringify(game).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
-              html += `
-                <div class="steam-game-result" data-game="${gameDataJson}">
-                  <div class="game-info">
-                    <h4>${game.name}${existsIndicator}</h4>
-                    <p>${game.short_description || 'No description available'}</p>
-                    <small>Steam App ID: ${game.appid}</small>
-                  </div>
-                  ${game.header_image ? `<img src="${game.header_image}" alt="${game.name}" class="game-image">` : ''}
+              <div class="form-row">
+                <div class="input-group">
+                  <label for="playerLimit">Max Players</label>
+                  <input type="number" id="playerLimit" name="playerLimit" required 
+                         min="2" max="100" value="4">
+                  <div class="input-hint">Including yourself</div>
                 </div>
-              `;
-            });
-            
-            resultsContainer.innerHTML = html;
-            
-            // Add click handlers
-            document.querySelectorAll('.steam-game-result').forEach(result => {
-              result.addEventListener('click', function() {
-                try {
-                  console.log('Steam game clicked, raw data:', this.dataset.game);
-                  // Decode HTML entities back to proper JSON
-                  const decodedData = this.dataset.game.replace(/&quot;/g, '"').replace(/&#39;/g, "'");
-                  console.log('Decoded data:', decodedData);
-                  const gameData = JSON.parse(decodedData);
-                  console.log('Parsed game data:', gameData);
-                  selectSteamGame(gameData);
-                } catch (error) {
-                  console.error('Error parsing game data:', error);
-                  console.error('Raw data that failed to parse:', this.dataset.game);
-                  showMessage('Error selecting game. Please try again.', 'error');
-                }
-              });
-            });
-            
-          } catch (error) {
-            console.error('Error searching Steam games:', error);
-            resultsContainer.innerHTML = '<div class="error">Error searching games. Please try again.</div>';
-          }
-        }
 
-        function selectSteamGame(gameData) {
-          console.log('selectSteamGame called with:', gameData);
-          
-          // Check if this game already exists in the database
-          if (gameData.existsInDatabase && gameData.existingGameId) {
-            console.log('Game exists in database, switching to existing mode');
-            // Switch to existing game mode and select the existing game
-            document.getElementById('existing-mode').checked = true;
-            document.getElementById('existing-mode').dispatchEvent(new Event('change'));
-            
-            // Set the existing game selection
-            document.getElementById('existing-game').value = gameData.existingGameId;
-            document.getElementById('existing-game').dispatchEvent(new Event('change'));
-            
-            // Show feedback message
-            showMessage(`Using existing game: ${gameData.existingGameName || gameData.name}`, 'info');
-            
-            // Update the Steam search results to show what happened
-            const resultsContainer = document.getElementById('steam-results');
-            resultsContainer.innerHTML = `
-              <div class="selected-game">
-                <h4>✓ Using Existing Game: ${gameData.existingGameName || gameData.name}</h4>
-                <p>This game already exists in our database, so we've selected the existing version.</p>
-                <button type="button" onclick="clearSteamSelection()">Search Again</button>
-              </div>
-            `;
-            
-            return;
-          }
-          
-          // Original Steam game selection logic for new games
-          selectedGameData = {
-            type: 'steam',
-            data: gameData
-          };
-          
-          document.getElementById('final-game-selection').value = JSON.stringify(selectedGameData);
-          document.getElementById('selected-steam-game').value = JSON.stringify(gameData);
-          
-          // Update UI to show selection
-          const resultsContainer = document.getElementById('steam-results');
-          resultsContainer.innerHTML = `
-            <div class="selected-game">
-              <h4>✓ Selected: ${gameData.name}</h4>
-              <p>${gameData.short_description || 'No description available'}</p>
-              <button type="button" onclick="clearSteamSelection()">Change Selection</button>
-            </div>
-          `;
-          
-          // Show Steam info
-          document.getElementById('steam-info').style.display = 'block';
-          document.getElementById('steam-status').innerHTML = `Steam integration enabled for ${gameData.name}`;
-        }
-
-        function clearSteamSelection() {
-          selectedGameData = null;
-          document.getElementById('final-game-selection').value = '';
-          document.getElementById('selected-steam-game').value = '';
-          document.getElementById('steam-results').innerHTML = '';
-          document.getElementById('steam-search').value = '';
-          document.getElementById('steam-info').style.display = 'none';
-        }
-
-        // RAWG game search functionality
-        document.getElementById('rawg-search').addEventListener('input', function() {
-          const query = this.value.trim();
-          const resultsContainer = document.getElementById('rawg-results');
-          
-          if (query.length < 2) {
-            resultsContainer.innerHTML = '';
-            return;
-          }
-          
-          clearTimeout(steamSearchTimeout);
-          steamSearchTimeout = setTimeout(() => {
-            searchRawgGames(query);
-          }, 300);
-        });
-
-        async function searchRawgGames(query) {
-          const resultsContainer = document.getElementById('rawg-results');
-          resultsContainer.innerHTML = '<div class="loading">Searching RAWG games...</div>';
-          
-          try {
-            const response = await fetch(`/api/rawg/search?q=${encodeURIComponent(query)}`);
-            const games = await response.json();
-            
-            if (games.length === 0) {
-              resultsContainer.innerHTML = '<div class="no-results">No games found</div>';
-              return;
-            }
-            
-            let html = '';
-            games.forEach(game => {
-              const existsIndicator = game.existsInDatabase ? ' <span class="exists-indicator">(Already in database)</span>' : '';
-              const steamEquivalentIndicator = game.hasSteamEquivalent ? ' <span class="steam-equivalent">⚠️ Steam version available</span>' : '';
-              const platforms = game.platforms && game.platforms.length > 0 ? game.platforms.join(', ') : 'Unknown platforms';
-              const rating = game.rating ? `⭐ ${game.rating}/5` : '';
-              
-              // Properly escape the JSON data for HTML attribute
-              const gameDataJson = JSON.stringify(game).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
-              html += `
-                <div class="rawg-game-result" data-game="${gameDataJson}">
-                  <div class="game-info">
-                    <h4>🎯 ${game.name}${existsIndicator}${steamEquivalentIndicator}</h4>
-                    <p>${game.short_description || 'No description available'}</p>
-                    <small>Platforms: ${platforms} ${rating}</small>
-                  </div>
-                  ${game.background_image ? `<img src="${game.background_image}" alt="${game.name}" class="game-image">` : ''}
+                <div class="input-group">
+                  <label for="eventDate">Date & Time</label>
+                  <input type="datetime-local" id="eventDate" name="date" required>
+                  <div class="input-hint">When does your event start?</div>
                 </div>
-              `;
-            });
-            
-            resultsContainer.innerHTML = html;
-            
-            // Add click handlers
-            document.querySelectorAll('.rawg-game-result').forEach(result => {
-              result.addEventListener('click', function() {
-                try {
-                  console.log('RAWG game clicked, raw data:', this.dataset.game);
-                  // Decode HTML entities back to proper JSON
-                  const decodedData = this.dataset.game.replace(/&quot;/g, '"').replace(/&#39;/g, "'");
-                  console.log('Decoded data:', decodedData);
-                  const gameData = JSON.parse(decodedData);
-                  console.log('Parsed game data:', gameData);
-                  selectRawgGame(gameData);
-                } catch (error) {
-                  console.error('Error parsing game data:', error);
-                  console.error('Raw data that failed to parse:', this.dataset.game);
-                  showMessage('Error selecting game. Please try again.', 'error');
-                }
-              });
-            });
-            
-          } catch (error) {
-            console.error('Error searching RAWG games:', error);
-            resultsContainer.innerHTML = '<div class="error">Error searching games. Please try again.</div>';
-          }
-        }
-
-        function selectRawgGame(gameData) {
-          console.log('selectRawgGame called with:', gameData);
-          
-          // Check if this game already exists in the database
-          if (gameData.existsInDatabase && gameData.existingGameId) {
-            console.log('Game exists in database, switching to existing mode');
-            // Switch to existing game mode and select the existing game
-            document.getElementById('existing-mode').checked = true;
-            document.getElementById('existing-mode').dispatchEvent(new Event('change'));
-            
-            // Set the existing game selection
-            document.getElementById('existing-game').value = gameData.existingGameId;
-            document.getElementById('existing-game').dispatchEvent(new Event('change'));
-            
-            // Show feedback message
-            showMessage(`Using existing game: ${gameData.existingGameName || gameData.name}`, 'info');
-            
-            // Update the RAWG search results to show what happened
-            const resultsContainer = document.getElementById('rawg-results');
-            resultsContainer.innerHTML = `
-              <div class="selected-game">
-                <h4>✓ Using Existing Game: ${gameData.existingGameName || gameData.name}</h4>
-                <p>This game already exists in our database, so we've selected the existing version.</p>
-                <button type="button" onclick="clearRawgSelection()">Search Again</button>
               </div>
-            `;
-            
-            return;
-          }
-          
-          // Check if Steam equivalent exists (prefer Steam over RAWG)
-          if (gameData.hasSteamEquivalent && gameData.steamEquivalentId) {
-            console.log('Steam equivalent exists, switching to existing mode');
-            // Switch to existing game mode and select the Steam equivalent
-            document.getElementById('existing-mode').checked = true;
-            document.getElementById('existing-mode').dispatchEvent(new Event('change'));
-            
-            // Set the existing game selection
-            document.getElementById('existing-game').value = gameData.steamEquivalentId;
-            document.getElementById('existing-game').dispatchEvent(new Event('change'));
-            
-            // Show feedback message
-            showMessage(`Using Steam version: ${gameData.steamEquivalentName || gameData.name}`, 'info');
-            
-            // Update the RAWG search results to show what happened
-            const resultsContainer = document.getElementById('rawg-results');
-            resultsContainer.innerHTML = `
-              <div class="selected-game">
-                <h4>✓ Using Steam Version: ${gameData.steamEquivalentName || gameData.name}</h4>
-                <p>We found this game on Steam, so we're using the Steam version instead for better integration.</p>
-                <button type="button" onclick="clearRawgSelection()">Search Again</button>
-              </div>
-            `;
-            
-            return;
-          }
-          
-          // Original RAWG game selection logic for new games
-          selectedGameData = {
-            type: 'rawg',
-            data: gameData
-          };
-          
-          document.getElementById('final-game-selection').value = JSON.stringify(selectedGameData);
-          document.getElementById('selected-rawg-game').value = JSON.stringify(gameData);
-          
-          // Update UI to show selection
-          const resultsContainer = document.getElementById('rawg-results');
-          resultsContainer.innerHTML = `
-            <div class="selected-game">
-              <h4>✓ Selected: ${gameData.name}</h4>
-              <p>${gameData.short_description || 'No description available'}</p>
-              <small>Platforms: ${gameData.platforms ? gameData.platforms.join(', ') : 'Unknown'}</small>
-              <button type="button" onclick="clearRawgSelection()">Change Selection</button>
             </div>
-          `;
-        }
 
-        function clearRawgSelection() {
-          selectedGameData = null;
-          document.getElementById('final-game-selection').value = '';
-          document.getElementById('selected-rawg-game').value = '';
-          document.getElementById('rawg-results').innerHTML = '';
-          document.getElementById('rawg-search').value = '';
-        }
+            <div class="step-actions">
+              <button type="button" class="action-button primary" onclick="nextStep()">
+                Next: Choose Game →
+              </button>
+            </div>
+          </div>
 
-        // Existing games filtering
-        document.getElementById('category-filter').addEventListener('change', filterExistingGames);
-        document.getElementById('game-search').addEventListener('input', filterExistingGames);
+          <!-- Step 2: Game Selection -->
+          <div class="wizard-step" id="step2">
+            <div class="step-header">
+              <h2>🎮 Choose Your Game</h2>
+              <p>Search for the game you want to play</p>
+            </div>
 
-        function filterExistingGames() {
-          const categoryFilter = document.getElementById('category-filter').value;
-          const searchFilter = document.getElementById('game-search').value.toLowerCase();
-          const gameSelect = document.getElementById('existing-game');
-          
-          Array.from(gameSelect.options).forEach(option => {
-            const categories = option.dataset.categories.split(',');
-            const matchesCategory = !categoryFilter || categories.includes(categoryFilter);
-            const matchesSearch = !searchFilter || option.text.toLowerCase().includes(searchFilter);
-            
-            option.style.display = (matchesCategory && matchesSearch) ? 'block' : 'none';
-          });
-        }
+            <div class="form-section">
+              <div class="game-search-container">
+                <div class="search-box">
+                  <input type="text" id="gameSearch" placeholder="Search for any game..." autocomplete="off">
+                  <div class="search-icon">🔍</div>
+                </div>
+                
+                <div class="search-results" id="searchResults">
+                  <div class="search-placeholder">
+                    <div class="placeholder-icon">🎮</div>
+                    <h3>Start typing to search</h3>
+                    <p>We'll search Steam, RAWG, and our game database</p>
+                  </div>
+                </div>
 
-        // Existing game selection
-        document.getElementById('existing-game').addEventListener('change', function() {
-          if (this.value) {
-            selectedGameData = {
-              type: 'existing',
-              gameId: this.value
-            };
-            document.getElementById('final-game-selection').value = JSON.stringify(selectedGameData);
-          }
-        });
+                <div class="selected-game" id="selectedGame" style="display: none;">
+                  <div class="game-card selected">
+                    <div class="game-image">
+                      <img id="selectedGameImage" src="" alt="">
+                    </div>
+                    <div class="game-info">
+                      <h3 id="selectedGameName"></h3>
+                      <p id="selectedGameDescription"></p>
+                      <div class="game-meta">
+                        <span class="game-source" id="selectedGameSource"></span>
+                        <span class="game-platforms" id="selectedGamePlatforms"></span>
+                      </div>
+                    </div>
+                    <button type="button" class="change-game-btn" onclick="changeGame()">Change</button>
+                  </div>
+                </div>
 
-        // Manual game duplicate detection
-        document.getElementById('manual-game-name').addEventListener('input', function() {
-          const gameName = this.value.trim();
-          if (gameName.length >= 3) {
-            clearTimeout(steamSearchTimeout);
-            steamSearchTimeout = setTimeout(() => {
-              checkForDuplicates(gameName);
-            }, 500);
-          } else {
-            document.getElementById('duplicate-warning').style.display = 'none';
-          }
-        });
+                <div class="manual-game-option">
+                  <button type="button" class="action-button secondary" id="addManualGameBtn" onclick="showManualGameForm()">
+                    Can't find your game? Add it manually
+                  </button>
+                </div>
 
-        async function checkForDuplicates(gameName) {
-          try {
-            const response = await fetch('/api/games/check-duplicates', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ gameName })
-            });
-            
-            const duplicates = await response.json();
-            
-            if (duplicates.length > 0) {
-              showDuplicateWarning(duplicates);
-            } else {
-              document.getElementById('duplicate-warning').style.display = 'none';
-            }
-          } catch (error) {
-            console.error('Error checking for duplicates:', error);
-          }
-        }
+                <!-- Manual Game Form -->
+                <div class="manual-game-form" id="manualGameForm" style="display: none;">
+                  <div class="form-section">
+                    <h3>Add Game Manually</h3>
+                    <div class="warning-box">
+                      <p><strong>Note:</strong> Manually added games require admin approval before your event becomes visible.</p>
+                    </div>
 
-        function showDuplicateWarning(duplicates) {
-          const warningBox = document.getElementById('duplicate-warning');
-          const duplicateList = document.getElementById('duplicate-list');
-          
-          let html = '';
-          duplicates.forEach(duplicate => {
-            html += `
-              <div class="duplicate-item">
-                <strong>${duplicate.game.name}</strong> 
-                <span class="similarity">(${duplicate.similarity}% similar)</span>
-                <p>${duplicate.game.description || 'No description'}</p>
-                <small>${duplicate.reason}</small>
-                <button type="button" onclick="selectExistingDuplicate('${duplicate.game._id}')">Use This Game</button>
+                    <div class="input-group">
+                      <label for="manualGameName">Game Name</label>
+                      <input type="text" id="manualGameName" name="manualGameName" 
+                             placeholder="Enter the exact game name">
+                    </div>
+
+                    <div class="input-group">
+                      <label for="manualGameDescription">Game Description</label>
+                      <textarea id="manualGameDescription" name="manualGameDescription" 
+                                placeholder="Brief description of the game"></textarea>
+                    </div>
+
+                    <div class="input-group">
+                      <label>Game Categories</label>
+                      <div class="category-grid">
+                        <label class="category-option">
+                          <input type="checkbox" name="manualGameCategories" value="Action">
+                          <span>Action</span>
+                        </label>
+                        <label class="category-option">
+                          <input type="checkbox" name="manualGameCategories" value="Adventure">
+                          <span>Adventure</span>
+                        </label>
+                        <label class="category-option">
+                          <input type="checkbox" name="manualGameCategories" value="Strategy">
+                          <span>Strategy</span>
+                        </label>
+                        <label class="category-option">
+                          <input type="checkbox" name="manualGameCategories" value="RPG">
+                          <span>RPG</span>
+                        </label>
+                        <label class="category-option">
+                          <input type="checkbox" name="manualGameCategories" value="FPS">
+                          <span>FPS</span>
+                        </label>
+                        <label class="category-option">
+                          <input type="checkbox" name="manualGameCategories" value="Racing">
+                          <span>Racing</span>
+                        </label>
+                        <label class="category-option">
+                          <input type="checkbox" name="manualGameCategories" value="Sports">
+                          <span>Sports</span>
+                        </label>
+                        <label class="category-option">
+                          <input type="checkbox" name="manualGameCategories" value="Simulation">
+                          <span>Simulation</span>
+                        </label>
+                        <label class="category-option">
+                          <input type="checkbox" name="manualGameCategories" value="Puzzle">
+                          <span>Puzzle</span>
+                        </label>
+                        <label class="category-option">
+                          <input type="checkbox" name="manualGameCategories" value="Horror">
+                          <span>Horror</span>
+                        </label>
+                        <label class="category-option">
+                          <input type="checkbox" name="manualGameCategories" value="Indie">
+                          <span>Indie</span>
+                        </label>
+                        <label class="category-option">
+                          <input type="checkbox" name="manualGameCategories" value="Other">
+                          <span>Other</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div class="manual-actions">
+                      <button type="button" class="action-button secondary" onclick="hideManualGameForm()">Cancel</button>
+                      <button type="button" class="action-button primary" onclick="selectManualGame()">Use This Game</button>
+                    </div>
+                  </div>
+                </div>
               </div>
-            `;
-          });
-          
-          duplicateList.innerHTML = html;
-          warningBox.style.display = 'block';
-        }
+            </div>
 
-        function selectExistingDuplicate(gameId) {
-          // Switch to existing games mode and select the game
-          document.getElementById('existing-mode').checked = true;
-          document.getElementById('existing-mode').dispatchEvent(new Event('change'));
-          document.getElementById('existing-game').value = gameId;
-          document.getElementById('existing-game').dispatchEvent(new Event('change'));
-        }
+            <div class="step-actions">
+              <button type="button" class="action-button secondary" onclick="prevStep()">
+                ← Back
+              </button>
+              <button type="button" class="action-button primary" id="nextToStep3" onclick="nextStep()" disabled>
+                Next: Platforms →
+              </button>
+            </div>
+          </div>
 
-        // Manual game form validation
-        function validateManualGame() {
-          const name = document.getElementById('manual-game-name').value.trim();
-          const description = document.getElementById('manual-game-description').value.trim();
-          const categories = document.querySelectorAll('input[name="manualGameCategories"]:checked');
-          
-          if (!name) {
-            alert('Please enter a game name');
-            return false;
-          }
-          
-          if (!description) {
-            alert('Please enter a game description');
-            return false;
-          }
-          
-          if (categories.length === 0) {
-            alert('Please select at least one category');
-            return false;
-          }
-          
-          // Prepare manual game data
-          const tags = document.getElementById('manual-game-tags').value
-            .split(',')
-            .map(tag => tag.trim())
-            .filter(tag => tag.length > 0);
-          
-          const categoryValues = Array.from(categories).map(cb => cb.value);
-          
-          selectedGameData = {
-            type: 'manual',
-            data: {
-              name,
-              description,
-              categories: categoryValues,
-              tags
-            }
-          };
-          
-          document.getElementById('final-game-selection').value = JSON.stringify(selectedGameData);
-          return true;
-        }
+          <!-- Step 3: Platforms & Extensions -->
+          <div class="wizard-step" id="step3">
+            <div class="step-header">
+              <h2>🎯 Platforms & Setup</h2>
+              <p>Select platforms and any required extensions</p>
+            </div>
 
-        // Extensions functionality
-        document.getElementById('add-extensions').addEventListener('change', function() {
-          const extensionsContainer = document.getElementById('extensions-container');
-          const addExtensionBtn = document.getElementById('add-extension-btn');
-          if (this.checked) {
-            extensionsContainer.style.display = 'block';
-            addExtensionBtn.style.display = 'inline-block';
-          } else {
-            extensionsContainer.style.display = 'none';
-            addExtensionBtn.style.display = 'none';
-          }
-        });
+            <div class="form-section">
+              <div class="input-group">
+                <label>Gaming Platforms</label>
+                <div class="platform-grid">
+                  <label class="platform-option">
+                    <input type="checkbox" name="platforms" value="PC">
+                    <div class="platform-card">
+                      <div class="platform-icon">💻</div>
+                      <span>PC</span>
+                    </div>
+                  </label>
+                  <label class="platform-option">
+                    <input type="checkbox" name="platforms" value="PlayStation">
+                    <div class="platform-card">
+                      <div class="platform-icon">🎮</div>
+                      <span>PlayStation</span>
+                    </div>
+                  </label>
+                  <label class="platform-option">
+                    <input type="checkbox" name="platforms" value="Xbox">
+                    <div class="platform-card">
+                      <div class="platform-icon">🎮</div>
+                      <span>Xbox</span>
+                    </div>
+                  </label>
+                  <label class="platform-option">
+                    <input type="checkbox" name="platforms" value="Nintendo Switch">
+                    <div class="platform-card">
+                      <div class="platform-icon">🎮</div>
+                      <span>Switch</span>
+                    </div>
+                  </label>
+                </div>
+                <div class="input-hint">Select all platforms where players can join</div>
+              </div>
 
-        function addExtensionField() {
-          const container = document.getElementById('extensions-container');
-          const newExtension = document.createElement('div');
-          newExtension.className = 'extension';
-          newExtension.innerHTML = `
-            <label for="extension-name">Extension Name:</label>
-            <input type="text" name="extension-name">
-            <label for="extension-link">Download Link:</label>
-            <input type="url" name="extension-link">
-            <label for="extension-time">Installation Time (minutes):</label>
-            <input type="number" name="extension-time">
-          `;
-          container.appendChild(newExtension);
-        }
+              <div class="extensions-section">
+                <div class="extensions-toggle">
+                  <label class="toggle-option">
+                    <input type="checkbox" id="hasExtensions">
+                    <span>This event requires extensions/mods</span>
+                  </label>
+                </div>
 
-        // Auto-populate date/time field with current time + 1 hour
-        function setDefaultDateTime() {
-          const now = new Date();
-          const oneHourLater = new Date(now.getTime() + (60 * 60 * 1000));
-          
-          const year = oneHourLater.getFullYear();
-          const month = String(oneHourLater.getMonth() + 1).padStart(2, '0');
-          const day = String(oneHourLater.getDate()).padStart(2, '0');
-          const hours = String(oneHourLater.getHours()).padStart(2, '0');
-          const minutes = String(oneHourLater.getMinutes()).padStart(2, '0');
-          
-          const formattedDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
-          
-          const dateInput = document.getElementById('date');
-          if (dateInput && !dateInput.value) {
-            dateInput.value = formattedDateTime;
-          }
-        }
+                <div class="extensions-form" id="extensionsForm" style="display: none;">
+                  <div class="extensions-list" id="extensionsList">
+                    <div class="extension-item">
+                      <div class="input-group">
+                        <label>Extension Name</label>
+                        <input type="text" name="extension-name" placeholder="e.g., Better UI Mod">
+                      </div>
+                      <div class="input-group">
+                        <label>Download Link</label>
+                        <input type="url" name="extension-link" placeholder="https://...">
+                      </div>
+                      <div class="input-group">
+                        <label>Install Time (minutes)</label>
+                        <input type="number" name="extension-time" placeholder="5" min="1">
+                      </div>
+                    </div>
+                  </div>
+                  <button type="button" class="action-button secondary" onclick="addExtension()">
+                    + Add Another Extension
+                  </button>
+                </div>
+              </div>
+            </div>
 
-        // Set default date/time when page loads
-        setDefaultDateTime();
+            <div class="step-actions">
+              <button type="button" class="action-button secondary" onclick="prevStep()">
+                ← Back
+              </button>
+              <button type="button" class="action-button primary" onclick="nextStep()">
+                Next: Review →
+              </button>
+            </div>
+          </div>
 
-        // Form submission
-        document.querySelector('form').addEventListener('submit', function(event) {
-          // Check if at least one platform is selected
-          const platformCheckboxes = document.querySelectorAll('input[name="platforms"]:checked');
-          if (platformCheckboxes.length === 0) {
-            alert('Please select at least one platform for this event.');
-            event.preventDefault();
-            return false;
-          }
+          <!-- Step 4: Review & Create -->
+          <div class="wizard-step" id="step4">
+            <div class="step-header">
+              <h2>✅ Review Your Event</h2>
+              <p>Everything look good? Let's create your event!</p>
+            </div>
 
-          // Validate game selection
-          const gameMode = document.querySelector('input[name="gameMode"]:checked').value;
-          
-          if (gameMode === 'steam' && !selectedGameData) {
-            alert('Please select a Steam game.');
-            event.preventDefault();
-            return false;
-          }
-          
-          if (gameMode === 'existing') {
-            const existingGame = document.getElementById('existing-game').value;
-            if (!existingGame) {
-              alert('Please select an existing game.');
-              event.preventDefault();
-              return false;
-            }
-          }
-          
-          if (gameMode === 'manual') {
-            if (!validateManualGame()) {
-              event.preventDefault();
-              return false;
-            }
-          }
+            <div class="form-section">
+              <div class="review-card">
+                <div class="review-section">
+                  <h3>Event Details</h3>
+                  <div class="review-item">
+                    <span class="label">Name:</span>
+                    <span class="value" id="reviewEventName"></span>
+                  </div>
+                  <div class="review-item">
+                    <span class="label">Description:</span>
+                    <span class="value" id="reviewEventDescription"></span>
+                  </div>
+                  <div class="review-item">
+                    <span class="label">Players:</span>
+                    <span class="value" id="reviewPlayerLimit"></span>
+                  </div>
+                  <div class="review-item">
+                    <span class="label">Date & Time:</span>
+                    <span class="value" id="reviewEventDate"></span>
+                  </div>
+                </div>
 
-          // Process extensions
-          const existingExtensionsInput = document.querySelector('input[name="extensions"]');
-          if (existingExtensionsInput) {
-            existingExtensionsInput.remove();
-          }
+                <div class="review-section">
+                  <h3>Game</h3>
+                  <div class="review-game" id="reviewGame"></div>
+                </div>
 
-          const addExtensionsCheckbox = document.getElementById('add-extensions');
-          if (addExtensionsCheckbox && addExtensionsCheckbox.checked) {
-            const extensions = document.querySelectorAll('.extension');
-            const extensionsData = [];
+                <div class="review-section">
+                  <h3>Platforms</h3>
+                  <div class="review-platforms" id="reviewPlatforms"></div>
+                </div>
 
-            extensions.forEach(extension => {
-              const name = extension.querySelector('input[name="extension-name"]').value;
-              const link = extension.querySelector('input[name="extension-link"]').value;
-              const time = extension.querySelector('input[name="extension-time"]').value;
+                <div class="review-section" id="reviewExtensionsSection" style="display: none;">
+                  <h3>Required Extensions</h3>
+                  <div class="review-extensions" id="reviewExtensions"></div>
+                </div>
+              </div>
+            </div>
 
-              if (name && link && time) {
-                extensionsData.push({ name, downloadLink: link, installationTime: time });
-              }
-            });
+            <div class="step-actions">
+              <button type="button" class="action-button secondary" onclick="prevStep()">
+                ← Back to Edit
+              </button>
+              <button type="submit" class="action-button primary create-event-btn">
+                🚀 Create Event
+              </button>
+            </div>
+          </div>
 
-            if (extensionsData.length > 0) {
-              const hiddenInput = document.createElement('input');
-              hiddenInput.type = 'hidden';
-              hiddenInput.name = 'extensions';
-              hiddenInput.value = JSON.stringify(extensionsData);
-              this.appendChild(hiddenInput);
-            }
-          }
-        });
-      </script>
+          <!-- Hidden fields for form submission -->
+          <input type="hidden" id="finalGameSelection" name="gameSelection" required>
+          <input type="hidden" id="finalExtensions" name="extensions">
+        </form>
+      </div>
     <% } %>
   </main>
+
+  <script>
+    // Wizard state management
+    let currentStep = 1;
+    let selectedGameData = null;
+    let searchTimeout;
+
+    // Initialize the form
+    document.addEventListener('DOMContentLoaded', function() {
+      setDefaultDateTime();
+      updateProgress();
+      
+      // Game search functionality
+      const gameSearch = document.getElementById('gameSearch');
+      if (gameSearch) {
+        gameSearch.addEventListener('input', handleGameSearch);
+      }
+
+      // Extensions toggle
+      const hasExtensions = document.getElementById('hasExtensions');
+      if (hasExtensions) {
+        hasExtensions.addEventListener('change', toggleExtensions);
+      }
+
+      // Form validation
+      setupFormValidation();
+    });
+
+    // Set default date/time to 1 hour from now
+    function setDefaultDateTime() {
+      const now = new Date();
+      const oneHourLater = new Date(now.getTime() + (60 * 60 * 1000));
+      
+      const year = oneHourLater.getFullYear();
+      const month = String(oneHourLater.getMonth() + 1).padStart(2, '0');
+      const day = String(oneHourLater.getDate()).padStart(2, '0');
+      const hours = String(oneHourLater.getHours()).padStart(2, '0');
+      const minutes = String(oneHourLater.getMinutes()).padStart(2, '0');
+      
+      const formattedDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
+      document.getElementById('eventDate').value = formattedDateTime;
+    }
+
+    // Navigation functions
+    function nextStep() {
+      if (validateCurrentStep()) {
+        if (currentStep < 4) {
+          currentStep++;
+          showStep(currentStep);
+          updateProgress();
+          
+          if (currentStep === 4) {
+            updateReview();
+          }
+        }
+      }
+    }
+
+    function prevStep() {
+      if (currentStep > 1) {
+        currentStep--;
+        showStep(currentStep);
+        updateProgress();
+      }
+    }
+
+    function showStep(step) {
+      // Hide all steps
+      document.querySelectorAll('.wizard-step').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+      
+      // Show current step
+      document.getElementById(`step${step}`).classList.add('active');
+      document.querySelector(`[data-step="${step}"]`).classList.add('active');
+      
+      // Scroll to top
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function updateProgress() {
+      const progress = (currentStep / 4) * 100;
+      document.getElementById('progressFill').style.width = `${progress}%`;
+    }
+
+    // Validation functions
+    function validateCurrentStep() {
+      switch (currentStep) {
+        case 1:
+          return validateStep1();
+        case 2:
+          return validateStep2();
+        case 3:
+          return validateStep3();
+        default:
+          return true;
+      }
+    }
+
+    function validateStep1() {
+      const name = document.getElementById('eventName').value.trim();
+      const description = document.getElementById('eventDescription').value.trim();
+      const playerLimit = document.getElementById('playerLimit').value;
+      const date = document.getElementById('eventDate').value;
+
+      if (!name) {
+        showError('Please enter an event name');
+        return false;
+      }
+      if (!description) {
+        showError('Please enter an event description');
+        return false;
+      }
+      if (!playerLimit || playerLimit < 2) {
+        showError('Player limit must be at least 2');
+        return false;
+      }
+      if (!date) {
+        showError('Please select a date and time');
+        return false;
+      }
+
+      const eventDate = new Date(date);
+      const now = new Date();
+      if (eventDate <= now) {
+        showError('Event date must be in the future');
+        return false;
+      }
+
+      return true;
+    }
+
+    function validateStep2() {
+      if (!selectedGameData) {
+        showError('Please select a game for your event');
+        return false;
+      }
+      return true;
+    }
+
+    function validateStep3() {
+      const platforms = document.querySelectorAll('input[name="platforms"]:checked');
+      if (platforms.length === 0) {
+        showError('Please select at least one platform');
+        return false;
+      }
+      return true;
+    }
+
+    // Game search functionality
+    function handleGameSearch() {
+      const query = this.value.trim();
+      const resultsContainer = document.getElementById('searchResults');
+      
+      if (query.length < 2) {
+        showSearchPlaceholder();
+        return;
+      }
+      
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        searchGames(query);
+      }, 300);
+    }
+
+    async function searchGames(query) {
+      const resultsContainer = document.getElementById('searchResults');
+      resultsContainer.innerHTML = '<div class="loading">🔍 Searching games...</div>';
+      
+      try {
+        // Search Steam games
+        const steamResponse = await fetch(`/api/steam/search?q=${encodeURIComponent(query)}`);
+        const steamGames = await steamResponse.json();
+        
+        // Search RAWG games
+        const rawgResponse = await fetch(`/api/rawg/search?q=${encodeURIComponent(query)}`);
+        const rawgGames = await rawgResponse.json();
+        
+        // Search existing games
+        const existingGames = (<%- JSON.stringify(games || []) %> || []).filter(game => 
+          game.name && game.name.toLowerCase().includes(query.toLowerCase()) && game.status === 'approved'
+        );
+        
+        displaySearchResults(steamGames, rawgGames, existingGames);
+      } catch (error) {
+        console.error('Error searching games:', error);
+        resultsContainer.innerHTML = '<div class="error">❌ Error searching games. Please try again.</div>';
+      }
+    }
+
+    function displaySearchResults(steamGames, rawgGames, existingGames) {
+      const resultsContainer = document.getElementById('searchResults');
+      let html = '';
+      
+      // Combine and deduplicate results
+      const allGames = [];
+      
+      // Add existing games first (highest priority)
+      existingGames.forEach(game => {
+        allGames.push({
+          type: 'existing',
+          id: game._id,
+          name: game.name,
+          description: game.description || 'No description available',
+          image: game.steamData?.header_image || game.rawgData?.background_image || null,
+          source: 'Database',
+          platforms: game.platforms || [],
+          data: game
+        });
+      });
+      
+      // Add Steam games (prefer over RAWG)
+      steamGames.forEach(game => {
+        if (!game.existsInDatabase) {
+          allGames.push({
+            type: 'steam',
+            id: game.appid,
+            name: game.name,
+            description: game.short_description || 'No description available',
+            image: game.header_image,
+            source: 'Steam',
+            platforms: ['PC'],
+            data: game
+          });
+        }
+      });
+      
+      // Add RAWG games (lowest priority)
+      rawgGames.forEach(game => {
+        if (!game.existsInDatabase && !game.hasSteamEquivalent) {
+          allGames.push({
+            type: 'rawg',
+            id: game.id,
+            name: game.name,
+            description: game.short_description || 'No description available',
+            image: game.background_image,
+            source: 'RAWG',
+            platforms: game.platforms || [],
+            data: game
+          });
+        }
+      });
+      
+      if (allGames.length === 0) {
+        html = `
+          <div class="no-results">
+            <div class="no-results-icon">😔</div>
+            <h3>No games found</h3>
+            <p>Try a different search term or add your game manually</p>
+          </div>
+        `;
+      } else {
+        html = '<div class="search-results-list">';
+        allGames.slice(0, 10).forEach(game => {
+          html += `
+            <div class="game-card simple-title" onclick="selectGame(${JSON.stringify(game).replace(/"/g, '&quot;')})">
+              <div class="game-title-only">
+                ${game.name}
+              </div>
+            </div>
+          `;
+        });
+        html += '</div>';
+      }
+      
+      resultsContainer.innerHTML = html;
+    }
+
+    function showSearchPlaceholder() {
+      const resultsContainer = document.getElementById('searchResults');
+      resultsContainer.innerHTML = `
+        <div class="search-placeholder">
+          <div class="placeholder-icon">🎮</div>
+          <h3>Start typing to search</h3>
+          <p>We'll search Steam, RAWG, and our game database</p>
+        </div>
+      `;
+    }
+
+    function selectGame(gameData) {
+      selectedGameData = {
+        type: gameData.type,
+        data: gameData.data
+      };
+      
+      if (gameData.type === 'existing') {
+        selectedGameData.gameId = gameData.id;
+      }
+      
+      // Update UI
+      document.getElementById('selectedGameName').textContent = gameData.name;
+      document.getElementById('selectedGameDescription').textContent = gameData.description;
+      document.getElementById('selectedGameSource').textContent = gameData.source;
+      document.getElementById('selectedGamePlatforms').textContent = gameData.platforms.join(', ');
+      
+      if (gameData.image) {
+        document.getElementById('selectedGameImage').src = gameData.image;
+        document.getElementById('selectedGameImage').style.display = 'block';
+      } else {
+        document.getElementById('selectedGameImage').style.display = 'none';
+      }
+      
+      // Show selected game, hide search
+      document.getElementById('searchResults').style.display = 'none';
+      document.getElementById('selectedGame').style.display = 'block';
+      document.getElementById('gameSearch').style.display = 'none';
+      
+      // Enable next button
+      document.getElementById('nextToStep3').disabled = false;
+      
+      // Auto-suggest platforms based on game
+      suggestPlatforms(gameData.platforms);
+    }
+
+    function changeGame() {
+      selectedGameData = null;
+      document.getElementById('searchResults').style.display = 'block';
+      document.getElementById('selectedGame').style.display = 'none';
+      document.getElementById('gameSearch').style.display = 'block';
+      document.getElementById('gameSearch').value = '';
+      document.getElementById('nextToStep3').disabled = true;
+      showSearchPlaceholder();
+    }
+
+    function suggestPlatforms(gamePlatforms) {
+      // Auto-check platforms based on the selected game
+      const platformCheckboxes = document.querySelectorAll('input[name="platforms"]');
+      platformCheckboxes.forEach(checkbox => {
+        checkbox.checked = false; // Reset all
+      });
+      
+      // Check matching platforms
+      gamePlatforms.forEach(platform => {
+        const checkbox = document.querySelector(`input[name="platforms"][value="${platform}"]`);
+        if (checkbox) {
+          checkbox.checked = true;
+        }
+      });
+      
+      // If no matches, suggest PC as default
+      if (gamePlatforms.length === 0) {
+        const pcCheckbox = document.querySelector('input[name="platforms"][value="PC"]');
+        if (pcCheckbox) {
+          pcCheckbox.checked = true;
+        }
+      }
+    }
+
+    // Manual game functions
+    function showManualGameForm() {
+      document.getElementById('manualGameForm').style.display = 'block';
+      document.getElementById('addManualGameBtn').style.display = 'none';
+    }
+
+    function hideManualGameForm() {
+      document.getElementById('manualGameForm').style.display = 'none';
+      document.getElementById('addManualGameBtn').style.display = 'block';
+      
+      // Clear form
+      document.getElementById('manualGameName').value = '';
+      document.getElementById('manualGameDescription').value = '';
+      document.querySelectorAll('input[name="manualGameCategories"]').forEach(cb => cb.checked = false);
+    }
+
+    function selectManualGame() {
+      const name = document.getElementById('manualGameName').value.trim();
+      const description = document.getElementById('manualGameDescription').value.trim();
+      const categories = Array.from(document.querySelectorAll('input[name="manualGameCategories"]:checked')).map(cb => cb.value);
+      
+      if (!name) {
+        showError('Please enter a game name');
+        return;
+      }
+      if (!description) {
+        showError('Please enter a game description');
+        return;
+      }
+      if (categories.length === 0) {
+        showError('Please select at least one category');
+        return;
+      }
+      
+      selectedGameData = {
+        type: 'manual',
+        data: {
+          name,
+          description,
+          categories,
+          tags: []
+        }
+      };
+      
+      // Update UI
+      document.getElementById('selectedGameName').textContent = name;
+      document.getElementById('selectedGameDescription').textContent = description;
+      document.getElementById('selectedGameSource').textContent = 'Manual Entry (Pending Approval)';
+      document.getElementById('selectedGamePlatforms').textContent = categories.join(', ');
+      document.getElementById('selectedGameImage').style.display = 'none';
+      
+      // Show selected game, hide manual form
+      document.getElementById('manualGameForm').style.display = 'none';
+      document.getElementById('selectedGame').style.display = 'block';
+      document.getElementById('gameSearch').style.display = 'none';
+      document.getElementById('addManualGameBtn').style.display = 'none';
+      
+      // Enable next button
+      document.getElementById('nextToStep3').disabled = false;
+    }
+
+    // Extensions functions
+    function toggleExtensions() {
+      const extensionsForm = document.getElementById('extensionsForm');
+      const hasExtensions = document.getElementById('hasExtensions');
+      
+      if (hasExtensions.checked) {
+        extensionsForm.style.display = 'block';
+      } else {
+        extensionsForm.style.display = 'none';
+      }
+    }
+
+    function addExtension() {
+      const extensionsList = document.getElementById('extensionsList');
+      const newExtension = document.createElement('div');
+      newExtension.className = 'extension-item';
+      newExtension.innerHTML = `
+        <div class="input-group">
+          <label>Extension Name</label>
+          <input type="text" name="extension-name" placeholder="e.g., Better UI Mod">
+        </div>
+        <div class="input-group">
+          <label>Download Link</label>
+          <input type="url" name="extension-link" placeholder="https://...">
+        </div>
+        <div class="input-group">
+          <label>Install Time (minutes)</label>
+          <input type="number" name="extension-time" placeholder="5" min="1">
+        </div>
+        <button type="button" class="remove-extension-btn" onclick="removeExtension(this)">Remove</button>
+      `;
+      extensionsList.appendChild(newExtension);
+    }
+
+    function removeExtension(button) {
+      button.parentElement.remove();
+    }
+
+    // Review functions
+    function updateReview() {
+      // Update event details
+      document.getElementById('reviewEventName').textContent = document.getElementById('eventName').value;
+      document.getElementById('reviewEventDescription').textContent = document.getElementById('eventDescription').value;
+      document.getElementById('reviewPlayerLimit').textContent = document.getElementById('playerLimit').value + ' players';
+      
+      const eventDate = new Date(document.getElementById('eventDate').value);
+      document.getElementById('reviewEventDate').textContent = eventDate.toLocaleString();
+      
+      // Update game info
+      if (selectedGameData) {
+        const gameHtml = `
+          <div class="review-game-card">
+            <h4>${selectedGameData.data.name || selectedGameData.data.name}</h4>
+            <p>${selectedGameData.data.description || selectedGameData.data.short_description || 'No description'}</p>
+            <span class="game-source-badge">${getGameSourceLabel(selectedGameData.type)}</span>
+          </div>
+        `;
+        document.getElementById('reviewGame').innerHTML = gameHtml;
+      }
+      
+      // Update platforms
+      const selectedPlatforms = Array.from(document.querySelectorAll('input[name="platforms"]:checked')).map(cb => cb.value);
+      const platformsHtml = selectedPlatforms.map(platform => `<span class="platform-badge">${platform}</span>`).join('');
+      document.getElementById('reviewPlatforms').innerHTML = platformsHtml;
+      
+      // Update extensions
+      const hasExtensions = document.getElementById('hasExtensions').checked;
+      if (hasExtensions) {
+        const extensions = Array.from(document.querySelectorAll('.extension-item')).map(item => {
+          const name = item.querySelector('input[name="extension-name"]').value;
+          const link = item.querySelector('input[name="extension-link"]').value;
+          const time = item.querySelector('input[name="extension-time"]').value;
+          return { name, link, time };
+        }).filter(ext => ext.name && ext.link && ext.time);
+        
+        if (extensions.length > 0) {
+          const extensionsHtml = extensions.map(ext => `
+            <div class="review-extension">
+              <strong>${ext.name}</strong> - ${ext.time} minutes
+              <br><small>${ext.link}</small>
+            </div>
+          `).join('');
+          document.getElementById('reviewExtensions').innerHTML = extensionsHtml;
+          document.getElementById('reviewExtensionsSection').style.display = 'block';
+        } else {
+          document.getElementById('reviewExtensionsSection').style.display = 'none';
+        }
+      } else {
+        document.getElementById('reviewExtensionsSection').style.display = 'none';
+      }
+      
+      // Prepare form data for submission
+      prepareFormSubmission();
+    }
+
+    function getGameSourceLabel(type) {
+      switch (type) {
+        case 'steam': return 'Steam';
+        case 'rawg': return 'RAWG';
+        case 'existing': return 'Database';
+        case 'manual': return 'Manual Entry';
+        default: return 'Unknown';
+      }
+    }
+
+    function prepareFormSubmission() {
+      // Set game selection data
+      document.getElementById('finalGameSelection').value = JSON.stringify(selectedGameData);
+      
+      // Set extensions data
+      const hasExtensions = document.getElementById('hasExtensions').checked;
+      if (hasExtensions) {
+        const extensions = Array.from(document.querySelectorAll('.extension-item')).map(item => {
+          const name = item.querySelector('input[name="extension-name"]').value;
+          const link = item.querySelector('input[name="extension-link"]').value;
+          const time = item.querySelector('input[name="extension-time"]').value;
+          return { name: name, downloadLink: link, installationTime: time };
+        }).filter(ext => ext.name && ext.downloadLink && ext.installationTime);
+        
+        document.getElementById('finalExtensions').value = JSON.stringify(extensions);
+      } else {
+        document.getElementById('finalExtensions').value = '';
+      }
+    }
+
+    // Error handling
+    function showError(message) {
+      // Create error message element
+      const errorDiv = document.createElement('div');
+      errorDiv.className = 'error-message';
+      errorDiv.innerHTML = `
+        <div class="error-content">
+          <span class="error-icon">⚠️</span>
+          <span class="error-text">${message}</span>
+          <button class="error-close" onclick="this.parentElement.parentElement.remove()">×</button>
+        </div>
+      `;
+      
+      // Insert at top of current step
+      const currentStepElement = document.querySelector('.wizard-step.active');
+      currentStepElement.insertBefore(errorDiv, currentStepElement.firstChild);
+      
+      // Auto-remove after 5 seconds
+      setTimeout(() => {
+        if (errorDiv.parentNode) {
+          errorDiv.remove();
+        }
+      }, 5000);
+      
+      // Scroll to error
+      errorDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function setupFormValidation() {
+      // Real-time validation for event name
+      document.getElementById('eventName').addEventListener('input', function() {
+        if (this.value.trim().length > 0) {
+          this.classList.remove('error');
+        }
+      });
+      
+      // Real-time validation for description
+      document.getElementById('eventDescription').addEventListener('input', function() {
+        if (this.value.trim().length > 0) {
+          this.classList.remove('error');
+        }
+      });
+      
+      // Real-time validation for player limit
+      document.getElementById('playerLimit').addEventListener('input', function() {
+        if (this.value >= 2) {
+          this.classList.remove('error');
+        }
+      });
+      
+      // Real-time validation for date
+      document.getElementById('eventDate').addEventListener('change', function() {
+        const eventDate = new Date(this.value);
+        const now = new Date();
+        if (eventDate > now) {
+          this.classList.remove('error');
+        }
+      });
+    }
+
+    // Form submission handler
+    document.getElementById('eventForm').addEventListener('submit', function(e) {
+      // Final validation before submission
+      if (!validateCurrentStep()) {
+        e.preventDefault();
+        return false;
+      }
+      
+      // Show loading state
+      const submitBtn = document.querySelector('.create-event-btn');
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '🚀 Creating Event...';
+      
+      // Let the form submit normally
+      return true;
+    });
+  </script>
 </body>
 </html>
