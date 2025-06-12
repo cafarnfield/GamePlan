@@ -6,57 +6,616 @@
   <title>Admin Users - GamePlan</title>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
+  <style>
+    .filter-tabs {
+      display: flex;
+      gap: 10px;
+      margin: 20px 0;
+      flex-wrap: wrap;
+    }
+    .filter-tab {
+      background: #333;
+      color: #00ff00;
+      border: 1px solid #00ff00;
+      padding: 8px 15px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 8px;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .filter-tab.active {
+      background: #00ff00;
+      color: #000;
+    }
+    .filter-tab:hover {
+      background: rgba(0, 255, 0, 0.2);
+    }
+    .bulk-actions {
+      background: rgba(0, 0, 255, 0.1);
+      border: 2px solid #0066cc;
+      padding: 15px;
+      margin: 20px 0;
+      display: none;
+    }
+    .bulk-actions.show {
+      display: block;
+    }
+    .bulk-actions h3 {
+      color: #0066cc;
+      margin-top: 0;
+    }
+    .bulk-form {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin: 10px 0;
+    }
+    .bulk-notes {
+      width: 300px;
+      padding: 5px;
+      background: #000;
+      color: #00ff00;
+      border: 1px solid #00ff00;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 8px;
+    }
+    .user-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+    }
+    .user-table th,
+    .user-table td {
+      border: 1px solid #00ff00;
+      padding: 8px;
+      text-align: left;
+      font-size: 10px;
+    }
+    .user-table th {
+      background: rgba(0, 255, 0, 0.2);
+      color: #00ff00;
+    }
+    .user-row {
+      background: rgba(0, 0, 0, 0.8);
+    }
+    .user-row.pending {
+      background: rgba(255, 255, 0, 0.1);
+      border-left: 3px solid #ffff00;
+    }
+    .user-row.rejected {
+      background: rgba(255, 0, 0, 0.1);
+      border-left: 3px solid #ff0000;
+    }
+    .user-row.probation {
+      background: rgba(255, 165, 0, 0.1);
+      border-left: 3px solid #ffa500;
+    }
+    .status-badge {
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 8px;
+      font-weight: bold;
+    }
+    .status-pending {
+      background: #ffff00;
+      color: #000;
+    }
+    .status-approved {
+      background: #00ff00;
+      color: #000;
+    }
+    .status-rejected {
+      background: #ff0000;
+      color: #fff;
+    }
+    .status-probation {
+      background: #ffa500;
+      color: #000;
+    }
+    .action-buttons {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+    .action-btn {
+      background: #0066cc;
+      color: white;
+      border: 1px solid #0066cc;
+      padding: 4px 8px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 6px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+    }
+    .action-btn.approve {
+      background: #00aa00;
+      border-color: #00aa00;
+    }
+    .action-btn.reject {
+      background: #cc0000;
+      border-color: #cc0000;
+    }
+    .action-btn.delete {
+      background: #990000;
+      border-color: #990000;
+    }
+    .action-btn:hover {
+      opacity: 0.8;
+    }
+    .user-details {
+      font-size: 8px;
+      color: #888;
+      margin-top: 3px;
+    }
+    .approval-form {
+      display: none;
+      background: rgba(0, 0, 0, 0.9);
+      border: 2px solid #00ff00;
+      padding: 15px;
+      margin: 10px 0;
+    }
+    .approval-form.show {
+      display: block;
+    }
+    .approval-form textarea {
+      width: 100%;
+      height: 60px;
+      background: #000;
+      color: #00ff00;
+      border: 1px solid #00ff00;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 8px;
+      padding: 5px;
+      margin: 5px 0;
+    }
+    .search-container {
+      margin: 20px 0;
+      padding: 15px;
+      border: 1px solid #00ff00;
+      background: rgba(0, 255, 0, 0.1);
+    }
+    .search-input {
+      width: 100%;
+      padding: 10px;
+      background: #000;
+      color: #00ff00;
+      border: 1px solid #00ff00;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 10px;
+      margin: 5px 0;
+    }
+    .stats-bar {
+      display: flex;
+      gap: 20px;
+      margin: 20px 0;
+      padding: 15px;
+      background: rgba(0, 0, 0, 0.8);
+      border: 1px solid #333;
+      flex-wrap: wrap;
+    }
+    .stat-item {
+      text-align: center;
+      font-size: 10px;
+    }
+    .stat-number {
+      font-size: 16px;
+      color: #ffff00;
+      display: block;
+    }
+    .stat-label {
+      color: #888;
+      font-size: 8px;
+    }
+  </style>
 </head>
 <body>
   <div class="scanlines"></div>
+  <% if (isDevelopmentAutoLogin) { %>
+    <div class="dev-banner">
+      🔧 DEVELOPMENT MODE - Auto-logged in as Admin
+    </div>
+  <% } %>
   <header>
     <h1>GamePlan Admin - Manage Users</h1>
     <nav>
-      <a href="/admin">Back to Admin Panel</a>
+      <a href="/admin">Admin Panel</a>
+      <a href="/admin/dashboard">Dashboard</a>
+      <a href="/">Home</a>
     </nav>
   </header>
   <main>
-    <h2>Registered Users</h2>
-    <table>
+    <h2>User Management</h2>
+
+    <!-- Statistics Bar -->
+    <div class="stats-bar">
+      <div class="stat-item">
+        <span class="stat-number" id="total-users"><%= users.length %></span>
+        <span class="stat-label">Total Users</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-number" id="pending-users"><%= users.filter(u => u.status === 'pending').length %></span>
+        <span class="stat-label">Pending</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-number" id="approved-users"><%= users.filter(u => u.status === 'approved').length %></span>
+        <span class="stat-label">Approved</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-number" id="rejected-users"><%= users.filter(u => u.status === 'rejected').length %></span>
+        <span class="stat-label">Rejected</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-number" id="blocked-users"><%= users.filter(u => u.isBlocked).length %></span>
+        <span class="stat-label">Blocked</span>
+      </div>
+    </div>
+
+    <!-- Filter Tabs -->
+    <div class="filter-tabs">
+      <a href="/admin/users" class="filter-tab <%= !filter || filter === 'all' ? 'active' : '' %>">All Users</a>
+      <a href="/admin/users?filter=pending" class="filter-tab <%= filter === 'pending' ? 'active' : '' %>">Pending (<%= users.filter(u => u.status === 'pending').length %>)</a>
+      <a href="/admin/users?filter=approved" class="filter-tab <%= filter === 'approved' ? 'active' : '' %>">Approved</a>
+      <a href="/admin/users?filter=rejected" class="filter-tab <%= filter === 'rejected' ? 'active' : '' %>">Rejected</a>
+      <a href="/admin/users?filter=blocked" class="filter-tab <%= filter === 'blocked' ? 'active' : '' %>">Blocked</a>
+      <a href="/admin/users?filter=probation" class="filter-tab <%= filter === 'probation' ? 'active' : '' %>">Probation</a>
+    </div>
+
+    <!-- Search -->
+    <div class="search-container">
+      <input type="text" id="user-search" class="search-input" placeholder="Search by name, email, or game nickname..." onkeyup="filterUsers()">
+    </div>
+
+    <!-- Bulk Actions -->
+    <div class="bulk-actions" id="bulk-actions">
+      <h3>Bulk Actions (<span id="selected-count">0</span> selected)</h3>
+      
+      <div class="bulk-form">
+        <button type="button" class="action-btn approve" onclick="bulkAction('approve')">Bulk Approve</button>
+        <button type="button" class="action-btn reject" onclick="bulkAction('reject')">Bulk Reject</button>
+        <button type="button" class="action-btn delete" onclick="bulkAction('delete')">Bulk Delete</button>
+        <input type="text" id="bulk-notes" class="bulk-notes" placeholder="Add notes for bulk action...">
+      </div>
+      
+      <div style="margin-top: 10px;">
+        <button type="button" class="action-btn" onclick="selectAll()">Select All Visible</button>
+        <button type="button" class="action-btn" onclick="clearSelection()">Clear Selection</button>
+      </div>
+    </div>
+
+    <!-- Users Table -->
+    <table class="user-table">
       <thead>
         <tr>
-          <th>Name</th>
-          <th>Email</th>
-          <th>Admin Status</th>
-          <th>Blocked Status</th>
+          <th><input type="checkbox" id="select-all" onchange="toggleSelectAll()"></th>
+          <th>User Info</th>
+          <th>Status</th>
+          <th>Registration</th>
           <th>Actions</th>
         </tr>
       </thead>
-      <tbody>
-        <% users.forEach(user => { %>
-          <tr>
-            <td><%= user.name %> (<%= user.gameNickname || 'No Nickname' %>)</td>
-            <td><%= user.email %></td>
-            <td><%= user.isAdmin ? 'Admin' : 'User' %></td>
-            <td><%= user.isBlocked ? 'Blocked' : 'Active' %></td>
+      <tbody id="users-tbody">
+        <% users.forEach(user => { 
+          const isProbation = user.probationaryUntil && new Date() < user.probationaryUntil;
+          const rowClass = user.status === 'pending' ? 'pending' : 
+                          user.status === 'rejected' ? 'rejected' : 
+                          isProbation ? 'probation' : '';
+        %>
+          <tr class="user-row <%= rowClass %>" data-user-id="<%= user._id %>" data-status="<%= user.status %>" data-blocked="<%= user.isBlocked %>" data-probation="<%= isProbation %>">
             <td>
-              <% if (user.isBlocked) { %>
-                <form action="/admin/user/unblock/<%= user._id %>" method="POST" class="admin-form">
-                  <button type="submit" class="admin-button">Unblock</button>
-                </form>
-              <% } else { %>
-                <form action="/admin/user/block/<%= user._id %>" method="POST" class="admin-form">
-                  <button type="submit" class="admin-button">Block</button>
-                </form>
+              <input type="checkbox" class="user-checkbox" value="<%= user._id %>" onchange="updateBulkActions()">
+            </td>
+            <td>
+              <div>
+                <strong><%= user.name %></strong>
+                <% if (user.gameNickname) { %>
+                  (<%= user.gameNickname %>)
+                <% } %>
+              </div>
+              <div style="font-size: 8px; color: #888;"><%= user.email %></div>
+              <div class="user-details">
+                <% if (user.registrationIP) { %>
+                  IP: <%= user.registrationIP %> | 
+                <% } %>
+                Registered: <%= new Date(user.createdAt).toLocaleDateString() %>
+                <% if (user.approvedAt) { %>
+                  | Approved: <%= new Date(user.approvedAt).toLocaleDateString() %>
+                <% } %>
+              </div>
+              <% if (user.approvalNotes) { %>
+                <div style="font-size: 8px; color: #00ff00; margin-top: 3px;">
+                  Note: <%= user.approvalNotes %>
+                </div>
               <% } %>
-
-              <form action="/admin/user/toggle-admin/<%= user._id %>" method="POST" class="admin-form">
-                <button type="submit" class="admin-button"><% if (user.isAdmin) { %>Remove Admin<% } else { %>Make Admin<% } %></button>
-              </form>
-
-              <form action="/admin/user/delete/<%= user._id %>" method="POST" class="admin-form">
-                <button type="submit" class="admin-button" onclick="return confirm('Are you sure you want to delete this user? This action cannot be undone.')">Delete</button>
-              </form>
+              <% if (user.rejectedReason) { %>
+                <div style="font-size: 8px; color: #ff6666; margin-top: 3px;">
+                  Rejected: <%= user.rejectedReason %>
+                </div>
+              <% } %>
+            </td>
+            <td>
+              <div>
+                <span class="status-badge status-<%= user.status %>"><%= user.status.toUpperCase() %></span>
+                <% if (user.isAdmin) { %>
+                  <span class="status-badge" style="background: #6600cc; color: #fff;">ADMIN</span>
+                <% } %>
+                <% if (user.isBlocked) { %>
+                  <span class="status-badge" style="background: #ff0000; color: #fff;">BLOCKED</span>
+                <% } %>
+                <% if (isProbation) { %>
+                  <span class="status-badge status-probation">PROBATION</span>
+                <% } %>
+              </div>
+            </td>
+            <td>
+              <div style="font-size: 8px;">
+                <%= new Date(user.createdAt).toLocaleDateString() %>
+                <% if (user.registrationIP) { %>
+                  <br><%= user.registrationIP %>
+                <% } %>
+              </div>
+            </td>
+            <td>
+              <div class="action-buttons">
+                <% if (user.status === 'pending') { %>
+                  <button type="button" class="action-btn approve" onclick="showApprovalForm('<%= user._id %>', 'approve')">Approve</button>
+                  <button type="button" class="action-btn reject" onclick="showApprovalForm('<%= user._id %>', 'reject')">Reject</button>
+                <% } else if (user.status === 'rejected') { %>
+                  <button type="button" class="action-btn approve" onclick="showApprovalForm('<%= user._id %>', 'approve')">Re-approve</button>
+                <% } else if (user.status === 'approved') { %>
+                  <% if (isProbation) { %>
+                    <button type="button" class="action-btn" onclick="endProbation('<%= user._id %>')">End Probation</button>
+                  <% } %>
+                <% } %>
+                
+                <% if (user.isBlocked) { %>
+                  <button type="button" class="action-btn" onclick="toggleBlock('<%= user._id %>', false)">Unblock</button>
+                <% } else { %>
+                  <button type="button" class="action-btn" onclick="toggleBlock('<%= user._id %>', true)">Block</button>
+                <% } %>
+                
+                <button type="button" class="action-btn" onclick="toggleAdmin('<%= user._id %>')">
+                  <%= user.isAdmin ? 'Remove Admin' : 'Make Admin' %>
+                </button>
+                
+                <button type="button" class="action-btn delete" onclick="deleteUser('<%= user._id %>', '<%= user.email %>')">Delete</button>
+              </div>
+              
+              <!-- Approval Form -->
+              <div class="approval-form" id="approval-form-<%= user._id %>">
+                <h4 id="approval-title-<%= user._id %>">Approve User</h4>
+                <textarea id="approval-notes-<%= user._id %>" placeholder="Add approval notes (optional)..."></textarea>
+                <div>
+                  <button type="button" class="action-btn approve" onclick="submitApproval('<%= user._id %>')">Confirm</button>
+                  <button type="button" class="action-btn" onclick="hideApprovalForm('<%= user._id %>')">Cancel</button>
+                </div>
+              </div>
             </td>
           </tr>
         <% }); %>
       </tbody>
     </table>
+
+    <% if (users.length === 0) { %>
+      <div style="text-align: center; padding: 40px; color: #888;">
+        No users found.
+      </div>
+    <% } %>
   </main>
+
+  <script>
+    let currentApprovalAction = '';
+    let currentUserId = '';
+
+    function updateBulkActions() {
+      const checkboxes = document.querySelectorAll('.user-checkbox:checked');
+      const bulkActions = document.getElementById('bulk-actions');
+      const selectedCount = document.getElementById('selected-count');
+      
+      selectedCount.textContent = checkboxes.length;
+      
+      if (checkboxes.length > 0) {
+        bulkActions.classList.add('show');
+      } else {
+        bulkActions.classList.remove('show');
+      }
+    }
+
+    function toggleSelectAll() {
+      const selectAll = document.getElementById('select-all');
+      const checkboxes = document.querySelectorAll('.user-checkbox');
+      
+      checkboxes.forEach(checkbox => {
+        if (checkbox.closest('tr').style.display !== 'none') {
+          checkbox.checked = selectAll.checked;
+        }
+      });
+      
+      updateBulkActions();
+    }
+
+    function selectAll() {
+      const checkboxes = document.querySelectorAll('.user-checkbox');
+      checkboxes.forEach(checkbox => {
+        if (checkbox.closest('tr').style.display !== 'none') {
+          checkbox.checked = true;
+        }
+      });
+      updateBulkActions();
+    }
+
+    function clearSelection() {
+      const checkboxes = document.querySelectorAll('.user-checkbox');
+      checkboxes.forEach(checkbox => checkbox.checked = false);
+      document.getElementById('select-all').checked = false;
+      updateBulkActions();
+    }
+
+    function filterUsers() {
+      const searchTerm = document.getElementById('user-search').value.toLowerCase();
+      const rows = document.querySelectorAll('.user-row');
+      
+      rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        if (text.includes(searchTerm)) {
+          row.style.display = '';
+        } else {
+          row.style.display = 'none';
+          row.querySelector('.user-checkbox').checked = false;
+        }
+      });
+      
+      updateBulkActions();
+    }
+
+    function showApprovalForm(userId, action) {
+      currentUserId = userId;
+      currentApprovalAction = action;
+      
+      const form = document.getElementById(`approval-form-${userId}`);
+      const title = document.getElementById(`approval-title-${userId}`);
+      
+      title.textContent = action === 'approve' ? 'Approve User' : 'Reject User';
+      form.classList.add('show');
+    }
+
+    function hideApprovalForm(userId) {
+      const form = document.getElementById(`approval-form-${userId}`);
+      form.classList.remove('show');
+      document.getElementById(`approval-notes-${userId}`).value = '';
+    }
+
+    async function submitApproval(userId) {
+      const notes = document.getElementById(`approval-notes-${userId}`).value;
+      
+      try {
+        const response = await fetch(`/admin/user/${currentApprovalAction}/${userId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ notes })
+        });
+        
+        if (response.ok) {
+          location.reload();
+        } else {
+          alert('Error processing request');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Error processing request');
+      }
+    }
+
+    async function bulkAction(action) {
+      const checkboxes = document.querySelectorAll('.user-checkbox:checked');
+      const userIds = Array.from(checkboxes).map(cb => cb.value);
+      const notes = document.getElementById('bulk-notes').value;
+      
+      if (userIds.length === 0) {
+        alert('Please select users first');
+        return;
+      }
+      
+      if (!confirm(`Are you sure you want to ${action} ${userIds.length} user(s)?`)) {
+        return;
+      }
+      
+      try {
+        const response = await fetch(`/admin/users/bulk-${action}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ userIds, notes })
+        });
+        
+        if (response.ok) {
+          location.reload();
+        } else {
+          alert('Error processing bulk action');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Error processing bulk action');
+      }
+    }
+
+    async function toggleBlock(userId, block) {
+      const action = block ? 'block' : 'unblock';
+      
+      try {
+        const response = await fetch(`/admin/user/${action}/${userId}`, {
+          method: 'POST'
+        });
+        
+        if (response.ok) {
+          location.reload();
+        } else {
+          alert('Error updating user');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Error updating user');
+      }
+    }
+
+    async function toggleAdmin(userId) {
+      try {
+        const response = await fetch(`/admin/user/toggle-admin/${userId}`, {
+          method: 'POST'
+        });
+        
+        if (response.ok) {
+          location.reload();
+        } else {
+          alert('Error updating user');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Error updating user');
+      }
+    }
+
+    async function deleteUser(userId, email) {
+      if (!confirm(`Are you sure you want to delete user ${email}? This action cannot be undone.`)) {
+        return;
+      }
+      
+      try {
+        const response = await fetch(`/admin/user/delete/${userId}`, {
+          method: 'POST'
+        });
+        
+        if (response.ok) {
+          location.reload();
+        } else {
+          alert('Error deleting user');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Error deleting user');
+      }
+    }
+
+    async function endProbation(userId) {
+      try {
+        const response = await fetch(`/admin/user/end-probation/${userId}`, {
+          method: 'POST'
+        });
+        
+        if (response.ok) {
+          location.reload();
+        } else {
+          alert('Error ending probation');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Error ending probation');
+      }
+    }
+  </script>
 </body>
 </html>

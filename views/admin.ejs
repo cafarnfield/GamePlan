@@ -147,6 +147,8 @@
     <h1>GamePlan Admin Panel</h1>
     <nav>
       <a href="/">Home</a>
+      <a href="/admin/dashboard">Dashboard</a>
+      <a href="/admin/users">Manage Users</a>
     </nav>
   </header>
   <main>
@@ -154,12 +156,6 @@
 
     <h3>Manage Users</h3>
     <p><a href="/admin/users">View and manage all registered users</a></p>
-    <form action="/admin/toggle-admin" method="POST">
-      <label for="user-email">User Email:</label>
-      <input type="email" id="user-email" name="email" required>
-      <button type="submit">Toggle Admin Status</button>
-    </form>
-    <p>Note: Users with Game Nicknames will be displayed with their nickname instead of their regular name.</p>
 
     <h3>Manage Games</h3>
     
@@ -274,7 +270,7 @@
         }
         
         resultsContainer.innerHTML = games.map(game => `
-          <div class="steam-game-result" onclick="selectSteamGame(${game.appid}, '${escapeHtml(game.name)}', ${JSON.stringify(game).replace(/"/g, '&quot;')})">
+          <div class="steam-game-result" onclick="selectSteamGame(this, ${game.appid}, '${escapeHtml(game.name)}', '${encodeURIComponent(JSON.stringify(game))}')">
             ${game.header_image ? `<img src="${game.header_image}" alt="${escapeHtml(game.name)}" class="steam-game-image" onerror="this.style.display='none'">` : '<div class="steam-game-image" style="background: #333; display: flex; align-items: center; justify-content: center; font-size: 8px;">No Image</div>'}
             <div class="steam-game-info">
               <div class="steam-game-title">${escapeHtml(game.name)}</div>
@@ -294,46 +290,91 @@
       }
     }
     
-    function selectSteamGame(appId, name, gameData) {
-      selectedGame = gameData;
+    function selectSteamGame(element, appId, name, encodedGameData) {
+      console.log('selectSteamGame called with:', { element, appId, name, encodedGameData });
       
-      // Update form fields
-      gameNameInput.value = name;
-      steamAppIdInput.value = appId;
-      steamDataInput.value = JSON.stringify({
-        name: gameData.name,
-        short_description: gameData.short_description,
-        header_image: gameData.header_image,
-        developers: gameData.developers,
-        publishers: gameData.publishers,
-        platforms: gameData.platforms
-      });
-      
-      // Update description if empty
-      if (!gameDescriptionInput.value && gameData.short_description) {
-        gameDescriptionInput.value = gameData.short_description;
-      }
-      
-      // Show selected game preview
-      steamPreview.innerHTML = `
-        <div style="display: flex; align-items: center; padding: 10px; border: 1px solid #00ff00; background: rgba(0, 255, 0, 0.1);">
-          ${gameData.header_image ? `<img src="${gameData.header_image}" alt="${escapeHtml(name)}" style="width: 120px; height: 45px; margin-right: 15px; object-fit: cover;">` : ''}
-          <div>
-            <strong>${escapeHtml(name)}</strong><br>
-            <small>Steam App ID: ${appId}</small><br>
-            <small style="color: #888;">${escapeHtml(gameData.short_description || 'No description')}</small>
+      try {
+        // Decode the URL-encoded JSON data
+        const decodedData = decodeURIComponent(encodedGameData);
+        console.log('Decoded data:', decodedData);
+        
+        const parsedGameData = JSON.parse(decodedData);
+        console.log('Parsed game data:', parsedGameData);
+        
+        selectedGame = parsedGameData;
+        
+        // Update form fields
+        gameNameInput.value = name;
+        steamAppIdInput.value = appId;
+        steamDataInput.value = JSON.stringify({
+          name: parsedGameData.name,
+          short_description: parsedGameData.short_description,
+          header_image: parsedGameData.header_image,
+          developers: parsedGameData.developers,
+          publishers: parsedGameData.publishers,
+          platforms: parsedGameData.platforms
+        });
+        
+        console.log('Form fields updated:', {
+          name: gameNameInput.value,
+          appId: steamAppIdInput.value,
+          description: gameDescriptionInput.value
+        });
+        
+        // Update description if empty
+        if (!gameDescriptionInput.value && parsedGameData.short_description) {
+          gameDescriptionInput.value = parsedGameData.short_description;
+        }
+        
+        // Show selected game preview
+        steamPreview.innerHTML = `
+          <div style="display: flex; align-items: center; padding: 10px; border: 1px solid #00ff00; background: rgba(0, 255, 0, 0.1);">
+            ${parsedGameData.header_image ? `<img src="${parsedGameData.header_image}" alt="${escapeHtml(name)}" style="width: 120px; height: 45px; margin-right: 15px; object-fit: cover;">` : ''}
+            <div>
+              <strong>${escapeHtml(name)}</strong><br>
+              <small>Steam App ID: ${appId}</small><br>
+              <small style="color: #888;">${escapeHtml(parsedGameData.short_description || 'No description')}</small>
+            </div>
           </div>
-        </div>
-      `;
-      selectedSteamInfo.classList.remove('hidden');
-      
-      // Highlight selected result
-      document.querySelectorAll('.steam-game-result').forEach(el => el.classList.remove('selected'));
-      event.currentTarget.classList.add('selected');
-      
-      // Clear search
-      searchInput.value = '';
-      resultsContainer.innerHTML = '';
+        `;
+        selectedSteamInfo.classList.remove('hidden');
+        
+        // Highlight selected result
+        document.querySelectorAll('.steam-game-result').forEach(el => el.classList.remove('selected'));
+        element.classList.add('selected');
+        
+        // Clear search
+        searchInput.value = '';
+        resultsContainer.innerHTML = '';
+        
+        console.log('Steam game selection completed successfully');
+        
+      } catch (error) {
+        console.error('Error parsing game data:', error);
+        console.error('Encoded game data received:', encodedGameData);
+        
+        // Fallback: at least fill in the basic info
+        gameNameInput.value = name;
+        steamAppIdInput.value = appId;
+        
+        // Show error in preview
+        steamPreview.innerHTML = `
+          <div style="display: flex; align-items: center; padding: 10px; border: 1px solid #ff0000; background: rgba(255, 0, 0, 0.1);">
+            <div>
+              <strong>${escapeHtml(name)}</strong><br>
+              <small>Steam App ID: ${appId}</small><br>
+              <small style="color: #ff0000;">Error loading game details - using basic info</small>
+            </div>
+          </div>
+        `;
+        selectedSteamInfo.classList.remove('hidden');
+        
+        // Clear search
+        searchInput.value = '';
+        resultsContainer.innerHTML = '';
+        
+        console.log('Fallback completed - basic info filled');
+      }
     }
     
     function clearSteamSelection() {

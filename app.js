@@ -71,6 +71,73 @@ const User = require('./models/User');
 const Extension = require('./models/Extension');
 const Event = require('./models/Event');
 const Game = require('./models/Game');
+const AuditLog = require('./models/AuditLog');
+const RejectedEmail = require('./models/RejectedEmail');
+
+// Helper function to get client IP address
+const getClientIP = (req) => {
+  return req.headers['x-forwarded-for'] || 
+         req.connection.remoteAddress || 
+         req.socket.remoteAddress ||
+         (req.connection.socket ? req.connection.socket.remoteAddress : null) ||
+         req.ip;
+};
+
+// Helper function to create audit log
+const createAuditLog = async (adminUser, action, targetUser, notes = '', ipAddress = '', bulkCount = 1, details = {}) => {
+  try {
+    const auditLog = new AuditLog({
+      adminId: adminUser._id,
+      adminName: adminUser.name,
+      action,
+      targetUserId: targetUser ? targetUser._id : null,
+      targetUserEmail: targetUser ? targetUser.email : null,
+      targetUserName: targetUser ? targetUser.name : null,
+      notes,
+      ipAddress,
+      bulkCount,
+      details
+    });
+    await auditLog.save();
+    console.log('Audit log created:', action, targetUser ? targetUser.email : 'bulk action');
+  } catch (err) {
+    console.error('Error creating audit log:', err);
+  }
+};
+
+// Helper function to verify reCAPTCHA
+const verifyRecaptcha = async (recaptchaResponse) => {
+  if (!process.env.RECAPTCHA_SECRET_KEY) {
+    console.warn('reCAPTCHA secret key not configured, skipping verification');
+    return true; // Skip verification if not configured
+  }
+
+  try {
+    const response = await axios.post('https://www.google.com/recaptcha/api/siteverify', null, {
+      params: {
+        secret: process.env.RECAPTCHA_SECRET_KEY,
+        response: recaptchaResponse
+      }
+    });
+    return response.data.success;
+  } catch (error) {
+    console.error('reCAPTCHA verification error:', error);
+    return false;
+  }
+};
+
+// Helper function to set probationary period
+const setProbationaryPeriod = (user, days = 30) => {
+  const probationEnd = new Date();
+  probationEnd.setDate(probationEnd.getDate() + days);
+  user.probationaryUntil = probationEnd;
+  return user;
+};
+
+// Helper function to check if user is in probation
+const isUserInProbation = (user) => {
+  return user.probationaryUntil && new Date() < user.probationaryUntil;
+};
 
 // Mock admin user for development auto-login
 const mockAdminUser = {
@@ -109,11 +176,30 @@ passport.use(new LocalStrategy(
         console.log('No user found with email:', email);
         return done(null, false, { message: 'No user with that email' });
       }
+
+      // Check user status before password verification
+      if (user.status === 'pending') {
+        console.log('User account pending approval:', email);
+        return done(null, false, { message: 'Your account is pending admin approval. Please wait for approval before logging in.' });
+      }
+
+      if (user.status === 'rejected') {
+        console.log('User account rejected:', email);
+        return done(null, false, { message: 'Your account has been rejected. Please contact support for more information.' });
+      }
+
       const isMatch = await bcrypt.compare(password, user.password);
       if (!isMatch) {
         console.log('Password incorrect for user:', email);
         return done(null, false, { message: 'Password incorrect' });
       }
+
+      // Only allow approved users to login
+      if (user.status !== 'approved') {
+        console.log('User not approved:', email, 'Status:', user.status);
+        return done(null, false, { message: 'Your account is not approved for login.' });
+      }
+
       console.log('Authentication successful for user:', email);
       return done(null, user);
     } catch (err) {
@@ -179,6 +265,87 @@ const ensureNotBlocked = (req, res, next) => {
   }
 };
 
+// Route to show admin dashboard
+app.get('/admin/dashboard', ensureAdmin, async (req, res) => {
+  try {
+    const { q: searchQuery, status, blocked, admin, dateFrom, dateTo } = req.query;
+    
+    // Calculate statistics
+    const totalUsers = await User.countDocuments();
+    const approvedUsers = await User.countDocuments({ status: 'approved' });
+    const pendingUsers = await User.countDocuments({ status: 'pending' });
+    const rejectedUsers = await User.countDocuments({ status: 'rejected' });
+    const blockedUsers = await User.countDocuments({ isBlocked: true });
+    
+    // Recent registrations (last 7 days)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const recentRegistrations = await User.countDocuments({ createdAt: { $gte: sevenDaysAgo } });
+    
+    // Monthly registrations
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const monthlyRegistrations = await User.countDocuments({ createdAt: { $gte: thirtyDaysAgo } });
+    
+    // Approval rate
+    const totalProcessed = approvedUsers + rejectedUsers;
+    const approvalRate = totalProcessed > 0 ? Math.round((approvedUsers / totalProcessed) * 100) : 0;
+    
+    // Probationary users
+    const probationaryUsers = await User.countDocuments({ 
+      probationaryUntil: { $exists: true, $gte: new Date() } 
+    });
+    
+    // Suspicious IP analysis (more than 3 registrations from same IP)
+    const suspiciousIPs = await User.aggregate([
+      { $match: { registrationIP: { $exists: true, $ne: null } } },
+      { $group: { _id: '$registrationIP', count: { $sum: 1 } } },
+      { $match: { count: { $gte: 3 } } },
+      { $sort: { count: -1 } },
+      { $limit: 5 }
+    ]);
+    
+    // System health
+    const activeEvents = await Event.countDocuments({ date: { $gte: new Date() } });
+    const totalGames = await Game.countDocuments();
+    
+    // Recent admin activity
+    const recentActivity = await AuditLog.find()
+      .sort({ timestamp: -1 })
+      .limit(10)
+      .lean();
+    
+    const stats = {
+      totalUsers,
+      approvedUsers,
+      pendingUsers,
+      rejectedUsers,
+      blockedUsers,
+      recentRegistrations,
+      monthlyRegistrations,
+      approvalRate,
+      probationaryUsers,
+      suspiciousIPs,
+      activeEvents,
+      totalGames
+    };
+    
+    const searchFilters = { status, blocked, admin, dateFrom, dateTo };
+    const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
+    
+    res.render('adminDashboard', { 
+      stats, 
+      recentActivity, 
+      searchQuery, 
+      searchFilters, 
+      isDevelopmentAutoLogin 
+    });
+  } catch (err) {
+    console.error('Error loading admin dashboard:', err);
+    res.status(500).send('Error loading dashboard');
+  }
+});
+
 // Route to show admin panel
 app.get('/admin', ensureAdmin, async (req, res) => {
   const games = await Game.find();
@@ -186,11 +353,36 @@ app.get('/admin', ensureAdmin, async (req, res) => {
   res.render('admin', { games, isDevelopmentAutoLogin });
 });
 
-// Route to show all registered users
+// Route to show all registered users with filtering
 app.get('/admin/users', ensureAdmin, async (req, res) => {
-  const users = await User.find();
-  const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
-  res.render('adminUsers', { users, isDevelopmentAutoLogin });
+  try {
+    const { filter } = req.query;
+    let query = {};
+    
+    // Apply filters
+    if (filter === 'pending') {
+      query.status = 'pending';
+    } else if (filter === 'approved') {
+      query.status = 'approved';
+    } else if (filter === 'rejected') {
+      query.status = 'rejected';
+    } else if (filter === 'blocked') {
+      query.isBlocked = true;
+    } else if (filter === 'probation') {
+      query.probationaryUntil = { $exists: true, $gte: new Date() };
+    }
+    
+    const users = await User.find(query).sort({ createdAt: -1 });
+    const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
+    res.render('adminUsers', { 
+      users, 
+      filter: filter || null, // Ensure filter is always defined
+      isDevelopmentAutoLogin 
+    });
+  } catch (err) {
+    console.error('Error fetching users:', err);
+    res.status(500).send('Error fetching users');
+  }
 });
 
 // Route to delete a user
@@ -242,9 +434,207 @@ app.post('/admin/user/toggle-admin/:id', ensureAdmin, async (req, res) => {
     }
     user.isAdmin = !user.isAdmin;
     await user.save();
+    
+    // Create audit log
+    await createAuditLog(req.user, user.isAdmin ? 'promote_admin' : 'demote_admin', user, '', getClientIP(req));
+    
     res.redirect('/admin/users');
   } catch (err) {
     res.status(500).send('Error updating user');
+  }
+});
+
+// Route to approve a user
+app.post('/admin/user/approve/:id', ensureAdmin, async (req, res) => {
+  try {
+    const { notes } = req.body;
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    user.status = 'approved';
+    user.approvedAt = new Date();
+    user.approvedBy = req.user._id;
+    if (notes) {
+      user.approvalNotes = notes;
+    }
+    
+    await user.save();
+    
+    // Create audit log
+    await createAuditLog(req.user, 'approve_user', user, notes, getClientIP(req));
+    
+    console.log('User approved:', user.email, 'by:', req.user.email);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error approving user:', err);
+    res.status(500).json({ error: 'Error approving user' });
+  }
+});
+
+// Route to reject a user
+app.post('/admin/user/reject/:id', ensureAdmin, async (req, res) => {
+  try {
+    const { notes } = req.body;
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    user.status = 'rejected';
+    user.rejectedAt = new Date();
+    user.rejectedBy = req.user._id;
+    if (notes) {
+      user.rejectedReason = notes;
+    }
+    
+    await user.save();
+    
+    // Add email to rejected list to prevent re-registration
+    const rejectedEmail = new RejectedEmail({
+      email: user.email.toLowerCase(),
+      rejectedBy: req.user._id,
+      reason: notes || 'Account rejected by admin'
+    });
+    await rejectedEmail.save();
+    
+    // Create audit log
+    await createAuditLog(req.user, 'reject_user', user, notes, getClientIP(req));
+    
+    console.log('User rejected:', user.email, 'by:', req.user.email);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error rejecting user:', err);
+    res.status(500).json({ error: 'Error rejecting user' });
+  }
+});
+
+// Route to end probation for a user
+app.post('/admin/user/end-probation/:id', ensureAdmin, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    user.probationaryUntil = undefined;
+    await user.save();
+    
+    // Create audit log
+    await createAuditLog(req.user, 'end_probation', user, '', getClientIP(req));
+    
+    console.log('Probation ended for user:', user.email, 'by:', req.user.email);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error ending probation:', err);
+    res.status(500).json({ error: 'Error ending probation' });
+  }
+});
+
+// Bulk approve users
+app.post('/admin/users/bulk-approve', ensureAdmin, async (req, res) => {
+  try {
+    const { userIds, notes } = req.body;
+    
+    if (!Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({ error: 'No users selected' });
+    }
+    
+    const users = await User.find({ _id: { $in: userIds } });
+    const approvedCount = users.length;
+    
+    for (const user of users) {
+      user.status = 'approved';
+      user.approvedAt = new Date();
+      user.approvedBy = req.user._id;
+      if (notes) {
+        user.approvalNotes = notes;
+      }
+      await user.save();
+    }
+    
+    // Create bulk audit log
+    await createAuditLog(req.user, 'bulk_approve', null, notes, getClientIP(req), approvedCount, { userIds });
+    
+    console.log('Bulk approved', approvedCount, 'users by:', req.user.email);
+    res.json({ success: true, count: approvedCount });
+  } catch (err) {
+    console.error('Error bulk approving users:', err);
+    res.status(500).json({ error: 'Error bulk approving users' });
+  }
+});
+
+// Bulk reject users
+app.post('/admin/users/bulk-reject', ensureAdmin, async (req, res) => {
+  try {
+    const { userIds, notes } = req.body;
+    
+    if (!Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({ error: 'No users selected' });
+    }
+    
+    const users = await User.find({ _id: { $in: userIds } });
+    const rejectedCount = users.length;
+    
+    for (const user of users) {
+      user.status = 'rejected';
+      user.rejectedAt = new Date();
+      user.rejectedBy = req.user._id;
+      if (notes) {
+        user.rejectedReason = notes;
+      }
+      await user.save();
+      
+      // Add email to rejected list
+      const rejectedEmail = new RejectedEmail({
+        email: user.email.toLowerCase(),
+        rejectedBy: req.user._id,
+        reason: notes || 'Account rejected by admin (bulk action)'
+      });
+      await rejectedEmail.save();
+    }
+    
+    // Create bulk audit log
+    await createAuditLog(req.user, 'bulk_reject', null, notes, getClientIP(req), rejectedCount, { userIds });
+    
+    console.log('Bulk rejected', rejectedCount, 'users by:', req.user.email);
+    res.json({ success: true, count: rejectedCount });
+  } catch (err) {
+    console.error('Error bulk rejecting users:', err);
+    res.status(500).json({ error: 'Error bulk rejecting users' });
+  }
+});
+
+// Bulk delete users
+app.post('/admin/users/bulk-delete', ensureAdmin, async (req, res) => {
+  try {
+    const { userIds, notes } = req.body;
+    
+    if (!Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({ error: 'No users selected' });
+    }
+    
+    const users = await User.find({ _id: { $in: userIds } });
+    const deletedCount = users.length;
+    
+    // Remove users from events first
+    await Event.updateMany(
+      { players: { $in: userIds } },
+      { $pull: { players: { $in: userIds } } }
+    );
+    
+    // Delete users
+    await User.deleteMany({ _id: { $in: userIds } });
+    
+    // Create bulk audit log
+    await createAuditLog(req.user, 'bulk_delete', null, notes, getClientIP(req), deletedCount, { userIds });
+    
+    console.log('Bulk deleted', deletedCount, 'users by:', req.user.email);
+    res.json({ success: true, count: deletedCount });
+  } catch (err) {
+    console.error('Error bulk deleting users:', err);
+    res.status(500).json({ error: 'Error bulk deleting users' });
   }
 });
 
@@ -359,6 +749,17 @@ app.post('/setup-admin', async (req, res) => {
   }
 });
 
+// API endpoint for pending user count
+app.get('/api/admin/pending-count', ensureAdmin, async (req, res) => {
+  try {
+    const pendingCount = await User.countDocuments({ status: 'pending' });
+    res.json({ count: pendingCount });
+  } catch (err) {
+    console.error('Error fetching pending user count:', err);
+    res.status(500).json({ error: 'Error fetching pending user count' });
+  }
+});
+
 // Routes
 app.get('/', async (req, res) => {
   const events = await Event.find().populate({
@@ -393,18 +794,72 @@ app.post('/profile/update', ensureAuthenticated, ensureNotBlocked, async (req, r
 
 app.get('/register', (req, res) => {
   const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
-  res.render('register', { isDevelopmentAutoLogin });
+  const recaptchaSiteKey = process.env.RECAPTCHA_SITE_KEY || '';
+  res.render('register', { isDevelopmentAutoLogin, recaptchaSiteKey, error: null });
 });
 
 app.post('/register', async (req, res) => {
   try {
-    const { name, email, password, gameNickname } = req.body;
+    const { name, email, password, gameNickname, 'g-recaptcha-response': recaptchaResponse } = req.body;
+    const clientIP = getClientIP(req);
+    const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
+    const recaptchaSiteKey = process.env.RECAPTCHA_SITE_KEY || '';
+
+    // Check if email is in rejected list
+    const rejectedEmail = await RejectedEmail.findOne({ email: email.toLowerCase() });
+    if (rejectedEmail) {
+      return res.render('register', { 
+        isDevelopmentAutoLogin, 
+        recaptchaSiteKey,
+        error: 'This email address has been rejected and cannot be used for registration. Please contact support if you believe this is an error.' 
+      });
+    }
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    if (existingUser) {
+      return res.render('register', { 
+        isDevelopmentAutoLogin, 
+        recaptchaSiteKey,
+        error: 'An account with this email already exists.' 
+      });
+    }
+
+    // Verify reCAPTCHA
+    const recaptchaValid = await verifyRecaptcha(recaptchaResponse);
+    if (!recaptchaValid) {
+      return res.render('register', { 
+        isDevelopmentAutoLogin, 
+        recaptchaSiteKey,
+        error: 'Please complete the CAPTCHA verification.' 
+      });
+    }
+
+    // Create user with pending status
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = new User({ name, email, password: hashedPassword, gameNickname });
+    const user = new User({ 
+      name, 
+      email: email.toLowerCase(), 
+      password: hashedPassword, 
+      gameNickname: gameNickname || '',
+      status: 'pending',
+      registrationIP: clientIP
+    });
+    
     await user.save();
-    res.redirect('/login');
+    console.log('New user registered with pending status:', email, 'IP:', clientIP);
+    
+    // Redirect to a pending approval page
+    res.render('registrationPending', { isDevelopmentAutoLogin });
   } catch (err) {
-    res.status(500).send('Error registering user');
+    console.error('Error registering user:', err);
+    const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
+    const recaptchaSiteKey = process.env.RECAPTCHA_SITE_KEY || '';
+    res.render('register', { 
+      isDevelopmentAutoLogin, 
+      recaptchaSiteKey,
+      error: 'Error registering user. Please try again.' 
+    });
   }
 });
 

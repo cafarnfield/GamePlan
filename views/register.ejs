@@ -6,9 +6,42 @@
   <title>Register - GamePlan</title>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
+  <% if (recaptchaSiteKey) { %>
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+  <% } %>
+  <style>
+    .error-message {
+      color: #ff0000;
+      background: rgba(255, 0, 0, 0.1);
+      border: 1px solid #ff0000;
+      padding: 10px;
+      margin: 10px 0;
+      font-size: 12px;
+      text-align: center;
+    }
+    .info-message {
+      color: #00ff00;
+      background: rgba(0, 255, 0, 0.1);
+      border: 1px solid #00ff00;
+      padding: 10px;
+      margin: 10px 0;
+      font-size: 12px;
+      text-align: center;
+    }
+    .captcha-container {
+      margin: 15px 0;
+      display: flex;
+      justify-content: center;
+    }
+  </style>
 </head>
 <body>
   <div class="scanlines"></div>
+  <% if (isDevelopmentAutoLogin) { %>
+    <div class="dev-banner">
+      🔧 DEVELOPMENT MODE - Auto-logged in as Admin
+    </div>
+  <% } %>
   <header>
     <h1>GamePlan</h1>
     <nav>
@@ -18,17 +51,47 @@
   </header>
   <main>
     <h2>Register</h2>
+    
+    <div class="info-message">
+      <strong>Account Approval Required</strong><br>
+      New accounts require admin approval before you can log in. You will be notified once your account is approved.
+    </div>
+
+    <% if (error) { %>
+      <div class="error-message">
+        <%= error %>
+      </div>
+    <% } %>
+
     <form action="/register" method="POST">
-      <label for="name">Name:</label>
+      <label for="name">Full Name:</label>
       <input type="text" id="name" name="name" required>
+      
       <label for="email">Email:</label>
       <input type="email" id="email" name="email" required>
+      
       <label for="password">Password:</label>
-      <input type="password" id="password" name="password" required>
-      <label for="gameNickname">Game Nickname (optional):</label>
-      <input type="text" id="gameNickname" name="gameNickname">
-      <button type="submit">Register</button>
+      <input type="password" id="password" name="password" required minlength="6">
+      
+      <label for="gameNickname">Game Nickname:</label>
+      <input type="text" id="gameNickname" name="gameNickname" placeholder="How you want to be known in games" required>
+
+      <% if (recaptchaSiteKey) { %>
+        <div class="captcha-container">
+          <div class="g-recaptcha" data-sitekey="<%= recaptchaSiteKey %>"></div>
+        </div>
+      <% } else { %>
+        <div class="info-message">
+          CAPTCHA not configured - registration will proceed without verification
+        </div>
+      <% } %>
+
+      <button type="submit">Register Account</button>
     </form>
+
+    <p style="text-align: center; margin-top: 20px; font-size: 10px; color: #888;">
+      Already have an account? <a href="/login">Login here</a>
+    </p>
   </main>
 </body>
 </html>

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registration Pending - GamePlan</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    .pending-container {
+      max-width: 600px;
+      margin: 0 auto;
+      text-align: center;
+      padding: 40px 20px;
+    }
+    .pending-icon {
+      font-size: 48px;
+      color: #ffff00;
+      margin-bottom: 20px;
+    }
+    .pending-message {
+      color: #00ff00;
+      background: rgba(0, 255, 0, 0.1);
+      border: 2px solid #00ff00;
+      padding: 20px;
+      margin: 20px 0;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .next-steps {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid #888;
+      padding: 20px;
+      margin: 20px 0;
+      font-size: 12px;
+      text-align: left;
+    }
+    .next-steps h3 {
+      color: #00ff00;
+      margin-top: 0;
+    }
+    .next-steps ul {
+      margin: 10px 0;
+      padding-left: 20px;
+    }
+    .next-steps li {
+      margin: 8px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="scanlines"></div>
+  <% if (isDevelopmentAutoLogin) { %>
+    <div class="dev-banner">
+      🔧 DEVELOPMENT MODE - Auto-logged in as Admin
+    </div>
+  <% } %>
+  <header>
+    <h1>GamePlan</h1>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/login">Login</a>
+    </nav>
+  </header>
+  <main>
+    <div class="pending-container">
+      <div class="pending-icon">⏳</div>
+      <h2>Registration Successful!</h2>
+      
+      <div class="pending-message">
+        <strong>Your account is pending admin approval</strong><br><br>
+        Thank you for registering with GamePlan! Your account has been created successfully, but it requires approval from an administrator before you can log in and start using the platform.
+      </div>
+
+      <div class="next-steps">
+        <h3>What happens next?</h3>
+        <ul>
+          <li>An administrator will review your registration</li>
+          <li>You will be notified once your account is approved</li>
+          <li>After approval, you can log in and start joining gaming events</li>
+          <li>If your account is rejected, you will receive information about the reason</li>
+        </ul>
+        
+        <h3>Need help?</h3>
+        <p>If you have any questions about your registration or need assistance, please contact our support team.</p>
+      </div>
+
+      <div style="margin-top: 30px;">
+        <a href="/" class="event-button">Return to Home</a>
+      </div>
+    </div>
+  </main>
+</body>
+</html>
