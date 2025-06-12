@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Game - GamePlan</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <%- include('partials/adminLayoutHeader') %>
+    
+    <div class="admin-content">
+        <div class="admin-page-header">
+            <h1 class="admin-page-title">Add New Game</h1>
+            <p class="admin-page-subtitle">Add games to the GamePlan library</p>
+        </div>
+        
+        <% if (error) { %>
+            <div class="error-message">
+                <div class="error-content">
+                    <span class="error-icon">⚠️</span>
+                    <span class="error-text"><%= error %></span>
+                </div>
+            </div>
+        <% } %>
+        
+        <% if (success) { %>
+            <div class="success-message">
+                <div class="success-content">
+                    <span class="success-icon">✅</span>
+                    <span class="success-text"><%= success %></span>
+                </div>
+            </div>
+        <% } %>
+
+        <div class="game-wizard">
+            <!-- Game Search Section -->
+            <div class="game-search-container">
+                <div class="search-box">
+                    <input type="text" id="gameSearch" placeholder="Search for any game..." autocomplete="off">
+                    <div class="search-icon">🔍</div>
+                </div>
+                
+                <div class="search-results" id="searchResults">
+                    <div class="search-placeholder">
+                        <div class="placeholder-icon">🎮</div>
+                        <h3>Start typing to search</h3>
+                        <p>We'll search Steam, RAWG, and our game database</p>
+                    </div>
+                </div>
+
+                <div class="selected-game" id="selectedGame" style="display: none;">
+                    <div class="game-card selected">
+                        <div class="game-card-content">
+                            <div class="game-image-container">
+                                <div class="game-image">
+                                    <img id="selectedGameImage" src="" alt="" style="display: none;">
+                                    <div class="game-placeholder" id="selectedGamePlaceholder">🎮</div>
+                                    <div class="game-title-overlay" id="selectedGameOverlay"></div>
+                                </div>
+                            </div>
+                            <div class="game-info">
+                                <h3 id="selectedGameName"></h3>
+                                <p id="selectedGameDescription"></p>
+                                <div class="game-meta">
+                                    <span class="game-source" id="selectedGameSource"></span>
+                                    <span class="game-platforms" id="selectedGamePlatforms"></span>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="change-game-btn" onclick="changeGame()">Change Game</button>
+                    </div>
+                </div>
+
+                <div class="manual-game-option">
+                    <button type="button" class="action-button secondary" id="addManualGameBtn" onclick="showManualGameForm()">
+                        Can't find your game? Add it manually
+                    </button>
+                </div>
+
+                <!-- Manual Game Form -->
+                <div class="manual-game-form" id="manualGameForm" style="display: none;">
+                    <div class="form-section">
+                        <h3>Add Game Manually</h3>
+                        <div class="warning-box">
+                            <p><strong>Note:</strong> Manually added games will be added directly to the database.</p>
+                        </div>
+
+                        <div class="input-group">
+                            <label for="manualGameName">Game Name</label>
+                            <input type="text" id="manualGameName" name="manualGameName" 
+                                   placeholder="Enter the exact game name">
+                        </div>
+
+                        <div class="input-group">
+                            <label for="manualGameDescription">Game Description</label>
+                            <textarea id="manualGameDescription" name="manualGameDescription" 
+                                      placeholder="Brief description of the game"></textarea>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Game Categories</label>
+                            <div class="category-grid">
+                                <label class="category-option">
+                                    <input type="checkbox" name="manualGameCategories" value="Action">
+                                    <span>Action</span>
+                                </label>
+                                <label class="category-option">
+                                    <input type="checkbox" name="manualGameCategories" value="Adventure">
+                                    <span>Adventure</span>
+                                </label>
+                                <label class="category-option">
+                                    <input type="checkbox" name="manualGameCategories" value="Strategy">
+                                    <span>Strategy</span>
+                                </label>
+                                <label class="category-option">
+                                    <input type="checkbox" name="manualGameCategories" value="RPG">
+                                    <span>RPG</span>
+                                </label>
+                                <label class="category-option">
+                                    <input type="checkbox" name="manualGameCategories" value="FPS">
+                                    <span>FPS</span>
+                                </label>
+                                <label class="category-option">
+                                    <input type="checkbox" name="manualGameCategories" value="Racing">
+                                    <span>Racing</span>
+                                </label>
+                                <label class="category-option">
+                                    <input type="checkbox" name="manualGameCategories" value="Sports">
+                                    <span>Sports</span>
+                                </label>
+                                <label class="category-option">
+                                    <input type="checkbox" name="manualGameCategories" value="Simulation">
+                                    <span>Simulation</span>
+                                </label>
+                                <label class="category-option">
+                                    <input type="checkbox" name="manualGameCategories" value="Puzzle">
+                                    <span>Puzzle</span>
+                                </label>
+                                <label class="category-option">
+                                    <input type="checkbox" name="manualGameCategories" value="Horror">
+                                    <span>Horror</span>
+                                </label>
+                                <label class="category-option">
+                                    <input type="checkbox" name="manualGameCategories" value="Indie">
+                                    <span>Indie</span>
+                                </label>
+                                <label class="category-option">
+                                    <input type="checkbox" name="manualGameCategories" value="Other">
+                                    <span>Other</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="manual-actions">
+                            <button type="button" class="action-button secondary" onclick="hideManualGameForm()">Cancel</button>
+                            <button type="button" class="action-button primary" onclick="selectManualGame()">Use This Game</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form to Submit -->
+            <form id="add-game-form" method="POST" action="/admin/add-game" style="display: none;">
+                <input type="hidden" id="game-name" name="name">
+                <input type="hidden" id="game-description" name="description">
+                <input type="hidden" id="steam-app-id" name="steamAppId">
+                <input type="hidden" id="steam-data" name="steamData">
+                <input type="hidden" id="rawg-id" name="rawgId">
+                <input type="hidden" id="rawg-data" name="rawgData">
+                <input type="hidden" id="game-source" name="source">
+                <input type="hidden" id="manual-categories" name="categories">
+                
+                <div class="form-actions">
+                    <button type="submit" class="action-button primary">Add Game to Library</button>
+                    <a href="/admin/games" class="action-button secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let searchTimeout;
+        let selectedGameData = null;
+
+        // Tab switching
+        document.querySelectorAll('.search-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                // Remove active class from all tabs
+                document.querySelectorAll('.search-tab').forEach(t => t.classList.remove('active'));
+                // Add active class to clicked tab
+                this.classList.add('active');
+                
+                // Hide all search sections
+                document.querySelectorAll('.search-section').forEach(section => {
+                    section.style.display = 'none';
+                });
+                
+                // Hide manual form
+                document.getElementById('manual-form').style.display = 'none';
+                
+                const source = this.dataset.source;
+                if (source === 'manual') {
+                    document.getElementById('manual-form').style.display = 'block';
+                } else {
+                    document.getElementById(source + '-search').style.display = 'block';
+                }
+                
+                // Clear previous selections
+                clearSelection();
+            });
+        });
+
+        // Steam search
+        document.getElementById('steam-search-input').addEventListener('input', function() {
+            const query = this.value.trim();
+            if (query.length < 2) {
+                document.getElementById('steam-results').style.display = 'none';
+                return;
+            }
+            
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                searchSteamGames(query);
+            }, 300);
+        });
+
+        // RAWG search
+        document.getElementById('rawg-search-input').addEventListener('input', function() {
+            const query = this.value.trim();
+            if (query.length < 2) {
+                document.getElementById('rawg-results').style.display = 'none';
+                return;
+            }
+            
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                searchRawgGames(query);
+            }, 300);
+        });
+
+        // Manual form handling
+        document.getElementById('manual-name').addEventListener('input', function() {
+            const name = this.value.trim();
+            const description = document.getElementById('manual-description').value.trim();
+            
+            if (name) {
+                selectedGameData = {
+                    type: 'manual',
+                    name: name,
+                    description: description
+                };
+                showSelectedGame(name, description || 'Manual entry');
+            } else {
+                clearSelection();
+            }
+        });
+
+        document.getElementById('manual-description').addEventListener('input', function() {
+            const name = document.getElementById('manual-name').value.trim();
+            const description = this.value.trim();
+            
+            if (name) {
+                selectedGameData = {
+                    type: 'manual',
+                    name: name,
+                    description: description
+                };
+                showSelectedGame(name, description || 'Manual entry');
+            }
+        });
+
+        async function searchSteamGames(query) {
+            const resultsDiv = document.getElementById('steam-results');
+            resultsDiv.innerHTML = '<div class="loading">Searching Steam...</div>';
+            resultsDiv.style.display = 'block';
+            
+            try {
+                const response = await fetch(`/api/steam/search?q=${encodeURIComponent(query)}`);
+                const games = await response.json();
+                
+                if (games.length === 0) {
+                    resultsDiv.innerHTML = '<div class="no-results">No Steam games found</div>';
+                    return;
+                }
+                
+                resultsDiv.innerHTML = games.map(game => `
+                    <div class="search-result-item" onclick="selectSteamGame(${JSON.stringify(game).replace(/"/g, '&quot;')})">
+                        <img src="${game.header_image || '/placeholder-game.png'}" alt="${game.name}" class="search-result-image" onerror="this.src='/placeholder-game.png'">
+                        <div class="search-result-info">
+                            <h4>${game.name}</h4>
+                            <p>${game.short_description || 'No description available'}</p>
+                            ${game.existsInDatabase ? '<div class="game-exists-warning">⚠️ This game already exists in the database</div>' : ''}
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error searching Steam games:', error);
+                resultsDiv.innerHTML = '<div class="no-results">Error searching Steam games</div>';
+            }
+        }
+
+        async function searchRawgGames(query) {
+            const resultsDiv = document.getElementById('rawg-results');
+            resultsDiv.innerHTML = '<div class="loading">Searching RAWG...</div>';
+            resultsDiv.style.display = 'block';
+            
+            try {
+                const response = await fetch(`/api/rawg/search?q=${encodeURIComponent(query)}`);
+                const games = await response.json();
+                
+                if (games.length === 0) {
+                    resultsDiv.innerHTML = '<div class="no-results">No RAWG games found</div>';
+                    return;
+                }
+                
+                resultsDiv.innerHTML = games.map(game => `
+                    <div class="search-result-item" onclick="selectRawgGame(${JSON.stringify(game).replace(/"/g, '&quot;')})">
+                        <img src="${game.background_image || '/placeholder-game.png'}" alt="${game.name}" class="search-result-image" onerror="this.src='/placeholder-game.png'">
+                        <div class="search-result-info">
+                            <h4>${game.name}</h4>
+                            <p>${game.description || 'No description available'}</p>
+                            ${game.existsInDatabase ? '<div class="game-exists-warning">⚠️ This game already exists in the database</div>' : ''}
+                            ${game.hasSteamEquivalent ? '<div class="game-exists-warning">⚠️ A Steam version of this game already exists</div>' : ''}
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error searching RAWG games:', error);
+                resultsDiv.innerHTML = '<div class="no-results">Error searching RAWG games</div>';
+            }
+        }
+
+        function selectSteamGame(game) {
+            selectedGameData = {
+                type: 'steam',
+                data: game
+            };
+            showSelectedGame(game.name, game.short_description || 'Steam game');
+            document.getElementById('steam-results').style.display = 'none';
+        }
+
+        function selectRawgGame(game) {
+            selectedGameData = {
+                type: 'rawg',
+                data: game
+            };
+            showSelectedGame(game.name, game.description || 'RAWG game');
+            document.getElementById('rawg-results').style.display = 'none';
+        }
+
+        function showSelectedGame(name, description) {
+            document.getElementById('selected-game-name').textContent = name;
+            document.getElementById('selected-game-description').textContent = description;
+            document.getElementById('selected-game').style.display = 'block';
+            
+            // Populate form fields
+            document.getElementById('game-name').value = name;
+            document.getElementById('game-description').value = description;
+            
+            if (selectedGameData.type === 'steam') {
+                document.getElementById('steam-app-id').value = selectedGameData.data.appid;
+                document.getElementById('steam-data').value = JSON.stringify(selectedGameData.data);
+                document.getElementById('game-source').value = 'steam';
+            } else if (selectedGameData.type === 'rawg') {
+                document.getElementById('rawg-id').value = selectedGameData.data.id;
+                document.getElementById('rawg-data').value = JSON.stringify(selectedGameData.data);
+                document.getElementById('game-source').value = 'rawg';
+            } else if (selectedGameData.type === 'manual') {
+                document.getElementById('game-source').value = 'manual';
+            }
+            
+            document.getElementById('add-game-form').style.display = 'block';
+        }
+
+        function clearSelection() {
+            selectedGameData = null;
+            document.getElementById('selected-game').style.display = 'none';
+            document.getElementById('add-game-form').style.display = 'none';
+            
+            // Clear form fields
+            document.getElementById('game-name').value = '';
+            document.getElementById('game-description').value = '';
+            document.getElementById('steam-app-id').value = '';
+            document.getElementById('steam-data').value = '';
+            document.getElementById('rawg-id').value = '';
+            document.getElementById('rawg-data').value = '';
+            document.getElementById('game-source').value = '';
+        }
+
+        // Hide search results when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.search-results') && !e.target.closest('.search-input')) {
+                document.querySelectorAll('.search-results').forEach(results => {
+                    results.style.display = 'none';
+                });
+            }
+        });
+    </script>
+
+    <%- include('partials/adminLayoutFooter') %>
+</body>
+</html>

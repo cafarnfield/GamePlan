@@ -1439,29 +1439,106 @@ app.post('/api/games/check-duplicates', ensureAuthenticated, async (req, res) =>
   }
 });
 
+// Route to display add game form (admin only)
+app.get('/admin/add-game', ensureAdmin, async (req, res) => {
+  try {
+    const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
+    
+    // Get pending counts for navigation
+    const pendingUsers = await User.countDocuments({ status: 'pending' });
+    const pendingEvents = await Event.countDocuments({ gameStatus: 'pending' });
+    const pendingGames = await Game.countDocuments({ status: 'pending' });
+    const totalPending = pendingUsers + pendingEvents + pendingGames;
+    
+    res.render('addGame', { 
+      user: req.user,
+      error: null,
+      success: null,
+      title: 'Add Game',
+      currentPage: 'add-game',
+      pageTitle: 'Add New Game',
+      pageSubtitle: 'Add games to the GamePlan library',
+      breadcrumbs: [{ name: 'Games', url: '/admin/games' }, { name: 'Add Game' }],
+      pendingUsers,
+      pendingEvents,
+      pendingGames,
+      totalPending,
+      isDevelopmentAutoLogin
+    });
+  } catch (err) {
+    console.error('Error loading add game form:', err);
+    res.status(500).send('Error loading add game form');
+  }
+});
+
 // Route to add a new game with Steam integration (admin only)
 app.post('/admin/add-game', ensureAdmin, async (req, res) => {
   try {
-    const { name, description, steamAppId, steamData } = req.body;
+    const { name, description, steamAppId, steamData, rawgId, rawgData, source } = req.body;
     
-    const gameData = {
-      name,
-      description: description || ''
+    // Helper function to get template variables
+    const getTemplateVars = async () => {
+      const pendingUsers = await User.countDocuments({ status: 'pending' });
+      const pendingEvents = await Event.countDocuments({ gameStatus: 'pending' });
+      const pendingGames = await Game.countDocuments({ status: 'pending' });
+      const totalPending = pendingUsers + pendingEvents + pendingGames;
+      
+      return {
+        user: req.user,
+        title: 'Add Game',
+        currentPage: 'add-game',
+        pageTitle: 'Add New Game',
+        pageSubtitle: 'Add games to the GamePlan library',
+        breadcrumbs: [{ name: 'Games', url: '/admin/games' }, { name: 'Add Game' }],
+        pendingUsers,
+        pendingEvents,
+        pendingGames,
+        totalPending,
+        isDevelopmentAutoLogin: process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development'
+      };
     };
-
-    // Add Steam data if provided
-    if (steamAppId) {
-      gameData.steamAppId = parseInt(steamAppId);
+    
+    if (!name || !name.trim()) {
+      const templateVars = await getTemplateVars();
+      return res.render('addGame', { 
+        ...templateVars,
+        error: 'Game name is required',
+        success: null
+      });
     }
     
-    if (steamData) {
+    const gameData = {
+      name: name.trim(),
+      description: description || '',
+      addedBy: req.user._id,
+      source: source || 'manual',
+      status: 'approved' // Admin-added games are automatically approved
+    };
+
+    // Handle Steam games
+    if (source === 'steam' && steamAppId && steamData) {
       try {
         const parsedSteamData = typeof steamData === 'string' ? JSON.parse(steamData) : steamData;
+        
+        // Check if Steam game already exists
+        const existingGame = await Game.findOne({ steamAppId: parseInt(steamAppId) });
+        if (existingGame) {
+          const templateVars = await getTemplateVars();
+          return res.render('addGame', { 
+            ...templateVars,
+            error: `This Steam game already exists in the database: ${existingGame.name}`,
+            success: null
+          });
+        }
+        
+        gameData.steamAppId = parseInt(steamAppId);
         gameData.steamData = parsedSteamData;
         
         // Extract platforms from Steam data
         if (parsedSteamData.platforms && parsedSteamData.platforms.length > 0) {
           gameData.platforms = parsedSteamData.platforms;
+        } else {
+          gameData.platforms = ['PC']; // Default for Steam games
         }
         
         // Use Steam description if no custom description provided
@@ -1470,15 +1547,107 @@ app.post('/admin/add-game', ensureAdmin, async (req, res) => {
         }
       } catch (parseError) {
         console.error('Error parsing Steam data:', parseError);
+        const templateVars = await getTemplateVars();
+        return res.render('addGame', { 
+          ...templateVars,
+          error: 'Invalid Steam game data',
+          success: null
+        });
+      }
+    }
+    
+    // Handle RAWG games
+    else if (source === 'rawg' && rawgId && rawgData) {
+      try {
+        const parsedRawgData = typeof rawgData === 'string' ? JSON.parse(rawgData) : rawgData;
+        
+        // Check if RAWG game already exists
+        const existingGame = await Game.findOne({ rawgId: parseInt(rawgId) });
+        if (existingGame) {
+          const templateVars = await getTemplateVars();
+          return res.render('addGame', { 
+            ...templateVars,
+            error: `This RAWG game already exists in the database: ${existingGame.name}`,
+            success: null
+          });
+        }
+        
+        gameData.rawgId = parseInt(rawgId);
+        gameData.rawgData = parsedRawgData;
+        
+        // Extract platforms from RAWG data
+        if (parsedRawgData.platforms && parsedRawgData.platforms.length > 0) {
+          gameData.platforms = parsedRawgData.platforms.map(p => p.platform ? p.platform.name : p.name || p);
+        }
+        
+        // Extract categories/genres from RAWG data
+        if (parsedRawgData.genres && parsedRawgData.genres.length > 0) {
+          gameData.categories = parsedRawgData.genres.map(g => g.name);
+        }
+        
+        // Use RAWG description if no custom description provided
+        if (!description && parsedRawgData.description) {
+          gameData.description = parsedRawgData.description;
+        }
+      } catch (parseError) {
+        console.error('Error parsing RAWG data:', parseError);
+        const templateVars = await getTemplateVars();
+        return res.render('addGame', { 
+          ...templateVars,
+          error: 'Invalid RAWG game data',
+          success: null
+        });
+      }
+    }
+    
+    // Handle manual games
+    else if (source === 'manual') {
+      // Check for potential duplicates
+      const existingGame = await Game.findOne({ 
+        name: { $regex: new RegExp(`^${name.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
+        status: 'approved'
+      });
+      
+      if (existingGame) {
+        const templateVars = await getTemplateVars();
+        return res.render('addGame', { 
+          ...templateVars,
+          error: `A game with this name already exists: ${existingGame.name}`,
+          success: null
+        });
       }
     }
 
     const game = new Game(gameData);
     await game.save();
-    res.redirect('/admin');
+    
+    // Create audit log
+    await createAuditLog(
+      req.user, 
+      'add_game', 
+      null, 
+      `Added game: ${game.name} (${source})`, 
+      getClientIP(req),
+      1,
+      { gameId: game._id, gameName: game.name, source: source }
+    );
+    
+    console.log(`Game "${game.name}" added by admin ${req.user.email} (source: ${source})`);
+    
+    const templateVars = await getTemplateVars();
+    res.render('addGame', { 
+      ...templateVars,
+      error: null,
+      success: `Game "${game.name}" has been successfully added to the database!`
+    });
   } catch (err) {
     console.error('Error adding game:', err);
-    res.status(500).send('Error adding game');
+    const templateVars = await getTemplateVars();
+    res.render('addGame', { 
+      ...templateVars,
+      error: 'Error adding game. Please try again.',
+      success: null
+    });
   }
 });
 
