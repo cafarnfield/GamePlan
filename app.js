@@ -12,6 +12,37 @@ const rateLimit = require('express-rate-limit');
 const steamService = require('./services/steamService');
 const rawgService = require('./services/rawgService');
 
+// Import validation middleware and validators
+const { handleValidationErrors } = require('./middleware/validation');
+const { 
+  validateRegistration, 
+  validateLogin, 
+  validateProfileUpdate 
+} = require('./validators/authValidators');
+const { 
+  validateEventCreation, 
+  validateEventEdit, 
+  validateEventDuplication 
+} = require('./validators/eventValidators');
+const { 
+  validateSteamSearch, 
+  validateRawgSearch, 
+  validateEventFilter,
+  validateDuplicateCheck,
+  validateSteamEquivalentCheck,
+  validateAdminUserFilter,
+  validateAdminGameFilter,
+  validateAdminEventFilter
+} = require('./validators/searchValidators');
+const { 
+  validateUserApproval, 
+  validateUserRejection, 
+  validateBulkUserOperation,
+  validateGameApproval,
+  validateAdminGameAddition,
+  validateBulkEventOperation
+} = require('./validators/adminValidators');
+
 // Initialize Express
 const app = express();
 
@@ -1490,7 +1521,7 @@ app.post('/admin/users/bulk-delete', ensureAdmin, async (req, res) => {
 });
 
 // Steam API routes - Updated to allow authenticated users (not just admins)
-app.get('/api/steam/search', ensureAuthenticated, async (req, res) => {
+app.get('/api/steam/search', ensureAuthenticated, validateSteamSearch, handleValidationErrors, async (req, res) => {
   try {
     const { q } = req.query;
     if (!q || q.trim().length < 2) {
@@ -1522,7 +1553,7 @@ app.get('/api/steam/search', ensureAuthenticated, async (req, res) => {
 });
 
 // RAWG API routes
-app.get('/api/rawg/search', ensureAuthenticated, async (req, res) => {
+app.get('/api/rawg/search', ensureAuthenticated, validateRawgSearch, handleValidationErrors, async (req, res) => {
   try {
     const { q } = req.query;
     if (!q || q.trim().length < 2) {
@@ -1565,7 +1596,7 @@ app.get('/api/rawg/search', ensureAuthenticated, async (req, res) => {
 });
 
 // API route to check if RAWG game has Steam equivalent
-app.post('/api/games/check-steam-equivalent', ensureAuthenticated, async (req, res) => {
+app.post('/api/games/check-steam-equivalent', ensureAuthenticated, validateSteamEquivalentCheck, handleValidationErrors, async (req, res) => {
   try {
     const { gameName } = req.body;
     if (!gameName || gameName.trim().length < 2) {
@@ -2118,7 +2149,7 @@ app.get('/profile', ensureAuthenticated, ensureNotBlocked, (req, res) => {
 });
 
 // Update profile route
-app.post('/profile/update', ensureAuthenticated, ensureNotBlocked, async (req, res) => {
+app.post('/profile/update', ensureAuthenticated, ensureNotBlocked, validateProfileUpdate, handleValidationErrors, async (req, res) => {
   try {
     const { gameNickname } = req.body;
     req.user.gameNickname = gameNickname;
@@ -2135,7 +2166,7 @@ app.get('/register', (req, res) => {
   res.render('register', { isDevelopmentAutoLogin, recaptchaSiteKey, error: null });
 });
 
-app.post('/register', registrationLimiter, async (req, res) => {
+app.post('/register', registrationLimiter, validateRegistration, handleValidationErrors, async (req, res) => {
   try {
     const { name, email, password, gameNickname, 'g-recaptcha-response': recaptchaResponse } = req.body;
     const clientIP = getClientIP(req);
@@ -2205,7 +2236,7 @@ app.get('/login', (req, res) => {
   res.render('login', { isDevelopmentAutoLogin });
 });
 
-app.post('/login', loginLimiter, (req, res, next) => {
+app.post('/login', loginLimiter, validateLogin, handleValidationErrors, (req, res, next) => {
   console.log('Login route accessed');
   console.log('Login attempt with email:', req.body.email);
 
@@ -2259,7 +2290,7 @@ app.get('/event/new', ensureAuthenticated, ensureNotBlocked, async (req, res) =>
   res.render('newEvent', { user: req.user, games, gamesData: JSON.stringify(gamesData), isDevelopmentAutoLogin });
 });
 
-app.post('/event/new', ensureAuthenticated, ensureNotBlocked, async (req, res) => {
+app.post('/event/new', ensureAuthenticated, ensureNotBlocked, validateEventCreation, handleValidationErrors, async (req, res) => {
   try {
     console.log('Event creation request received');
     console.log('Request body:', req.body);
@@ -2760,7 +2791,7 @@ app.get('/event/:id/edit', ensureAuthenticated, ensureNotBlocked, async (req, re
 });
 
 // Route to process event edit form
-app.post('/event/:id/edit', ensureAuthenticated, ensureNotBlocked, async (req, res) => {
+app.post('/event/:id/edit', ensureAuthenticated, ensureNotBlocked, validateEventEdit, handleValidationErrors, async (req, res) => {
   try {
     const event = await Event.findById(req.params.id).populate('createdBy').populate('requiredExtensions');
     
