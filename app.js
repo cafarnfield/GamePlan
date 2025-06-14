@@ -33,10 +33,13 @@ const helmetConfig = {
       ],
       scriptSrc: [
         "'self'",
+        "'unsafe-inline'", // Allow inline scripts for development
+        "'unsafe-eval'", // Allow eval for development
         "https://www.google.com", // reCAPTCHA
         "https://www.gstatic.com", // reCAPTCHA
         "https://cdnjs.cloudflare.com" // For any CDN scripts
       ],
+      scriptSrcAttr: ["'unsafe-inline'"], // Allow inline event handlers
       imgSrc: [
         "'self'", 
         "data:", // For data URLs
@@ -63,8 +66,8 @@ const helmetConfig = {
       workerSrc: ["'self'"],
       manifestSrc: ["'self'"]
     },
-    // Only report violations in development, don't block
-    reportOnly: process.env.NODE_ENV === 'development'
+    // Disable CSP in development to avoid blocking functionality
+    reportOnly: process.env.NODE_ENV !== 'production'
   },
   // Conditional HSTS configuration
   hsts: process.env.NODE_ENV === 'production' ? {
