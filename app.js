@@ -7,6 +7,7 @@ const bcrypt = require('bcrypt');
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
 const axios = require('axios'); // Add axios for HTTP requests
+const helmet = require('helmet');
 const steamService = require('./services/steamService');
 const rawgService = require('./services/rawgService');
 
@@ -18,6 +19,77 @@ app.set('view engine', 'ejs');
 
 // Load environment variables first
 require('dotenv').config();
+
+// Helmet Security Configuration
+const helmetConfig = {
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: [
+        "'self'", 
+        "'unsafe-inline'", // Required for EJS templates with inline styles
+        "https://fonts.googleapis.com",
+        "https://cdnjs.cloudflare.com" // For any CDN stylesheets
+      ],
+      scriptSrc: [
+        "'self'",
+        "https://www.google.com", // reCAPTCHA
+        "https://www.gstatic.com", // reCAPTCHA
+        "https://cdnjs.cloudflare.com" // For any CDN scripts
+      ],
+      imgSrc: [
+        "'self'", 
+        "data:", // For data URLs
+        "https:", // Allow all HTTPS images (Steam, RAWG, etc.)
+        "http:" // Allow HTTP images for development
+      ],
+      connectSrc: [
+        "'self'",
+        "https://api.steampowered.com", // Steam API
+        "https://api.rawg.io", // RAWG API
+        "https://www.google.com" // reCAPTCHA
+      ],
+      fontSrc: [
+        "'self'",
+        "https://fonts.gstatic.com",
+        "https://cdnjs.cloudflare.com"
+      ],
+      frameSrc: [
+        "https://www.google.com" // reCAPTCHA
+      ],
+      objectSrc: ["'none'"], // Disable object/embed tags
+      mediaSrc: ["'self'"],
+      childSrc: ["'none'"], // Disable child contexts
+      workerSrc: ["'self'"],
+      manifestSrc: ["'self'"]
+    },
+    // Only report violations in development, don't block
+    reportOnly: process.env.NODE_ENV === 'development'
+  },
+  // Conditional HSTS configuration
+  hsts: process.env.NODE_ENV === 'production' ? {
+    maxAge: 31536000, // 1 year in seconds
+    includeSubDomains: true,
+    preload: true
+  } : false, // Disable HSTS in development
+  noSniff: true, // X-Content-Type-Options: nosniff
+  frameguard: { action: 'deny' }, // X-Frame-Options: DENY
+  xssFilter: true, // X-XSS-Protection: 1; mode=block
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  permissionsPolicy: {
+    camera: ['none'],
+    microphone: ['none'],
+    geolocation: ['none'],
+    payment: ['none'],
+    usb: ['none']
+  },
+  dnsPrefetchControl: { allow: false }, // X-DNS-Prefetch-Control: off
+  ieNoOpen: true, // X-Download-Options: noopen
+  hidePoweredBy: true // Remove X-Powered-By header
+};
+
+// Apply Helmet security middleware
+app.use(helmet(helmetConfig));
 
 // Middleware with debug logging
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -35,8 +107,8 @@ app.use(session({
   cookie: {
     maxAge: 24 * 60 * 60 * 1000, // 1 day
     httpOnly: true,
-    secure: false, // Set to true if using HTTPS
-    sameSite: 'lax' // Add sameSite option
+    secure: process.env.NODE_ENV === 'production', // Enable secure cookies in production
+    sameSite: 'lax' // Add sameSite option for CSRF protection
   },
   name: 'gameplan.sid', // Custom session cookie name
   store: MongoStore.create({
