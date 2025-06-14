@@ -8,6 +8,7 @@ const session = require('express-session');
 const MongoStore = require('connect-mongo');
 const axios = require('axios'); // Add axios for HTTP requests
 const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const steamService = require('./services/steamService');
 const rawgService = require('./services/rawgService');
 
@@ -216,6 +217,93 @@ const isUserInProbation = (user) => {
   return user.probationaryUntil && new Date() < user.probationaryUntil;
 };
 
+// Rate limiting configurations
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 attempts per window per IP
+  message: {
+    error: 'Too many login attempts from this IP, please try again in 15 minutes.'
+  },
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  keyGenerator: (req) => {
+    return getClientIP(req); // Use the existing helper function for IP detection
+  },
+  handler: (req, res) => {
+    console.log(`Login rate limit exceeded for IP: ${getClientIP(req)}`);
+    const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
+    res.status(429).render('login', { 
+      isDevelopmentAutoLogin,
+      error: 'Too many login attempts from this IP, please try again in 15 minutes.'
+    });
+  }
+});
+
+const registrationLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 3, // 3 attempts per window per IP
+  message: {
+    error: 'Too many registration attempts from this IP, please try again in an hour.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    return getClientIP(req);
+  },
+  handler: (req, res) => {
+    console.log(`Registration rate limit exceeded for IP: ${getClientIP(req)}`);
+    const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
+    const recaptchaSiteKey = process.env.RECAPTCHA_SITE_KEY || '';
+    res.status(429).render('register', { 
+      isDevelopmentAutoLogin, 
+      recaptchaSiteKey,
+      error: 'Too many registration attempts from this IP, please try again in an hour.'
+    });
+  }
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // 100 requests per window per IP
+  message: {
+    error: 'Too many API requests from this IP, please try again later.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    return getClientIP(req);
+  },
+  handler: (req, res) => {
+    console.log(`API rate limit exceeded for IP: ${getClientIP(req)} on ${req.path}`);
+    res.status(429).json({
+      error: 'Too many API requests from this IP, please try again later.',
+      retryAfter: Math.round(15 * 60) // 15 minutes in seconds
+    });
+  }
+});
+
+// General rate limiter for other routes (more lenient)
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 1000, // 1000 requests per window per IP (very lenient for general browsing)
+  message: {
+    error: 'Too many requests from this IP, please try again later.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    return getClientIP(req);
+  },
+  skip: (req) => {
+    // Skip rate limiting for admin users in development mode
+    if (process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development') {
+      return true;
+    }
+    // Skip for static assets
+    return req.path.startsWith('/public/') || req.path.startsWith('/css/') || req.path.startsWith('/js/') || req.path.startsWith('/images/');
+  }
+});
+
 // Mock admin user for development auto-login
 const mockAdminUser = {
   _id: 'dev-admin-id',
@@ -242,6 +330,12 @@ const autoLoginMiddleware = (req, res, next) => {
 
 // Apply auto-login middleware after passport initialization
 app.use(autoLoginMiddleware);
+
+// Apply general rate limiting to all routes (except static assets)
+app.use(generalLimiter);
+
+// Apply API rate limiting to all /api routes
+app.use('/api', apiLimiter);
 
 // Passport configuration with debug logging
 passport.use(new LocalStrategy(
@@ -2041,7 +2135,7 @@ app.get('/register', (req, res) => {
   res.render('register', { isDevelopmentAutoLogin, recaptchaSiteKey, error: null });
 });
 
-app.post('/register', async (req, res) => {
+app.post('/register', registrationLimiter, async (req, res) => {
   try {
     const { name, email, password, gameNickname, 'g-recaptcha-response': recaptchaResponse } = req.body;
     const clientIP = getClientIP(req);
@@ -2111,7 +2205,7 @@ app.get('/login', (req, res) => {
   res.render('login', { isDevelopmentAutoLogin });
 });
 
-app.post('/login', (req, res, next) => {
+app.post('/login', loginLimiter, (req, res, next) => {
   console.log('Login route accessed');
   console.log('Login attempt with email:', req.body.email);
 
