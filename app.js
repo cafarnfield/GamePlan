@@ -110,18 +110,15 @@ app.use(session({
   cookie: {
     maxAge: 24 * 60 * 60 * 1000, // 1 day
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production', // Enable secure cookies in production
+    secure: false, // Disable secure cookies for development
     sameSite: 'lax' // Add sameSite option for CSRF protection
   },
   name: 'gameplan.sid', // Custom session cookie name
   store: MongoStore.create({
-    mongoUrl: process.env.MONGO_URI,
+    mongoUrl: process.env.MONGO_URI || 'mongodb://localhost:27017/gameplan',
     collectionName: 'sessions',
     ttl: 24 * 60 * 60, // 1 day in seconds
-    touchAfter: 24 * 3600, // lazy session update
-    crypto: {
-      secret: process.env.SESSION_SECRET || 'your_secret_key'
-    }
+    touchAfter: 24 * 3600 // lazy session update
   })
 }));
 app.use((req, res, next) => {
@@ -2147,7 +2144,7 @@ app.get('/logout', (req, res) => {
       console.log('Error destroying session:', err);
       return res.status(500).send('Logout failed');
     }
-    res.clearCookie('connect.sid', { path: '/' });
+    res.clearCookie('gameplan.sid', { path: '/' });
     res.redirect('/'); // or res.status(200).send('Logout successful')
   });
 });
