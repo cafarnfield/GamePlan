@@ -13,6 +13,12 @@ const rawgService = require('./services/rawgService');
 // Initialize Express
 const app = express();
 
+// View engine setup
+app.set('view engine', 'ejs');
+
+// Load environment variables first
+require('dotenv').config();
+
 // Middleware with debug logging
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
@@ -24,8 +30,8 @@ app.use((req, res, next) => {
 });
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your_secret_key',
-  resave: true,
-  saveUninitialized: true,
+  resave: false, // Don't save session if unmodified
+  saveUninitialized: false, // Don't create session until something stored
   cookie: {
     maxAge: 24 * 60 * 60 * 1000, // 1 day
     httpOnly: true,
@@ -33,7 +39,15 @@ app.use(session({
     sameSite: 'lax' // Add sameSite option
   },
   name: 'gameplan.sid', // Custom session cookie name
-  store: new session.MemoryStore() // Use in-memory store for testing
+  store: MongoStore.create({
+    mongoUrl: process.env.MONGO_URI,
+    collectionName: 'sessions',
+    ttl: 24 * 60 * 60, // 1 day in seconds
+    touchAfter: 24 * 3600, // lazy session update
+    crypto: {
+      secret: process.env.SESSION_SECRET || 'your_secret_key'
+    }
+  })
 }));
 app.use((req, res, next) => {
   console.log('Session middleware accessed');
@@ -48,11 +62,7 @@ app.use((req, res, next) => {
 app.use(passport.initialize());
 app.use(passport.session());
 
-// View engine setup
-app.set('view engine', 'ejs');
-
 // MongoDB connection
-require('dotenv').config();
 
 // Mock database connection for testing
 if (process.env.MOCK_DB) {
