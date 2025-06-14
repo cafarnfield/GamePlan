@@ -2813,6 +2813,16 @@ app.get('/check-updates/:appId', async (req, res) => {
   }
 });
 
+// Health check endpoint for Docker
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'healthy', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
 // Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

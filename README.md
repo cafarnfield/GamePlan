@@ -36,17 +36,51 @@ GamePlan/
 
 ## Setup Instructions
 
-### Prerequisites
+### Docker Deployment (Recommended)
 
-- Node.js
-- MongoDB (local or MongoDB Atlas) for development
+The easiest way to deploy GamePlan is using Docker Compose:
 
-### Installation
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/cafarnfield/GamePlan.git
+   cd GamePlan
+   ```
+
+2. **Configure environment:**
+   ```bash
+   cp .env.example .env
+   nano .env  # Edit with your settings
+   ```
+
+3. **Start the application:**
+   ```bash
+   docker-compose up -d
+   ```
+
+4. **Initialize admin user:**
+   ```bash
+   docker-compose --profile init up init-admin
+   ```
+
+5. **Access the application:**
+   - Main application: `http://localhost:3000`
+   - Database admin: `http://localhost:8081` (optional)
+
+For detailed Docker deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.md).
+
+### Manual Installation (Development)
+
+#### Prerequisites
+
+- Node.js (18 or later)
+- MongoDB (local or MongoDB Atlas)
+
+#### Installation
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/gameplan.git
-   cd gameplan
+   git clone https://github.com/cafarnfield/GamePlan.git
+   cd GamePlan
    ```
 
 2. Install dependencies:
@@ -61,6 +95,8 @@ GamePlan/
    # OR
    # MONGO_URI=mongodb+srv://<username>:<password>@cluster0.mongodb.net/gameplan?retryWrites=true&w=majority  # For MongoDB Atlas
    SESSION_SECRET=your_secret_key
+   STEAM_API_KEY=your_steam_api_key
+   RAWG_API_KEY=3963501b74354e0688413453cb8c6bc4
    ```
 
 4. Start the server:
@@ -70,7 +106,7 @@ GamePlan/
 
 5. Open your browser and navigate to `http://localhost:3000`.
 
-### Using MongoDB Atlas
+#### Using MongoDB Atlas
 
 1. Sign up for a free MongoDB Atlas account at [MongoDB Atlas](https://www.mongodb.com/cloud/atlas).
 2. Create a new cluster.
@@ -81,7 +117,13 @@ GamePlan/
 
 ## Deployment
 
-### Render.com
+### Docker (Recommended)
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for comprehensive Docker deployment instructions.
+
+### Traditional Hosting
+
+#### Render.com
 
 1. Create a new web service on Render.com.
 2. Connect your GitHub repository.
@@ -89,6 +131,8 @@ GamePlan/
    - `PORT`: The port number (e.g., 3000)
    - `MONGO_URI`: Your MongoDB connection string
    - `SESSION_SECRET`: A secret key for session management
+   - `STEAM_API_KEY`: Your Steam API key (optional)
+   - `RAWG_API_KEY`: Your RAWG API key
 
 4. Deploy the application.
 
