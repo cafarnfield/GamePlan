@@ -52,7 +52,7 @@ app.use(session({
 app.use((req, res, next) => {
   console.log('Session middleware accessed');
   console.log('Session before middleware:', req.session);
-  console.log('Authenticated user:', req.isAuthenticated(), req.user);
+  console.log('Authenticated user:', req.isAuthenticated ? req.isAuthenticated() : false, req.user);
   next();
 });
 app.use((req, res, next) => {
@@ -66,15 +66,9 @@ app.use(passport.session());
 
 // Mock database connection for testing
 if (process.env.MOCK_DB) {
-  mongoose.connect('mongodb://localhost:27017/gameplan', {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-  });
+  mongoose.connect('mongodb://localhost:27017/gameplan');
 } else {
-  mongoose.connect(process.env.MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-  });
+  mongoose.connect(process.env.MONGO_URI);
 }
 
 // Models
@@ -241,7 +235,7 @@ const ensureAuthenticated = (req, res, next) => {
   if (process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development') {
     return next();
   }
-  if (req.isAuthenticated()) {
+  if (req.isAuthenticated && req.isAuthenticated()) {
     return next();
   }
   res.redirect('/login');
@@ -1941,10 +1935,7 @@ app.get('/', async (req, res) => {
   const oneHourAgo = new Date(Date.now() - 3600000);
   query.date = { $gte: oneHourAgo };
   
-  const events = await Event.find(query).populate('createdBy').populate({
-    path: 'players',
-    populate: { path: 'players' }
-  }).populate('requiredExtensions').populate('game').sort({ date: 1 }); // Sort by date ascending (soonest first)
+  const events = await Event.find(query).populate('createdBy').populate('players').populate('requiredExtensions').populate('game').sort({ date: 1 }); // Sort by date ascending (soonest first)
   
   const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
   res.render('index', { events, user: req.user, isDevelopmentAutoLogin });
