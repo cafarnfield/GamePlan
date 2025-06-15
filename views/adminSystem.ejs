@@ -5,10 +5,12 @@
     pageTitle: 'System Management',
     pageSubtitle: 'Monitor system health, security, and maintenance tools',
     breadcrumbs: [{ name: 'System', url: null }],
-    pendingUsers: 0,
-    pendingEvents: 0,
-    pendingGames: 0,
-    totalPending: 0,
+    pendingUsers: typeof pendingUsers !== 'undefined' ? pendingUsers : 0,
+    pendingEvents: typeof pendingEvents !== 'undefined' ? pendingEvents : 0,
+    pendingGames: typeof pendingGames !== 'undefined' ? pendingGames : 0,
+    totalPending: (typeof pendingUsers !== 'undefined' ? pendingUsers : 0) + 
+                  (typeof pendingEvents !== 'undefined' ? pendingEvents : 0) + 
+                  (typeof pendingGames !== 'undefined' ? pendingGames : 0),
     isDevelopmentAutoLogin: isDevelopmentAutoLogin,
     user: typeof user !== 'undefined' ? user : null
   };

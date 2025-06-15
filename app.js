@@ -226,6 +226,24 @@ const createAuditLog = async (adminUser, action, targetUser, notes = '', ipAddre
   }
 };
 
+// Helper function to get pending counts for admin navigation
+const getPendingCounts = async () => {
+  try {
+    return {
+      pendingUsers: await User.countDocuments({ status: 'pending' }),
+      pendingEvents: await Event.countDocuments({ gameStatus: 'pending' }),
+      pendingGames: await Game.countDocuments({ status: 'pending' })
+    };
+  } catch (err) {
+    console.error('Error getting pending counts:', err);
+    return {
+      pendingUsers: 0,
+      pendingEvents: 0,
+      pendingGames: 0
+    };
+  }
+};
+
 // Helper function to verify reCAPTCHA
 const verifyRecaptcha = async (recaptchaResponse) => {
   if (!process.env.RECAPTCHA_SECRET_KEY) {
@@ -1163,6 +1181,9 @@ app.get('/admin/events', ensureAuthenticated, ensureAdmin, async (req, res) => {
     // Get all games for the filter dropdown
     const games = await Game.find().sort({ name: 1 });
 
+    // Get pending counts for navigation badges
+    const pendingCounts = await getPendingCounts();
+
     const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
     res.render('adminEvents', {
       events,
@@ -1176,7 +1197,8 @@ app.get('/admin/events', ensureAuthenticated, ensureAdmin, async (req, res) => {
       currentPage: parseInt(page),
       totalPages,
       user: req.user,
-      isDevelopmentAutoLogin
+      isDevelopmentAutoLogin,
+      ...pendingCounts // Spread the pending counts for navigation badges
     });
   } catch (err) {
     console.error('Error loading admin events:', err);
@@ -1236,6 +1258,9 @@ app.get('/admin/games', ensureAuthenticated, ensureAdmin, async (req, res) => {
     const totalGames = await Game.countDocuments(query);
     const totalPages = Math.ceil(totalGames / limit);
 
+    // Get pending counts for navigation badges
+    const pendingCounts = await getPendingCounts();
+
     const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
     res.render('adminGames', { 
       games, 
@@ -1246,7 +1271,8 @@ app.get('/admin/games', ensureAuthenticated, ensureAdmin, async (req, res) => {
       currentPage: parseInt(page), 
       totalPages, 
       user: req.user, 
-      isDevelopmentAutoLogin 
+      isDevelopmentAutoLogin,
+      ...pendingCounts // Spread the pending counts for navigation badges
     });
   } catch (err) {
     console.error('Error loading admin games:', err);
@@ -1415,6 +1441,9 @@ app.get('/admin/system', ensureAuthenticated, ensureSuperAdmin, async (req, res)
       .sort({ timestamp: -1 })
       .limit(20);
 
+    // Get pending counts for navigation badges
+    const pendingCounts = await getPendingCounts();
+
     const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
     res.render('adminSystem', { 
       user: req.user, 
@@ -1422,7 +1451,8 @@ app.get('/admin/system', ensureAuthenticated, ensureSuperAdmin, async (req, res)
       systemHealth,
       systemStats,
       suspiciousIPs,
-      recentAuditLogs
+      recentAuditLogs,
+      ...pendingCounts // Spread the pending counts for navigation badges
     });
   } catch (err) {
     console.error('Error loading admin system:', err);
