@@ -1,0 +1,1104 @@
+<% 
+  const layoutData = {
+    title: 'Error Logs',
+    currentPage: 'error-logs',
+    pageTitle: 'Error Logs',
+    pageSubtitle: 'Monitor and manage application errors',
+    breadcrumbs: [
+      { name: 'Error Logs', url: null }
+    ],
+    pendingUsers: typeof pendingUsers !== 'undefined' ? pendingUsers : 0,
+    pendingEvents: typeof pendingEvents !== 'undefined' ? pendingEvents : 0,
+    pendingGames: typeof pendingGames !== 'undefined' ? pendingGames : 0,
+    totalPending: (typeof pendingUsers !== 'undefined' ? pendingUsers : 0) + (typeof pendingEvents !== 'undefined' ? pendingEvents : 0) + (typeof pendingGames !== 'undefined' ? pendingGames : 0),
+    isDevelopmentAutoLogin: isDevelopmentAutoLogin,
+    user: typeof user !== 'undefined' ? user : null
+  };
+%>
+
+<%- include('partials/adminLayoutHeader', layoutData) %>
+
+<style>
+  .error-logs-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+    gap: 15px;
+  }
+  
+  .error-stats {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  
+  .stat-badge {
+    background: rgba(0, 50, 0, 0.8);
+    border: 1px solid #00ff00;
+    padding: 8px 15px;
+    font-size: 10px;
+    color: #00ff00;
+  }
+  
+  .stat-badge.critical {
+    background: rgba(255, 0, 0, 0.2);
+    border-color: #ff0000;
+    color: #ff0000;
+  }
+  
+  .stat-badge.unresolved {
+    background: rgba(255, 165, 0, 0.2);
+    border-color: #ffa500;
+    color: #ffa500;
+  }
+  
+  .stat-badge.today {
+    background: rgba(0, 255, 255, 0.2);
+    border-color: #00ffff;
+    color: #00ffff;
+  }
+  
+  .stat-badge.hour {
+    background: rgba(255, 255, 0, 0.2);
+    border-color: #ffff00;
+    color: #ffff00;
+  }
+  
+  .error-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  
+  .action-btn {
+    background: rgba(0, 255, 0, 0.8);
+    color: #000;
+    border: 1px solid #00ff00;
+    padding: 10px 15px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    transition: all 0.3s ease;
+  }
+  
+  .action-btn:hover {
+    background: rgba(0, 255, 0, 0.9);
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+  }
+  
+  .action-btn.secondary {
+    background: rgba(0, 100, 255, 0.8);
+    color: #fff;
+    border-color: #0066ff;
+  }
+  
+  .action-btn.secondary:hover {
+    background: rgba(0, 150, 255, 0.9);
+  }
+  
+  .action-btn.danger {
+    background: rgba(255, 0, 0, 0.8);
+    color: #fff;
+    border-color: #ff0000;
+  }
+  
+  .action-btn.danger:hover {
+    background: rgba(255, 0, 0, 0.9);
+  }
+  
+  .filters-section {
+    background: rgba(0, 20, 0, 0.8);
+    border: 1px solid #00ff00;
+    padding: 20px;
+    margin-bottom: 30px;
+  }
+  
+  .filters-title {
+    font-size: 12px;
+    color: #00ff00;
+    margin: 0 0 15px 0;
+  }
+  
+  .quick-filters {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 15px;
+  }
+  
+  .quick-filter-btn {
+    background: rgba(0, 50, 0, 0.8);
+    color: #00ff00;
+    border: 1px solid #00ff00;
+    padding: 6px 12px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    transition: all 0.3s ease;
+  }
+  
+  .quick-filter-btn:hover,
+  .quick-filter-btn.active {
+    background: rgba(0, 255, 0, 0.8);
+    color: #000;
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+  }
+  
+  .filters-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 15px;
+  }
+  
+  .filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  
+  .filter-label {
+    font-size: 8px;
+    color: #888;
+  }
+  
+  .filter-input, .filter-select {
+    background: #000;
+    color: #00ff00;
+    border: 1px solid #00ff00;
+    padding: 8px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+  }
+  
+  .filter-input:focus, .filter-select:focus {
+    outline: none;
+    border-color: #00ffff;
+    box-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
+  }
+  
+  .filter-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+  
+  .error-logs-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: rgba(0, 10, 0, 0.8);
+    border: 1px solid #00ff00;
+    margin-bottom: 30px;
+  }
+  
+  .table-header {
+    background: rgba(0, 50, 0, 0.8);
+    border-bottom: 1px solid #00ff00;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+  }
+  
+  .table-title {
+    font-size: 12px;
+    color: #00ff00;
+    margin: 0;
+  }
+  
+  .table-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  
+  .error-logs-table th,
+  .error-logs-table td {
+    border: 1px solid #00ff00;
+    padding: 10px;
+    text-align: left;
+    font-size: 8px;
+  }
+  
+  .error-logs-table th {
+    background: rgba(0, 50, 0, 0.8);
+    color: #00ff00;
+    font-size: 10px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  
+  .error-logs-table tr:nth-child(even) {
+    background: rgba(0, 20, 0, 0.5);
+  }
+  
+  .error-logs-table tr:hover {
+    background: rgba(0, 255, 0, 0.1);
+  }
+  
+  .severity-badge {
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 6px;
+    font-weight: bold;
+  }
+  
+  .severity-low {
+    background: rgba(0, 255, 0, 0.2);
+    color: #00ff00;
+    border: 1px solid #00ff00;
+  }
+  
+  .severity-medium {
+    background: rgba(255, 255, 0, 0.2);
+    color: #ffff00;
+    border: 1px solid #ffff00;
+  }
+  
+  .severity-high {
+    background: rgba(255, 165, 0, 0.2);
+    color: #ffa500;
+    border: 1px solid #ffa500;
+  }
+  
+  .severity-critical {
+    background: rgba(255, 0, 0, 0.2);
+    color: #ff0000;
+    border: 1px solid #ff0000;
+  }
+  
+  .status-badge {
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 6px;
+    font-weight: bold;
+  }
+  
+  .status-new {
+    background: rgba(255, 0, 0, 0.2);
+    color: #ff0000;
+    border: 1px solid #ff0000;
+  }
+  
+  .status-investigating {
+    background: rgba(255, 255, 0, 0.2);
+    color: #ffff00;
+    border: 1px solid #ffff00;
+  }
+  
+  .status-resolved {
+    background: rgba(0, 255, 0, 0.2);
+    color: #00ff00;
+    border: 1px solid #00ff00;
+  }
+  
+  .status-ignored {
+    background: rgba(100, 100, 100, 0.2);
+    color: #888;
+    border: 1px solid #888;
+  }
+  
+  .error-type {
+    font-family: 'Courier New', monospace;
+    font-size: 7px;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 2px 6px;
+    border-radius: 3px;
+    color: #00ffff;
+    border: 1px solid #00ffff;
+  }
+  
+  .error-message {
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #fff;
+  }
+  
+  .user-info {
+    font-size: 7px;
+    color: #888;
+  }
+  
+  .timestamp {
+    font-size: 7px;
+    color: #888;
+  }
+  
+  .error-actions {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+  }
+  
+  .error-btn {
+    background: rgba(0, 100, 255, 0.8);
+    color: #fff;
+    border: 1px solid #0066ff;
+    padding: 4px 8px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 6px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    transition: all 0.3s ease;
+  }
+  
+  .error-btn:hover {
+    background: rgba(0, 150, 255, 0.9);
+  }
+  
+  .error-btn.view {
+    background: rgba(0, 255, 0, 0.8);
+    border-color: #00ff00;
+    color: #000;
+  }
+  
+  .error-btn.view:hover {
+    background: rgba(0, 255, 0, 0.9);
+  }
+  
+  .error-btn.investigate {
+    background: rgba(255, 255, 0, 0.8);
+    border-color: #ffff00;
+    color: #000;
+  }
+  
+  .error-btn.investigate:hover {
+    background: rgba(255, 255, 0, 0.9);
+  }
+  
+  .error-btn.resolve {
+    background: rgba(0, 255, 0, 0.8);
+    border-color: #00ff00;
+    color: #000;
+  }
+  
+  .error-btn.resolve:hover {
+    background: rgba(0, 255, 0, 0.9);
+  }
+  
+  .no-errors {
+    text-align: center;
+    padding: 60px 20px;
+    color: #888;
+    font-size: 12px;
+  }
+  
+  .no-errors-icon {
+    font-size: 48px;
+    margin-bottom: 20px;
+    display: block;
+  }
+  
+  .pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  
+  .pagination a,
+  .pagination span {
+    background: rgba(0, 50, 0, 0.8);
+    color: #00ff00;
+    border: 1px solid #00ff00;
+    padding: 8px 12px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    text-decoration: none;
+    transition: all 0.3s ease;
+  }
+  
+  .pagination .current {
+    background: rgba(0, 255, 0, 0.8);
+    color: #000;
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+  }
+  
+  .pagination a:hover {
+    background: rgba(0, 255, 0, 0.8);
+    color: #000;
+  }
+  
+  .error-detail-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 1000;
+  }
+  
+  .modal-content {
+    background: rgba(0, 10, 0, 0.95);
+    border: 2px solid #00ff00;
+    margin: 2% auto;
+    padding: 0;
+    width: 90%;
+    max-width: 1000px;
+    max-height: 90vh;
+    overflow: hidden;
+  }
+  
+  .modal-header {
+    background: rgba(0, 50, 0, 0.8);
+    border-bottom: 1px solid #00ff00;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .modal-title {
+    font-size: 12px;
+    color: #00ff00;
+    margin: 0;
+  }
+  
+  .close-btn {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: #ff0000;
+    font-family: 'Press Start 2P', monospace;
+  }
+  
+  .close-btn:hover {
+    color: #ff6666;
+  }
+  
+  .modal-body {
+    padding: 20px;
+    max-height: 70vh;
+    overflow-y: auto;
+    color: #00ff00;
+  }
+  
+  .copy-buttons {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  
+  .copy-btn {
+    background: rgba(0, 255, 0, 0.8);
+    color: #000;
+    border: 1px solid #00ff00;
+    padding: 8px 16px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  
+  .copy-btn:hover {
+    background: rgba(0, 255, 0, 0.9);
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+  }
+  
+  .copy-btn.copied {
+    background: rgba(100, 100, 100, 0.8);
+    color: #888;
+    border-color: #888;
+  }
+  
+  .detail-section {
+    margin-bottom: 20px;
+  }
+  
+  .detail-section h4 {
+    margin: 0 0 10px 0;
+    color: #00ffff;
+    font-size: 10px;
+  }
+  
+  .detail-content {
+    background: rgba(0, 0, 0, 0.8);
+    border: 1px solid #00ff00;
+    padding: 15px;
+    font-family: 'Courier New', monospace;
+    font-size: 8px;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    max-height: 200px;
+    overflow-y: auto;
+    color: #00ff00;
+  }
+  
+  .admin-actions {
+    background: rgba(0, 50, 0, 0.8);
+    border-top: 1px solid #00ff00;
+    padding: 15px 20px;
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+  
+  /* Mobile optimizations */
+  @media (max-width: 768px) {
+    .error-logs-header {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    
+    .error-stats {
+      justify-content: center;
+    }
+    
+    .error-actions {
+      justify-content: center;
+    }
+    
+    .filters-grid {
+      grid-template-columns: 1fr;
+    }
+    
+    .quick-filters {
+      justify-content: center;
+    }
+    
+    .table-header {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    
+    .error-logs-table {
+      font-size: 6px;
+    }
+    
+    .error-logs-table th,
+    .error-logs-table td {
+      padding: 5px;
+    }
+    
+    .error-actions {
+      flex-direction: column;
+    }
+    
+    .modal-content {
+      width: 95%;
+      margin: 5% auto;
+    }
+    
+    .copy-buttons {
+      justify-content: center;
+    }
+    
+    .admin-actions {
+      justify-content: center;
+    }
+  }
+</style>
+
+<!-- Error Logs Header -->
+<div class="error-logs-header">
+  <div class="error-stats">
+    <div class="stat-badge">
+      🔢 Total: <%= stats.total %>
+    </div>
+    <div class="stat-badge unresolved">
+      ⚠️ Unresolved: <%= stats.unresolved %>
+    </div>
+    <div class="stat-badge critical">
+      🚨 Critical: <%= stats.critical %>
+    </div>
+    <div class="stat-badge today">
+      📅 Today: <%= stats.today %>
+    </div>
+    <div class="stat-badge hour">
+      ⏰ Last Hour: <%= stats.lastHour %>
+    </div>
+  </div>
+  
+  <div class="error-actions">
+    <button onclick="exportErrors()" class="action-btn secondary">📊 Export</button>
+    <button onclick="cleanupOldErrors()" class="action-btn danger">🧹 Cleanup</button>
+    <% if (stats.unresolved > 0) { %>
+      <a href="/admin/error-logs?filter=unresolved" class="action-btn">⚠️ Review Unresolved</a>
+    <% } %>
+  </div>
+</div>
+
+<!-- Filters Section -->
+<div class="filters-section">
+  <h3 class="filters-title">🔍 Filter Error Logs</h3>
+  
+  <div class="quick-filters">
+    <a href="/admin/error-logs" class="quick-filter-btn <%= !filter ? 'active' : '' %>">All</a>
+    <a href="/admin/error-logs?filter=unresolved" class="quick-filter-btn <%= filter === 'unresolved' ? 'active' : '' %>">Unresolved</a>
+    <a href="/admin/error-logs?filter=critical" class="quick-filter-btn <%= filter === 'critical' ? 'active' : '' %>">Critical</a>
+    <a href="/admin/error-logs?filter=today" class="quick-filter-btn <%= filter === 'today' ? 'active' : '' %>">Today</a>
+    <a href="/admin/error-logs?filter=hour" class="quick-filter-btn <%= filter === 'hour' ? 'active' : '' %>">Last Hour</a>
+  </div>
+  
+  <form method="GET" action="/admin/error-logs" id="filterForm">
+    <div class="filters-grid">
+      <div class="filter-group">
+        <label class="filter-label">Error Type</label>
+        <select name="errorType" class="filter-select">
+          <option value="">All Types</option>
+          <option value="ValidationError" <%= errorType === 'ValidationError' ? 'selected' : '' %>>Validation</option>
+          <option value="AuthenticationError" <%= errorType === 'AuthenticationError' ? 'selected' : '' %>>Authentication</option>
+          <option value="AuthorizationError" <%= errorType === 'AuthorizationError' ? 'selected' : '' %>>Authorization</option>
+          <option value="NotFoundError" <%= errorType === 'NotFoundError' ? 'selected' : '' %>>Not Found</option>
+          <option value="DatabaseError" <%= errorType === 'DatabaseError' ? 'selected' : '' %>>Database</option>
+          <option value="ExternalServiceError" <%= errorType === 'ExternalServiceError' ? 'selected' : '' %>>External Service</option>
+        </select>
+      </div>
+      
+      <div class="filter-group">
+        <label class="filter-label">Severity</label>
+        <select name="severity" class="filter-select">
+          <option value="">All Severities</option>
+          <option value="low" <%= severity === 'low' ? 'selected' : '' %>>Low</option>
+          <option value="medium" <%= severity === 'medium' ? 'selected' : '' %>>Medium</option>
+          <option value="high" <%= severity === 'high' ? 'selected' : '' %>>High</option>
+          <option value="critical" <%= severity === 'critical' ? 'selected' : '' %>>Critical</option>
+        </select>
+      </div>
+      
+      <div class="filter-group">
+        <label class="filter-label">Status</label>
+        <select name="status" class="filter-select">
+          <option value="">All Statuses</option>
+          <option value="new" <%= status === 'new' ? 'selected' : '' %>>New</option>
+          <option value="investigating" <%= status === 'investigating' ? 'selected' : '' %>>Investigating</option>
+          <option value="resolved" <%= status === 'resolved' ? 'selected' : '' %>>Resolved</option>
+          <option value="ignored" <%= status === 'ignored' ? 'selected' : '' %>>Ignored</option>
+        </select>
+      </div>
+      
+      <div class="filter-group">
+        <label class="filter-label">Search</label>
+        <input type="text" name="search" class="filter-input" value="<%= search || '' %>" placeholder="Error message, user, URL...">
+      </div>
+      
+      <div class="filter-group">
+        <label class="filter-label">From Date</label>
+        <input type="datetime-local" name="dateFrom" class="filter-input" value="<%= dateFrom || '' %>">
+      </div>
+      
+      <div class="filter-group">
+        <label class="filter-label">To Date</label>
+        <input type="datetime-local" name="dateTo" class="filter-input" value="<%= dateTo || '' %>">
+      </div>
+    </div>
+    
+    <div class="filter-actions">
+      <button type="submit" class="action-btn">Apply Filters</button>
+      <a href="/admin/error-logs" class="action-btn secondary">Clear All</a>
+    </div>
+  </form>
+</div>
+
+<!-- Error Logs Table -->
+<div class="error-logs-table">
+  <div class="table-header">
+    <h3 class="table-title">🚨 Error Logs (<%= totalErrors %> total)</h3>
+    <div class="table-actions">
+      <button onclick="exportErrors()" class="action-btn secondary">📊 Export</button>
+      <button onclick="cleanupOldErrors()" class="action-btn danger">🧹 Cleanup Old</button>
+    </div>
+  </div>
+  
+  <% if (errorLogs.length === 0) { %>
+    <div class="no-errors">
+      <span class="no-errors-icon">✅</span>
+      <h3>No error logs found</h3>
+      <p>No errors match your current filters.</p>
+    </div>
+  <% } else { %>
+    <table class="error-logs-table">
+      <thead>
+        <tr>
+          <th>⏰ Time</th>
+          <th>🏷️ Type</th>
+          <th>💬 Message</th>
+          <th>👤 User</th>
+          <th>🌐 URL</th>
+          <th>⚡ Severity</th>
+          <th>📊 Status</th>
+          <th>🔧 Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% errorLogs.forEach(error => { %>
+          <tr>
+            <td class="timestamp">
+              <%= new Date(error.timestamp).toLocaleString() %>
+            </td>
+            <td>
+              <span class="error-type"><%= error.errorType %></span>
+            </td>
+            <td class="error-message" title="<%= error.message %>">
+              <%= error.message %>
+            </td>
+            <td class="user-info">
+              <% if (error.userContext.email) { %>
+                <%= error.userContext.email %>
+                <% if (error.userContext.isAdmin) { %>
+                  <div style="color: #ffa500; font-size: 6px;">👑 ADMIN</div>
+                <% } %>
+              <% } else { %>
+                👻 Anonymous
+              <% } %>
+            </td>
+            <td>
+              <div title="<%= error.requestContext.originalUrl %>">
+                <strong><%= error.requestContext.method %></strong>
+                <div style="font-size: 6px; color: #888;">
+                  <%= error.requestContext.url.length > 25 ? error.requestContext.url.substring(0, 25) + '...' : error.requestContext.url %>
+                </div>
+              </div>
+            </td>
+            <td>
+              <span class="severity-badge severity-<%= error.analytics.severity %>">
+                <%= error.analytics.severity.toUpperCase() %>
+              </span>
+            </td>
+            <td>
+              <span class="status-badge status-<%= error.resolution.status %>">
+                <%= error.resolution.status.toUpperCase() %>
+              </span>
+            </td>
+            <td>
+              <div class="error-actions">
+                <button onclick="viewError('<%= error._id %>')" class="error-btn view">👁️ View</button>
+                <% if (error.resolution.status === 'new') { %>
+                  <button onclick="markAsInvestigating('<%= error._id %>')" class="error-btn investigate">🔍 Investigate</button>
+                <% } %>
+                <% if (error.resolution.status !== 'resolved') { %>
+                  <button onclick="markAsResolved('<%= error._id %>')" class="error-btn resolve">✅ Resolve</button>
+                <% } %>
+              </div>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  <% } %>
+  
+  <!-- Pagination -->
+  <% if (totalPages > 1) { %>
+    <div class="pagination">
+      <% if (page > 1) { %>
+        <a href="?page=<%= page - 1 %>&<%= new URLSearchParams(Object.entries(req.query).filter(([key]) => key !== 'page')).toString() %>">⬅️ Previous</a>
+      <% } %>
+      
+      <% for (let i = Math.max(1, page - 2); i <= Math.min(totalPages, page + 2); i++) { %>
+        <% if (i === page) { %>
+          <span class="current"><%= i %></span>
+        <% } else { %>
+          <a href="?page=<%= i %>&<%= new URLSearchParams(Object.entries(req.query).filter(([key]) => key !== 'page')).toString() %>"><%= i %></a>
+        <% } %>
+      <% } %>
+      
+      <% if (page < totalPages) { %>
+        <a href="?page=<%= page + 1 %>&<%= new URLSearchParams(Object.entries(req.query).filter(([key]) => key !== 'page')).toString() %>">Next ➡️</a>
+      <% } %>
+    </div>
+  <% } %>
+</div>
+
+<!-- Error Detail Modal -->
+<div id="errorDetailModal" class="error-detail-modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 class="modal-title">🚨 Error Details</h3>
+      <button class="close-btn" onclick="closeErrorModal()">✖</button>
+    </div>
+    <div class="modal-body" id="errorDetailContent">
+      <!-- Content loaded dynamically -->
+    </div>
+    <div class="admin-actions">
+      <button id="markInvestigatingBtn" class="action-btn secondary" style="display: none;">🔍 Mark as Investigating</button>
+      <button id="markResolvedBtn" class="action-btn" style="display: none;">✅ Mark as Resolved</button>
+      <button onclick="closeErrorModal()" class="action-btn danger">❌ Close</button>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/adminLayoutFooter') %>
+
+<script>
+  let currentErrorId = null;
+  
+  // View error details
+  async function viewError(errorId) {
+    try {
+      currentErrorId = errorId;
+      const response = await fetch(`/admin/error-logs/${errorId}`);
+      if (!response.ok) throw new Error('Failed to fetch error details');
+      
+      const error = await response.json();
+      displayErrorDetails(error);
+      document.getElementById('errorDetailModal').style.display = 'block';
+    } catch (err) {
+      console.error('Error fetching error details:', err);
+      alert('Failed to load error details');
+    }
+  }
+  
+  function displayErrorDetails(error) {
+    const content = document.getElementById('errorDetailContent');
+    
+    content.innerHTML = `
+      <div class="copy-buttons">
+        <button class="copy-btn" onclick="copyToClipboard('ai-format', '${error._id}')">🤖 Copy AI Format</button>
+        <button class="copy-btn" onclick="copyToClipboard('technical', '${error._id}')">🔧 Copy Technical</button>
+        <button class="copy-btn" onclick="copyToClipboard('user-context', '${error._id}')">👤 Copy User Context</button>
+      </div>
+      
+      <div class="detail-section">
+        <h4>📋 Basic Information</h4>
+        <div class="detail-content">Error Type: ${error.errorType}
+Message: ${error.message}
+Timestamp: ${new Date(error.timestamp).toLocaleString()}
+Request ID: ${error.requestId}
+Status Code: ${error.statusCode}
+Severity: ${error.analytics.severity}
+Status: ${error.resolution.status}</div>
+      </div>
+      
+      <div class="detail-section">
+        <h4>👤 User Context</h4>
+        <div class="detail-content">Email: ${error.userContext.email || 'Anonymous'}
+Name: ${error.userContext.name || 'N/A'}
+Authenticated: ${error.userContext.isAuthenticated ? 'Yes' : 'No'}
+Admin: ${error.userContext.isAdmin ? 'Yes' : 'No'}
+Session ID: ${error.userContext.sessionId || 'N/A'}</div>
+      </div>
+      
+      <div class="detail-section">
+        <h4>🌐 Request Context</h4>
+        <div class="detail-content">Method: ${error.requestContext.method}
+URL: ${error.requestContext.originalUrl}
+IP: ${error.requestContext.ip}
+User Agent: ${error.requestContext.userAgent}
+Referer: ${error.requestContext.referer || 'Direct access'}</div>
+      </div>
+      
+      <div class="detail-section">
+        <h4>🔧 Technical Details</h4>
+        <div class="detail-content">${error.errorDetails.stack || 'No stack trace available'}</div>
+      </div>
+      
+      ${error.resolution.adminNotes ? `
+      <div class="detail-section">
+        <h4>📝 Admin Notes</h4>
+        <div class="detail-content">${error.resolution.adminNotes}</div>
+      </div>
+      ` : ''}
+    `;
+    
+    // Update action buttons
+    const investigatingBtn = document.getElementById('markInvestigatingBtn');
+    const resolvedBtn = document.getElementById('markResolvedBtn');
+    
+    if (error.resolution.status === 'new') {
+      investigatingBtn.style.display = 'inline-block';
+      investigatingBtn.onclick = () => markAsInvestigating(error._id);
+    } else {
+      investigatingBtn.style.display = 'none';
+    }
+    
+    if (error.resolution.status !== 'resolved') {
+      resolvedBtn.style.display = 'inline-block';
+      resolvedBtn.onclick = () => markAsResolved(error._id);
+    } else {
+      resolvedBtn.style.display = 'none';
+    }
+  }
+  
+  async function copyToClipboard(format, errorId) {
+    try {
+      const response = await fetch(`/admin/error-logs/${errorId}/${format}`);
+      if (!response.ok) throw new Error('Failed to fetch formatted content');
+      
+      const text = await response.text();
+      await navigator.clipboard.writeText(text);
+      
+      // Visual feedback
+      const button = event.target;
+      const originalText = button.textContent;
+      button.textContent = '✅ Copied!';
+      button.classList.add('copied');
+      
+      setTimeout(() => {
+        button.textContent = originalText;
+        button.classList.remove('copied');
+      }, 2000);
+    } catch (err) {
+      console.error('Error copying to clipboard:', err);
+      alert('Failed to copy to clipboard');
+    }
+  }
+  
+  function closeErrorModal() {
+    document.getElementById('errorDetailModal').style.display = 'none';
+    currentErrorId = null;
+  }
+  
+  // Close modal when clicking outside
+  window.onclick = function(event) {
+    const modal = document.getElementById('errorDetailModal');
+    if (event.target === modal) {
+      closeErrorModal();
+    }
+  }
+  
+  // Status update functions
+  async function markAsInvestigating(errorId) {
+    const notes = prompt('Add investigation notes (optional):');
+    if (notes === null) return; // User cancelled
+    
+    try {
+      const response = await fetch(`/admin/error-logs/${errorId}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          status: 'investigating',
+          notes: notes || ''
+        })
+      });
+      
+      if (response.ok) {
+        location.reload();
+      } else {
+        alert('Error updating status');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error updating status');
+    }
+  }
+  
+  async function markAsResolved(errorId) {
+    const resolution = prompt('How was this resolved?');
+    if (!resolution || resolution.trim() === '') {
+      alert('Please provide resolution details');
+      return;
+    }
+    
+    const notes = prompt('Additional notes (optional):');
+    if (notes === null) return; // User cancelled
+    
+    try {
+      const response = await fetch(`/admin/error-logs/${errorId}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          status: 'resolved',
+          resolution: resolution,
+          notes: notes || ''
+        })
+      });
+      
+      if (response.ok) {
+        location.reload();
+      } else {
+        alert('Error marking as resolved');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error marking as resolved');
+    }
+  }
+  
+  // Export and cleanup functions
+  async function exportErrors() {
+    const params = new URLSearchParams(window.location.search);
+    params.delete('page'); // Remove page parameter for export
+    
+    const exportUrl = `/admin/error-logs/export?${params.toString()}`;
+    window.open(exportUrl, '_blank');
+  }
+  
+  async function cleanupOldErrors() {
+    if (!confirm('This will delete error logs older than 90 days. Are you sure?')) {
+      return;
+    }
+    
+    try {
+      const response = await fetch('/admin/error-logs/cleanup', {
+        method: 'POST'
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        alert(`Cleanup completed: ${result.deletedCount} old error logs deleted`);
+        location.reload();
+      } else {
+        alert('Error during cleanup');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error during cleanup');
+    }
+  }
+  
+  // Keyboard shortcuts
+  document.addEventListener('keydown', function(e) {
+    // ESC to close modal
+    if (e.key === 'Escape' && currentErrorId) {
+      closeErrorModal();
+    }
+    
+    // Ctrl+E to export
+    if (e.ctrlKey && e.key === 'e') {
+      e.preventDefault();
+      exportErrors();
+    }
+  });
+  
+  // Auto-refresh for real-time monitoring (every 30 seconds)
+  let autoRefreshInterval;
+  
+  function startAutoRefresh() {
+    autoRefreshInterval = setInterval(() => {
+      // Only refresh if no modal is open
+      if (!currentErrorId) {
+        location.reload();
+      }
+    }, 30000); // 30 seconds
+  }
+  
+  function stopAutoRefresh() {
+    if (autoRefreshInterval) {
+      clearInterval(autoRefreshInterval);
+    }
+  }
+  
+  // Start auto-refresh on page load
+  document.addEventListener('DOMContentLoaded', function() {
+    startAutoRefresh();
+  });
+  
+  // Stop auto-refresh when page is hidden
+  document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+      stopAutoRefresh();
+    } else {
+      startAutoRefresh();
+    }
+  });
+</script>

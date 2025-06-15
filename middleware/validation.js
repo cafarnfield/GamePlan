@@ -1,4 +1,6 @@
 const { validationResult } = require('express-validator');
+const { ValidationError } = require('../utils/errors');
+const { ErrorFactory } = require('../utils/errorUtils');
 
 /**
  * Middleware to handle validation errors
@@ -10,53 +12,18 @@ const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
   
   if (!errors.isEmpty()) {
-    const errorMessages = errors.array().map(error => ({
-      field: error.path || error.param,
-      message: error.msg,
-      value: error.value
-    }));
-    
     // Log validation errors for security monitoring
     console.log('Validation errors:', {
       ip: getClientIP(req),
       url: req.originalUrl,
       method: req.method,
-      errors: errorMessages,
+      errors: errors.array(),
       timestamp: new Date().toISOString()
     });
     
-    // Check if it's an API request or form submission
-    if (req.xhr || req.headers.accept?.includes('application/json')) {
-      return res.status(400).json({
-        error: 'Validation failed',
-        details: errorMessages
-      });
-    }
-    
-    // For form submissions, redirect back with error messages
-    const errorMessage = errorMessages.map(err => err.message).join(', ');
-    
-    // Handle different routes appropriately
-    if (req.originalUrl.includes('/register')) {
-      const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
-      const recaptchaSiteKey = process.env.RECAPTCHA_SITE_KEY || '';
-      return res.render('register', { 
-        isDevelopmentAutoLogin, 
-        recaptchaSiteKey,
-        error: errorMessage 
-      });
-    }
-    
-    if (req.originalUrl.includes('/login')) {
-      const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
-      return res.render('login', { 
-        isDevelopmentAutoLogin,
-        error: errorMessage 
-      });
-    }
-    
-    // Default error response
-    return res.status(400).send(`Validation Error: ${errorMessage}`);
+    // Create standardized validation error and pass to centralized handler
+    const validationError = ErrorFactory.fromValidationResult(errors);
+    return next(validationError);
   }
   
   next();

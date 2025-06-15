@@ -331,6 +331,13 @@
           </li>
           
           <li class="admin-nav-item">
+            <a href="/admin/error-logs" class="admin-nav-link <%= currentPage === 'error-logs' ? 'active' : '' %>">
+              <span class="admin-nav-icon">🚨</span>
+              Error Logs
+            </a>
+          </li>
+          
+          <li class="admin-nav-item">
             <a href="/admin/system" class="admin-nav-link <%= currentPage === 'system' ? 'active' : '' %>">
               <span class="admin-nav-icon">⚙️</span>
               System
@@ -382,6 +389,13 @@
                 <% if (typeof pendingGames !== 'undefined' && pendingGames > 0) { %>
                   <span class="admin-nav-badge"><%= pendingGames %></span>
                 <% } %>
+              </a>
+            </li>
+            
+            <li class="admin-nav-item">
+              <a href="/admin/error-logs" class="admin-nav-link <%= currentPage === 'error-logs' ? 'active' : '' %>">
+                <span class="admin-nav-icon">🚨</span>
+                Error Logs
               </a>
             </li>
             

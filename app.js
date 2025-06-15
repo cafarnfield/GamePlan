@@ -14,6 +14,25 @@ const rawgService = require('./services/rawgService');
 
 // Import validation middleware and validators
 const { handleValidationErrors } = require('./middleware/validation');
+
+// Import centralized error handling
+const {
+  requestIdMiddleware,
+  notFoundHandler,
+  errorHandler,
+  asyncErrorHandler,
+  handleDatabaseErrors
+} = require('./middleware/errorHandler');
+
+// Import custom errors
+const {
+  NotFoundError,
+  AuthenticationError,
+  AuthorizationError,
+  ValidationError,
+  DatabaseError,
+  ExternalServiceError
+} = require('./utils/errors');
 const {
   validateRegistration,
   validateLogin,
@@ -194,6 +213,7 @@ const Event = require('./models/Event');
 const Game = require('./models/Game');
 const AuditLog = require('./models/AuditLog');
 const RejectedEmail = require('./models/RejectedEmail');
+const ErrorLog = require('./models/ErrorLog');
 
 // Helper function to get client IP address
 const getClientIP = (req) => {
@@ -392,11 +412,17 @@ const autoLoginMiddleware = (req, res, next) => {
 // Apply auto-login middleware after passport initialization
 app.use(autoLoginMiddleware);
 
+// Add request ID middleware for error tracking
+app.use(requestIdMiddleware);
+
 // Apply general rate limiting to all routes (except static assets)
 app.use(generalLimiter);
 
 // Apply API rate limiting to all /api routes
 app.use('/api', apiLimiter);
+
+// Initialize database error handling
+handleDatabaseErrors();
 
 // Passport configuration with debug logging
 passport.use(new LocalStrategy(
@@ -482,7 +508,8 @@ const ensureAdmin = (req, res, next) => {
   if (req.isAuthenticated() && req.user && req.user.isAdmin) {
     return next();
   }
-  res.status(403).send('You are not authorized to perform this action');
+  
+  throw new AuthorizationError('You are not authorized to perform this action');
 };
 
 // Middleware to check if user is super admin
@@ -498,7 +525,8 @@ const ensureSuperAdmin = (req, res, next) => {
   if (req.isAuthenticated() && req.user && req.user.isSuperAdmin) {
     return next();
   }
-  res.status(403).send('Super Admin privileges required for this action');
+  
+  throw new AuthorizationError('Super Admin privileges required for this action');
 };
 
 // Middleware to check admin operation permissions
@@ -566,40 +594,30 @@ app.get('/api/config-health', (req, res) => {
 });
 
 // Steam search API endpoint
-app.get('/api/steam/search', apiLimiter, validateSteamSearch, handleValidationErrors, async (req, res) => {
-  try {
-    const { q } = req.query;
-    console.log('Steam search request for:', q);
-    
-    if (!q || q.trim().length === 0) {
-      return res.status(400).json({ error: 'Search query is required' });
-    }
-    
-    const results = await steamService.searchGames(q.trim());
-    res.json(results);
-  } catch (error) {
-    console.error('Steam search error:', error);
-    res.status(500).json({ error: 'Failed to search Steam games' });
+app.get('/api/steam/search', apiLimiter, validateSteamSearch, handleValidationErrors, asyncErrorHandler(async (req, res) => {
+  const { q } = req.query;
+  console.log('Steam search request for:', q);
+  
+  if (!q || q.trim().length === 0) {
+    throw new ValidationError('Search query is required');
   }
-});
+  
+  const results = await steamService.searchGames(q.trim());
+  res.json(results);
+}));
 
 // RAWG search API endpoint
-app.get('/api/rawg/search', apiLimiter, validateRawgSearch, handleValidationErrors, async (req, res) => {
-  try {
-    const { q } = req.query;
-    console.log('RAWG search request for:', q);
-    
-    if (!q || q.trim().length === 0) {
-      return res.status(400).json({ error: 'Search query is required' });
-    }
-    
-    const results = await rawgService.searchGames(q.trim());
-    res.json(results);
-  } catch (error) {
-    console.error('RAWG search error:', error);
-    res.status(500).json({ error: 'Failed to search RAWG games' });
+app.get('/api/rawg/search', apiLimiter, validateRawgSearch, handleValidationErrors, asyncErrorHandler(async (req, res) => {
+  const { q } = req.query;
+  console.log('RAWG search request for:', q);
+  
+  if (!q || q.trim().length === 0) {
+    throw new ValidationError('Search query is required');
   }
-});
+  
+  const results = await rawgService.searchGames(q.trim());
+  res.json(results);
+}));
 
 // Routes
 app.get('/', async (req, res) => {
@@ -1953,6 +1971,384 @@ app.post('/admin/users/bulk-delete', ensureAuthenticated, ensureAdmin, validateB
     res.status(500).json({ error: 'Error in bulk delete operation' });
   }
 });
+
+// Error Logs Management Routes
+app.get('/admin/error-logs', ensureAuthenticated, ensureAdmin, asyncErrorHandler(async (req, res) => {
+  try {
+    const { 
+      filter, 
+      errorType, 
+      severity, 
+      status, 
+      search, 
+      dateFrom, 
+      dateTo, 
+      page = 1 
+    } = req.query;
+    
+    const limit = 20;
+    const skip = (page - 1) * limit;
+    
+    // Build query
+    let query = {};
+    
+    // Quick filters
+    if (filter === 'unresolved') {
+      query['resolution.status'] = { $in: ['new', 'investigating'] };
+    } else if (filter === 'critical') {
+      query['analytics.severity'] = 'critical';
+    } else if (filter === 'today') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      query.timestamp = { $gte: today, $lt: tomorrow };
+    } else if (filter === 'hour') {
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      query.timestamp = { $gte: oneHourAgo };
+    }
+    
+    // Specific filters
+    if (errorType) query.errorType = errorType;
+    if (severity) query['analytics.severity'] = severity;
+    if (status) query['resolution.status'] = status;
+    
+    // Date range
+    if (dateFrom || dateTo) {
+      query.timestamp = {};
+      if (dateFrom) query.timestamp.$gte = new Date(dateFrom);
+      if (dateTo) {
+        const endDate = new Date(dateTo);
+        endDate.setHours(23, 59, 59, 999);
+        query.timestamp.$lte = endDate;
+      }
+    }
+    
+    // Search
+    if (search) {
+      query.$or = [
+        { message: { $regex: search, $options: 'i' } },
+        { 'userContext.email': { $regex: search, $options: 'i' } },
+        { 'requestContext.url': { $regex: search, $options: 'i' } }
+      ];
+    }
+    
+    // Get error logs
+    const errorLogs = await ErrorLog.find(query)
+      .sort({ timestamp: -1 })
+      .skip(skip)
+      .limit(limit);
+    
+    const totalErrors = await ErrorLog.countDocuments(query);
+    const totalPages = Math.ceil(totalErrors / limit);
+    
+    // Calculate statistics
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+    
+    const stats = {
+      total: await ErrorLog.countDocuments(),
+      unresolved: await ErrorLog.countDocuments({ 'resolution.status': { $in: ['new', 'investigating'] } }),
+      critical: await ErrorLog.countDocuments({ 'analytics.severity': 'critical' }),
+      today: await ErrorLog.countDocuments({ timestamp: { $gte: today } }),
+      lastHour: await ErrorLog.countDocuments({ timestamp: { $gte: oneHourAgo } })
+    };
+    
+    const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
+    
+    res.render('adminErrorLogs', {
+      title: 'Error Logs',
+      currentPage: 'error-logs',
+      errorLogs,
+      stats,
+      filter,
+      errorType,
+      severity,
+      status,
+      search,
+      dateFrom,
+      dateTo,
+      page: parseInt(page),
+      totalPages,
+      totalErrors,
+      user: req.user,
+      isDevelopmentAutoLogin,
+      req // Pass req for URL building in template
+    });
+  } catch (err) {
+    console.error('Error loading error logs:', err);
+    throw new DatabaseError('Failed to load error logs');
+  }
+}));
+
+// Get single error log details
+app.get('/admin/error-logs/:id', ensureAuthenticated, ensureAdmin, asyncErrorHandler(async (req, res) => {
+  const errorLog = await ErrorLog.findById(req.params.id);
+  if (!errorLog) {
+    throw new NotFoundError('Error log', req.params.id);
+  }
+  res.json(errorLog);
+}));
+
+// Get error log in AI-friendly format
+app.get('/admin/error-logs/:id/ai-format', ensureAuthenticated, ensureAdmin, asyncErrorHandler(async (req, res) => {
+  const errorLog = await ErrorLog.findById(req.params.id);
+  if (!errorLog) {
+    throw new NotFoundError('Error log', req.params.id);
+  }
+  
+  const aiFormat = `ERROR ANALYSIS REQUEST
+
+Error Summary:
+- Type: ${errorLog.errorType}
+- Occurred: ${errorLog.timestamp.toISOString()}
+- Endpoint: ${errorLog.requestContext.method} ${errorLog.requestContext.originalUrl}
+- User: ${errorLog.userContext.email || 'Anonymous'}
+- Status: ${errorLog.resolution.status}
+- Severity: ${errorLog.analytics.severity}
+
+Context:
+- User Action: ${errorLog.getUserActionDescription()}
+- Error Message: ${errorLog.message}
+- Status Code: ${errorLog.statusCode}
+- Request ID: ${errorLog.requestId}
+
+Technical Details:
+${errorLog.errorDetails.stack || 'No stack trace available'}
+
+Request Context:
+${JSON.stringify(errorLog.requestContext, null, 2)}
+
+User Context:
+${JSON.stringify(errorLog.userContext, null, 2)}
+
+Environment:
+- Node.js: ${errorLog.environment.nodeVersion}
+- Environment: ${errorLog.environment.nodeEnv}
+- Platform: ${errorLog.environment.platform}
+
+${errorLog.analytics.frequency > 1 ? `
+Pattern Analysis:
+- This error has occurred ${errorLog.analytics.frequency} times
+- Category: ${errorLog.analytics.category}
+- Impact Level: ${errorLog.analytics.impact}
+` : ''}
+
+${errorLog.resolution.adminNotes ? `
+Admin Notes:
+${errorLog.resolution.adminNotes}
+` : ''}
+
+Please analyze this error and provide:
+1. Root cause analysis
+2. Potential fixes
+3. Prevention strategies
+4. Impact assessment`;
+
+  res.setHeader('Content-Type', 'text/plain');
+  res.send(aiFormat);
+}));
+
+// Get technical details
+app.get('/admin/error-logs/:id/technical', ensureAuthenticated, ensureAdmin, asyncErrorHandler(async (req, res) => {
+  const errorLog = await ErrorLog.findById(req.params.id);
+  if (!errorLog) {
+    throw new NotFoundError('Error log', req.params.id);
+  }
+  
+  const technical = `TECHNICAL ERROR DETAILS
+
+Error Information:
+- Type: ${errorLog.errorType}
+- Message: ${errorLog.message}
+- Status Code: ${errorLog.statusCode}
+- Request ID: ${errorLog.requestId}
+- Timestamp: ${errorLog.timestamp.toISOString()}
+
+Stack Trace:
+${errorLog.errorDetails.stack || 'No stack trace available'}
+
+Request Details:
+- Method: ${errorLog.requestContext.method}
+- URL: ${errorLog.requestContext.originalUrl}
+- IP: ${errorLog.requestContext.ip}
+- User Agent: ${errorLog.requestContext.userAgent}
+- Query: ${JSON.stringify(errorLog.requestContext.query, null, 2)}
+- Body: ${JSON.stringify(errorLog.requestContext.body, null, 2)}
+
+Environment:
+- Node.js: ${errorLog.environment.nodeVersion}
+- Environment: ${errorLog.environment.nodeEnv}
+- Platform: ${errorLog.environment.platform}
+- PID: ${errorLog.environment.pid}
+- Uptime: ${errorLog.environment.uptime}s
+- Memory: ${JSON.stringify(errorLog.environment.memoryUsage, null, 2)}
+
+Original Error:
+${JSON.stringify(errorLog.errorDetails.originalError, null, 2)}`;
+
+  res.setHeader('Content-Type', 'text/plain');
+  res.send(technical);
+}));
+
+// Get user context
+app.get('/admin/error-logs/:id/user-context', ensureAuthenticated, ensureAdmin, asyncErrorHandler(async (req, res) => {
+  const errorLog = await ErrorLog.findById(req.params.id);
+  if (!errorLog) {
+    throw new NotFoundError('Error log', req.params.id);
+  }
+  
+  const userContext = `USER CONTEXT ANALYSIS
+
+User Information:
+- Email: ${errorLog.userContext.email || 'Anonymous'}
+- Name: ${errorLog.userContext.name || 'N/A'}
+- Authenticated: ${errorLog.userContext.isAuthenticated ? 'Yes' : 'No'}
+- Admin: ${errorLog.userContext.isAdmin ? 'Yes' : 'No'}
+- Super Admin: ${errorLog.userContext.isSuperAdmin ? 'Yes' : 'No'}
+- Probationary: ${errorLog.userContext.probationaryStatus ? 'Yes' : 'No'}
+
+Session Information:
+- Session ID: ${errorLog.userContext.sessionId || 'N/A'}
+- IP Address: ${errorLog.requestContext.ip}
+- User Agent: ${errorLog.requestContext.userAgent}
+
+User Journey:
+- Action Attempted: ${errorLog.getUserActionDescription()}
+- Endpoint: ${errorLog.requestContext.method} ${errorLog.requestContext.originalUrl}
+- Referer: ${errorLog.requestContext.referer || 'Direct access'}
+- Time: ${errorLog.timestamp.toISOString()}
+
+Request Details:
+- Protocol: ${errorLog.requestContext.protocol}
+- Secure: ${errorLog.requestContext.secure ? 'Yes' : 'No'}
+- XHR: ${errorLog.requestContext.xhr ? 'Yes (AJAX)' : 'No (Page load)'}
+
+Error Impact:
+- Severity: ${errorLog.analytics.severity}
+- Category: ${errorLog.analytics.category}
+- User Impact: ${errorLog.analytics.impact}`;
+
+  res.setHeader('Content-Type', 'text/plain');
+  res.send(userContext);
+}));
+
+// Update error status
+app.post('/admin/error-logs/:id/status', ensureAuthenticated, ensureAdmin, asyncErrorHandler(async (req, res) => {
+  const { status, resolution, notes } = req.body;
+  
+  const errorLog = await ErrorLog.findById(req.params.id);
+  if (!errorLog) {
+    throw new NotFoundError('Error log', req.params.id);
+  }
+  
+  if (status === 'resolved') {
+    await errorLog.markAsResolved(req.user, resolution, notes);
+  } else {
+    errorLog.resolution.status = status;
+    if (notes) {
+      await errorLog.addAdminNote(req.user, notes);
+    }
+    await errorLog.save();
+  }
+  
+  res.json({ success: true, message: 'Status updated successfully' });
+}));
+
+// Export error logs
+app.get('/admin/error-logs/export', ensureAuthenticated, ensureAdmin, asyncErrorHandler(async (req, res) => {
+  const { 
+    filter, 
+    errorType, 
+    severity, 
+    status, 
+    search, 
+    dateFrom, 
+    dateTo 
+  } = req.query;
+  
+  // Build same query as main listing
+  let query = {};
+  
+  if (filter === 'unresolved') {
+    query['resolution.status'] = { $in: ['new', 'investigating'] };
+  } else if (filter === 'critical') {
+    query['analytics.severity'] = 'critical';
+  } else if (filter === 'today') {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    query.timestamp = { $gte: today, $lt: tomorrow };
+  } else if (filter === 'hour') {
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    query.timestamp = { $gte: oneHourAgo };
+  }
+  
+  if (errorType) query.errorType = errorType;
+  if (severity) query['analytics.severity'] = severity;
+  if (status) query['resolution.status'] = status;
+  
+  if (dateFrom || dateTo) {
+    query.timestamp = {};
+    if (dateFrom) query.timestamp.$gte = new Date(dateFrom);
+    if (dateTo) {
+      const endDate = new Date(dateTo);
+      endDate.setHours(23, 59, 59, 999);
+      query.timestamp.$lte = endDate;
+    }
+  }
+  
+  if (search) {
+    query.$or = [
+      { message: { $regex: search, $options: 'i' } },
+      { 'userContext.email': { $regex: search, $options: 'i' } },
+      { 'requestContext.url': { $regex: search, $options: 'i' } }
+    ];
+  }
+  
+  const errorLogs = await ErrorLog.find(query)
+    .sort({ timestamp: -1 })
+    .limit(1000); // Limit export to 1000 records
+  
+  // Create CSV content
+  const csvHeader = 'Timestamp,Type,Message,User,URL,Severity,Status,Request ID\n';
+  const csvRows = errorLogs.map(error => {
+    const timestamp = error.timestamp.toISOString();
+    const type = error.errorType;
+    const message = `"${error.message.replace(/"/g, '""')}"`;
+    const user = error.userContext.email || 'Anonymous';
+    const url = `"${error.requestContext.originalUrl}"`;
+    const severity = error.analytics.severity;
+    const status = error.resolution.status;
+    const requestId = error.requestId;
+    
+    return `${timestamp},${type},${message},${user},${url},${severity},${status},${requestId}`;
+  }).join('\n');
+  
+  const csvContent = csvHeader + csvRows;
+  
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', `attachment; filename="error-logs-${new Date().toISOString().split('T')[0]}.csv"`);
+  res.send(csvContent);
+}));
+
+// Cleanup old error logs
+app.post('/admin/error-logs/cleanup', ensureAuthenticated, ensureAdmin, asyncErrorHandler(async (req, res) => {
+  const result = await ErrorLog.cleanupOldLogs(90); // 90 days retention
+  res.json({ 
+    success: true, 
+    deletedCount: result.deletedCount,
+    message: `Cleaned up ${result.deletedCount} old error logs`
+  });
+}));
+
+// Add 404 handler for unmatched routes
+app.use(notFoundHandler);
+
+// Add centralized error handling middleware (must be last)
+app.use(errorHandler);
 
 // Start server
 const PORT = process.env.PORT || 3000;

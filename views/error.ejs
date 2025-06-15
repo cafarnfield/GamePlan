@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Error <%= error.status %> - GamePlan</title>
+    <link rel="stylesheet" href="/styles.css">
+    <style>
+        .error-container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 40px;
+            text-align: center;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .error-code {
+            font-size: 72px;
+            font-weight: bold;
+            color: #e74c3c;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .error-message {
+            font-size: 24px;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-weight: 300;
+        }
+        
+        .error-description {
+            font-size: 16px;
+            color: #7f8c8d;
+            margin-bottom: 40px;
+            line-height: 1.6;
+        }
+        
+        .error-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .btn-primary {
+            background-color: #3498db;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+        }
+        
+        .btn-secondary {
+            background-color: #95a5a6;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #7f8c8d;
+            transform: translateY(-2px);
+        }
+        
+        .error-details {
+            margin-top: 40px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            text-align: left;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            color: #495057;
+            border-left: 4px solid #e74c3c;
+        }
+        
+        .error-details h4 {
+            margin-top: 0;
+            color: #e74c3c;
+            font-family: inherit;
+        }
+        
+        .error-details pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin: 0;
+            background: none;
+            padding: 0;
+        }
+        
+        .error-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .error-container {
+                margin: 20px;
+                padding: 30px 20px;
+            }
+            
+            .error-code {
+                font-size: 48px;
+            }
+            
+            .error-message {
+                font-size: 20px;
+            }
+            
+            .error-actions {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .btn {
+                width: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <% if (error.status === 404) { %>
+            <div class="error-icon">🔍</div>
+        <% } else if (error.status === 403) { %>
+            <div class="error-icon">🚫</div>
+        <% } else if (error.status === 500) { %>
+            <div class="error-icon">⚠️</div>
+        <% } else { %>
+            <div class="error-icon">❌</div>
+        <% } %>
+        
+        <div class="error-code"><%= error.status %></div>
+        
+        <div class="error-message">
+            <%= error.message %>
+        </div>
+        
+        <div class="error-description">
+            <% if (error.status === 404) { %>
+                The page you're looking for doesn't exist. It might have been moved, deleted, or you entered the wrong URL.
+            <% } else if (error.status === 403) { %>
+                You don't have permission to access this resource. Please check your credentials or contact an administrator.
+            <% } else if (error.status === 500) { %>
+                Something went wrong on our end. Our team has been notified and is working to fix the issue.
+            <% } else if (error.status >= 400 && error.status < 500) { %>
+                There was a problem with your request. Please check your input and try again.
+            <% } else { %>
+                An unexpected error occurred. Please try again later.
+            <% } %>
+        </div>
+        
+        <div class="error-actions">
+            <a href="/" class="btn btn-primary">Go Home</a>
+            <a href="javascript:history.back()" class="btn btn-secondary">Go Back</a>
+            <% if (user && user.isAdmin) { %>
+                <a href="/admin" class="btn btn-secondary">Admin Dashboard</a>
+            <% } %>
+        </div>
+        
+        <% if (error.details && (process.env.NODE_ENV === 'development' || isDevelopmentAutoLogin)) { %>
+            <div class="error-details">
+                <h4>Error Details (Development Mode)</h4>
+                <pre><%= JSON.stringify(error.details, null, 2) %></pre>
+            </div>
+        <% } %>
+    </div>
+    
+    <% if (error.status >= 500) { %>
+    <script>
+        // Auto-refresh for 5xx errors after 30 seconds
+        setTimeout(() => {
+            if (confirm('Would you like to try refreshing the page?')) {
+                window.location.reload();
+            }
+        }, 30000);
+    </script>
+    <% } %>
+</body>
+</html>
