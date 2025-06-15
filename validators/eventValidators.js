@@ -13,8 +13,7 @@ const validateEventCreation = [
     .matches(/^[a-zA-Z0-9\s\-_:!?.,()&]+$/)
     .withMessage('Event name contains invalid characters')
     .custom(checkXSS)
-    .withMessage('Event name contains potentially dangerous content')
-    .escape(),
+    .withMessage('Event name contains potentially dangerous content'),
 
   // Event description validation
   body('description')
@@ -22,8 +21,7 @@ const validateEventCreation = [
     .isLength({ min: 10, max: 2000 })
     .withMessage('Event description must be between 10 and 2000 characters')
     .custom(checkXSS)
-    .withMessage('Event description contains potentially dangerous content')
-    .escape(),
+    .withMessage('Event description contains potentially dangerous content'),
 
   // Player limit validation
   body('playerLimit')
@@ -201,8 +199,7 @@ const validateEventEdit = [
     .matches(/^[a-zA-Z0-9\s\-_:!?.,()&]+$/)
     .withMessage('Event name contains invalid characters')
     .custom(checkXSS)
-    .withMessage('Event name contains potentially dangerous content')
-    .escape(),
+    .withMessage('Event name contains potentially dangerous content'),
 
   // Game ID validation
   body('gameId')
@@ -217,8 +214,7 @@ const validateEventEdit = [
     .isLength({ min: 10, max: 2000 })
     .withMessage('Event description must be between 10 and 2000 characters')
     .custom(checkXSS)
-    .withMessage('Event description contains potentially dangerous content')
-    .escape(),
+    .withMessage('Event description contains potentially dangerous content'),
 
   // Player limit validation
   body('playerLimit')
@@ -338,8 +334,7 @@ const validateEventDuplication = [
     .matches(/^[a-zA-Z0-9\s\-_:!?.,()&]+$/)
     .withMessage('Event name contains invalid characters')
     .custom(checkXSS)
-    .withMessage('Event name contains potentially dangerous content')
-    .escape(),
+    .withMessage('Event name contains potentially dangerous content'),
 
   // Event description validation (optional)
   body('description')
@@ -348,8 +343,7 @@ const validateEventDuplication = [
     .isLength({ max: 2000 })
     .withMessage('Event description cannot exceed 2000 characters')
     .custom(checkXSS)
-    .withMessage('Event description contains potentially dangerous content')
-    .escape(),
+    .withMessage('Event description contains potentially dangerous content'),
 
   // Player limit validation (optional)
   body('playerLimit')

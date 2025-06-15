@@ -82,7 +82,11 @@
                 <label for="eventDescription">Description</label>
                 <textarea id="eventDescription" name="description" required 
                           placeholder="Tell players what to expect, any special rules, or requirements..."></textarea>
-                <div class="input-hint">Help players understand what your event is about</div>
+                <div class="input-hint">
+                  <span>Help players understand what your event is about</span>
+                  <span class="char-counter" id="descriptionCounter">0/10 characters minimum</span>
+                </div>
+                <div class="validation-message" id="descriptionValidation" style="display: none;"></div>
               </div>
 
               <div class="form-row">
@@ -420,6 +424,9 @@
 
       // Form validation
       setupFormValidation();
+      
+      // Description character counter
+      setupDescriptionValidation();
     });
 
     // Set default date/time to 1 hour from now
@@ -504,6 +511,10 @@
       }
       if (!description) {
         showError('Please enter an event description');
+        return false;
+      }
+      if (description.length < 10) {
+        showError('Event description must be at least 10 characters long');
         return false;
       }
       if (!playerLimit || playerLimit < 2) {
@@ -985,6 +996,76 @@
           this.classList.remove('error');
         }
       });
+    }
+
+    // Description validation with character counter
+    function setupDescriptionValidation() {
+      const descriptionField = document.getElementById('eventDescription');
+      const counter = document.getElementById('descriptionCounter');
+      const validation = document.getElementById('descriptionValidation');
+      const nextButton = document.querySelector('.action-button.primary');
+      
+      function updateDescriptionValidation() {
+        const length = descriptionField.value.length;
+        const isValid = length >= 10;
+        
+        // Update counter
+        counter.textContent = `${length}/10 characters minimum`;
+        
+        // Update styling
+        if (length === 0) {
+          // No input yet
+          counter.className = 'char-counter';
+          validation.style.display = 'none';
+          descriptionField.classList.remove('valid', 'invalid');
+        } else if (isValid) {
+          // Valid input
+          counter.className = 'char-counter valid';
+          validation.style.display = 'none';
+          descriptionField.classList.remove('invalid');
+          descriptionField.classList.add('valid');
+        } else {
+          // Invalid input
+          counter.className = 'char-counter invalid';
+          validation.textContent = `Please add ${10 - length} more characters`;
+          validation.style.display = 'block';
+          descriptionField.classList.remove('valid');
+          descriptionField.classList.add('invalid');
+        }
+        
+        // Update next button state
+        updateNextButtonState();
+      }
+      
+      function updateNextButtonState() {
+        const name = document.getElementById('eventName').value.trim();
+        const description = document.getElementById('eventDescription').value.trim();
+        const playerLimit = document.getElementById('playerLimit').value;
+        const date = document.getElementById('eventDate').value;
+        
+        const isValid = name.length > 0 && 
+                       description.length >= 10 && 
+                       playerLimit >= 2 && 
+                       date.length > 0;
+        
+        if (nextButton) {
+          nextButton.disabled = !isValid;
+          if (isValid) {
+            nextButton.classList.remove('disabled');
+          } else {
+            nextButton.classList.add('disabled');
+          }
+        }
+      }
+      
+      // Add event listeners
+      descriptionField.addEventListener('input', updateDescriptionValidation);
+      document.getElementById('eventName').addEventListener('input', updateNextButtonState);
+      document.getElementById('playerLimit').addEventListener('input', updateNextButtonState);
+      document.getElementById('eventDate').addEventListener('change', updateNextButtonState);
+      
+      // Initial validation
+      updateDescriptionValidation();
     }
 
     // Form submission handler

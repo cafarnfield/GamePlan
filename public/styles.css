@@ -2742,6 +2742,93 @@ tr:hover td {
   color: var(--dark-teal);
   margin-top: 0.3rem;
   font-style: italic;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* Character Counter Styles */
+.char-counter {
+  font-size: 0.4rem;
+  color: var(--dark-teal);
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.char-counter.valid {
+  color: var(--success-green);
+  text-shadow: 0 0 3px var(--success-green);
+}
+
+.char-counter.invalid {
+  color: var(--error-red);
+  text-shadow: 0 0 3px var(--error-red);
+  animation: charCounterPulse 1s ease-in-out infinite;
+}
+
+@keyframes charCounterPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Validation Message Styles */
+.validation-message {
+  background: rgba(255, 68, 68, 0.1);
+  border: 1px solid var(--error-red);
+  color: var(--error-red);
+  padding: 0.5rem;
+  margin-top: 0.5rem;
+  border-radius: 3px;
+  font-size: 0.4rem;
+  animation: validationSlideIn 0.3s ease;
+}
+
+@keyframes validationSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Input Validation States */
+.input-group input.valid,
+.input-group textarea.valid {
+  border-color: var(--success-green);
+  box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+}
+
+.input-group input.invalid,
+.input-group textarea.invalid {
+  border-color: var(--error-red);
+  box-shadow: 0 0 10px rgba(255, 68, 68, 0.3);
+  animation: inputShake 0.5s ease-in-out;
+}
+
+@keyframes inputShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+/* Button Disabled State */
+.action-button.disabled {
+  background: #666 !important;
+  color: #999 !important;
+  cursor: not-allowed !important;
+  box-shadow: 0 2px 0 #444 !important;
+  transform: none !important;
+  opacity: 0.6;
+}
+
+.action-button.disabled:hover {
+  transform: none !important;
+  box-shadow: 0 2px 0 #444 !important;
 }
 
 .form-row {
