@@ -1475,6 +1475,455 @@ app.get('/logout', (req, res) => {
   });
 });
 
+// User Management Routes
+
+// Approve user
+app.post('/admin/user/approve/:id', ensureAuthenticated, ensureAdmin, validateUserApproval, handleValidationErrors, checkAdminOperationPermission, async (req, res) => {
+  try {
+    const { notes } = req.body;
+    const user = req.targetUser;
+    const clientIP = getClientIP(req);
+
+    // Update user status
+    user.status = 'approved';
+    user.approvedAt = new Date();
+    user.approvedBy = req.user._id;
+    user.approvalNotes = notes || '';
+    
+    // Set probationary period for new users (30 days)
+    setProbationaryPeriod(user, 30);
+    
+    await user.save();
+
+    // Create audit log
+    await createAuditLog(req.user, 'USER_APPROVED', user, notes, clientIP);
+
+    console.log('User approved:', user.email, 'by:', req.user.email);
+    res.status(200).json({ success: true, message: 'User approved successfully' });
+  } catch (err) {
+    console.error('Error approving user:', err);
+    res.status(500).json({ error: 'Error approving user' });
+  }
+});
+
+// Reject user
+app.post('/admin/user/reject/:id', ensureAuthenticated, ensureAdmin, validateUserRejection, handleValidationErrors, checkAdminOperationPermission, async (req, res) => {
+  try {
+    const { notes } = req.body;
+    const user = req.targetUser;
+    const clientIP = getClientIP(req);
+
+    if (!notes || notes.trim() === '') {
+      return res.status(400).json({ error: 'Rejection reason is required' });
+    }
+
+    // Update user status
+    user.status = 'rejected';
+    user.rejectedAt = new Date();
+    user.rejectedBy = req.user._id;
+    user.rejectionReason = notes;
+    
+    await user.save();
+
+    // Add email to rejected list to prevent re-registration
+    const rejectedEmail = new RejectedEmail({
+      email: user.email.toLowerCase(),
+      rejectedBy: req.user._id,
+      reason: notes,
+      originalUserId: user._id
+    });
+    await rejectedEmail.save();
+
+    // Create audit log
+    await createAuditLog(req.user, 'USER_REJECTED', user, notes, clientIP);
+
+    console.log('User rejected:', user.email, 'by:', req.user.email, 'reason:', notes);
+    res.status(200).json({ success: true, message: 'User rejected successfully' });
+  } catch (err) {
+    console.error('Error rejecting user:', err);
+    res.status(500).json({ error: 'Error rejecting user' });
+  }
+});
+
+// Block user
+app.post('/admin/user/block/:id', ensureAuthenticated, ensureAdmin, checkAdminOperationPermission, async (req, res) => {
+  try {
+    const user = req.targetUser;
+    const clientIP = getClientIP(req);
+
+    user.isBlocked = true;
+    user.blockedAt = new Date();
+    user.blockedBy = req.user._id;
+    
+    await user.save();
+
+    // Create audit log
+    await createAuditLog(req.user, 'USER_BLOCKED', user, '', clientIP);
+
+    console.log('User blocked:', user.email, 'by:', req.user.email);
+    res.status(200).json({ success: true, message: 'User blocked successfully' });
+  } catch (err) {
+    console.error('Error blocking user:', err);
+    res.status(500).json({ error: 'Error blocking user' });
+  }
+});
+
+// Unblock user
+app.post('/admin/user/unblock/:id', ensureAuthenticated, ensureAdmin, checkAdminOperationPermission, async (req, res) => {
+  try {
+    const user = req.targetUser;
+    const clientIP = getClientIP(req);
+
+    user.isBlocked = false;
+    user.unblockedAt = new Date();
+    user.unblockedBy = req.user._id;
+    
+    await user.save();
+
+    // Create audit log
+    await createAuditLog(req.user, 'USER_UNBLOCKED', user, '', clientIP);
+
+    console.log('User unblocked:', user.email, 'by:', req.user.email);
+    res.status(200).json({ success: true, message: 'User unblocked successfully' });
+  } catch (err) {
+    console.error('Error unblocking user:', err);
+    res.status(500).json({ error: 'Error unblocking user' });
+  }
+});
+
+// Delete user
+app.post('/admin/user/delete/:id', ensureAuthenticated, ensureAdmin, checkAdminOperationPermission, async (req, res) => {
+  try {
+    const user = req.targetUser;
+    const clientIP = getClientIP(req);
+
+    // Create audit log before deletion
+    await createAuditLog(req.user, 'USER_DELETED', user, '', clientIP);
+
+    // Delete the user
+    await User.findByIdAndDelete(user._id);
+
+    console.log('User deleted:', user.email, 'by:', req.user.email);
+    res.status(200).json({ success: true, message: 'User deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting user:', err);
+    res.status(500).json({ error: 'Error deleting user' });
+  }
+});
+
+// Toggle admin status
+app.post('/admin/user/toggle-admin/:id', ensureAuthenticated, ensureSuperAdmin, checkAdminOperationPermission, async (req, res) => {
+  try {
+    const user = req.targetUser;
+    const clientIP = getClientIP(req);
+
+    const wasAdmin = user.isAdmin;
+    user.isAdmin = !user.isAdmin;
+    
+    if (user.isAdmin) {
+      user.adminPromotedAt = new Date();
+      user.adminPromotedBy = req.user._id;
+    } else {
+      user.adminDemotedAt = new Date();
+      user.adminDemotedBy = req.user._id;
+      // If demoting from admin, also remove super admin status
+      user.isSuperAdmin = false;
+    }
+    
+    await user.save();
+
+    // Create audit log
+    const action = wasAdmin ? 'ADMIN_DEMOTED' : 'ADMIN_PROMOTED';
+    await createAuditLog(req.user, action, user, '', clientIP);
+
+    console.log('User admin status toggled:', user.email, 'by:', req.user.email, 'isAdmin:', user.isAdmin);
+    res.status(200).json({ success: true, message: `User ${user.isAdmin ? 'promoted to' : 'demoted from'} admin successfully` });
+  } catch (err) {
+    console.error('Error toggling admin status:', err);
+    res.status(500).json({ error: 'Error updating admin status' });
+  }
+});
+
+// End probation
+app.post('/admin/user/end-probation/:id', ensureAuthenticated, ensureAdmin, checkAdminOperationPermission, async (req, res) => {
+  try {
+    const user = req.targetUser;
+    const clientIP = getClientIP(req);
+
+    user.probationaryUntil = null;
+    user.probationEndedAt = new Date();
+    user.probationEndedBy = req.user._id;
+    
+    await user.save();
+
+    // Create audit log
+    await createAuditLog(req.user, 'PROBATION_ENDED', user, '', clientIP);
+
+    console.log('Probation ended for user:', user.email, 'by:', req.user.email);
+    res.status(200).json({ success: true, message: 'Probation ended successfully' });
+  } catch (err) {
+    console.error('Error ending probation:', err);
+    res.status(500).json({ error: 'Error ending probation' });
+  }
+});
+
+// Promote to super admin
+app.post('/admin/user/promote-super-admin/:id', ensureAuthenticated, ensureSuperAdmin, checkAdminOperationPermission, async (req, res) => {
+  try {
+    const user = req.targetUser;
+    const clientIP = getClientIP(req);
+
+    if (!user.isAdmin) {
+      return res.status(400).json({ error: 'User must be an admin before promoting to super admin' });
+    }
+
+    if (user.isSuperAdmin) {
+      return res.status(400).json({ error: 'User is already a super admin' });
+    }
+
+    user.isSuperAdmin = true;
+    user.superAdminPromotedAt = new Date();
+    user.superAdminPromotedBy = req.user._id;
+    
+    await user.save();
+
+    // Create audit log
+    await createAuditLog(req.user, 'SUPER_ADMIN_PROMOTED', user, '', clientIP);
+
+    console.log('User promoted to super admin:', user.email, 'by:', req.user.email);
+    res.status(200).json({ success: true, message: 'User promoted to super admin successfully' });
+  } catch (err) {
+    console.error('Error promoting to super admin:', err);
+    res.status(500).json({ error: 'Error promoting to super admin' });
+  }
+});
+
+// Demote super admin
+app.post('/admin/user/demote-super-admin/:id', ensureAuthenticated, ensureSuperAdmin, checkAdminOperationPermission, async (req, res) => {
+  try {
+    const user = req.targetUser;
+    const clientIP = getClientIP(req);
+
+    if (!user.isSuperAdmin) {
+      return res.status(400).json({ error: 'User is not a super admin' });
+    }
+
+    if (user.isProtected) {
+      return res.status(403).json({ error: 'Cannot demote protected super admin' });
+    }
+
+    user.isSuperAdmin = false;
+    user.superAdminDemotedAt = new Date();
+    user.superAdminDemotedBy = req.user._id;
+    
+    await user.save();
+
+    // Create audit log
+    await createAuditLog(req.user, 'SUPER_ADMIN_DEMOTED', user, '', clientIP);
+
+    console.log('User demoted from super admin:', user.email, 'by:', req.user.email);
+    res.status(200).json({ success: true, message: 'User demoted from super admin successfully' });
+  } catch (err) {
+    console.error('Error demoting super admin:', err);
+    res.status(500).json({ error: 'Error demoting super admin' });
+  }
+});
+
+// Bulk approve users
+app.post('/admin/users/bulk-approve', ensureAuthenticated, ensureAdmin, validateBulkUserOperation, handleValidationErrors, async (req, res) => {
+  try {
+    const { userIds, notes } = req.body;
+    const clientIP = getClientIP(req);
+
+    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({ error: 'User IDs array is required' });
+    }
+
+    const users = await User.find({ _id: { $in: userIds } });
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const user of users) {
+      try {
+        // Check if user can be approved
+        if (user.status !== 'pending') {
+          errorCount++;
+          continue;
+        }
+
+        // Update user status
+        user.status = 'approved';
+        user.approvedAt = new Date();
+        user.approvedBy = req.user._id;
+        user.approvalNotes = notes || '';
+        
+        // Set probationary period
+        setProbationaryPeriod(user, 30);
+        
+        await user.save();
+
+        // Create audit log
+        await createAuditLog(req.user, 'USER_APPROVED', user, notes, clientIP);
+
+        successCount++;
+      } catch (err) {
+        console.error('Error in bulk approve for user:', user.email, err);
+        errorCount++;
+      }
+    }
+
+    // Create bulk audit log
+    await createAuditLog(req.user, 'BULK_USER_APPROVED', null, notes, clientIP, successCount, { 
+      successCount, 
+      errorCount, 
+      totalRequested: userIds.length 
+    });
+
+    console.log('Bulk approve completed:', successCount, 'success,', errorCount, 'errors, by:', req.user.email);
+    res.status(200).json({ 
+      success: true, 
+      message: `Bulk approve completed: ${successCount} successful, ${errorCount} errors`,
+      successCount,
+      errorCount
+    });
+  } catch (err) {
+    console.error('Error in bulk approve:', err);
+    res.status(500).json({ error: 'Error in bulk approve operation' });
+  }
+});
+
+// Bulk reject users
+app.post('/admin/users/bulk-reject', ensureAuthenticated, ensureAdmin, validateBulkUserOperation, handleValidationErrors, async (req, res) => {
+  try {
+    const { userIds, notes } = req.body;
+    const clientIP = getClientIP(req);
+
+    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({ error: 'User IDs array is required' });
+    }
+
+    if (!notes || notes.trim() === '') {
+      return res.status(400).json({ error: 'Rejection reason is required for bulk rejection' });
+    }
+
+    const users = await User.find({ _id: { $in: userIds } });
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const user of users) {
+      try {
+        // Update user status
+        user.status = 'rejected';
+        user.rejectedAt = new Date();
+        user.rejectedBy = req.user._id;
+        user.rejectionReason = notes;
+        
+        await user.save();
+
+        // Add email to rejected list
+        const rejectedEmail = new RejectedEmail({
+          email: user.email.toLowerCase(),
+          rejectedBy: req.user._id,
+          reason: notes,
+          originalUserId: user._id
+        });
+        await rejectedEmail.save();
+
+        // Create audit log
+        await createAuditLog(req.user, 'USER_REJECTED', user, notes, clientIP);
+
+        successCount++;
+      } catch (err) {
+        console.error('Error in bulk reject for user:', user.email, err);
+        errorCount++;
+      }
+    }
+
+    // Create bulk audit log
+    await createAuditLog(req.user, 'BULK_USER_REJECTED', null, notes, clientIP, successCount, { 
+      successCount, 
+      errorCount, 
+      totalRequested: userIds.length 
+    });
+
+    console.log('Bulk reject completed:', successCount, 'success,', errorCount, 'errors, by:', req.user.email);
+    res.status(200).json({ 
+      success: true, 
+      message: `Bulk reject completed: ${successCount} successful, ${errorCount} errors`,
+      successCount,
+      errorCount
+    });
+  } catch (err) {
+    console.error('Error in bulk reject:', err);
+    res.status(500).json({ error: 'Error in bulk reject operation' });
+  }
+});
+
+// Bulk delete users
+app.post('/admin/users/bulk-delete', ensureAuthenticated, ensureAdmin, validateBulkUserOperation, handleValidationErrors, async (req, res) => {
+  try {
+    const { userIds, notes } = req.body;
+    const clientIP = getClientIP(req);
+
+    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({ error: 'User IDs array is required' });
+    }
+
+    const users = await User.find({ _id: { $in: userIds } });
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const user of users) {
+      try {
+        // Check permissions for each user
+        if (user.isProtected && req.user.email !== user.email) {
+          errorCount++;
+          continue;
+        }
+
+        if (user.isAdmin && !req.user.isSuperAdmin) {
+          errorCount++;
+          continue;
+        }
+
+        if (user.isSuperAdmin) {
+          errorCount++;
+          continue;
+        }
+
+        // Create audit log before deletion
+        await createAuditLog(req.user, 'USER_DELETED', user, notes, clientIP);
+
+        // Delete the user
+        await User.findByIdAndDelete(user._id);
+
+        successCount++;
+      } catch (err) {
+        console.error('Error in bulk delete for user:', user.email, err);
+        errorCount++;
+      }
+    }
+
+    // Create bulk audit log
+    await createAuditLog(req.user, 'BULK_USER_DELETED', null, notes, clientIP, successCount, { 
+      successCount, 
+      errorCount, 
+      totalRequested: userIds.length 
+    });
+
+    console.log('Bulk delete completed:', successCount, 'success,', errorCount, 'errors, by:', req.user.email);
+    res.status(200).json({ 
+      success: true, 
+      message: `Bulk delete completed: ${successCount} successful, ${errorCount} errors`,
+      successCount,
+      errorCount
+    });
+  } catch (err) {
+    console.error('Error in bulk delete:', err);
+    res.status(500).json({ error: 'Error in bulk delete operation' });
+  }
+});
+
 // Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
