@@ -1,0 +1,253 @@
+/* Admin-specific styles */
+.admin-layout {
+  min-height: 100vh;
+  background: #000;
+  color: #00ff00;
+  font-family: 'Press Start 2P', monospace;
+}
+
+.admin-header {
+  background: rgba(0, 20, 0, 0.9);
+  border-bottom: 2px solid #00ff00;
+  padding: 15px 20px;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.admin-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.admin-logo {
+  font-size: 14px;
+  color: #00ff00;
+  text-shadow: 0 0 10px #00ff00;
+  margin: 0;
+}
+
+.admin-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.admin-nav {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex-wrap: wrap;
+}
+
+.admin-nav-item {
+  border-right: 1px solid rgba(0, 255, 0, 0.2);
+}
+
+.admin-nav-item:last-child {
+  border-right: none;
+}
+
+.admin-nav-link {
+  display: flex;
+  align-items: center;
+  padding: 12px 20px;
+  color: #00ff00;
+  text-decoration: none;
+  font-size: 10px;
+  transition: all 0.3s ease;
+  border-bottom: 3px solid transparent;
+  white-space: nowrap;
+}
+
+.admin-nav-link:hover {
+  background: rgba(0, 255, 0, 0.1);
+  border-bottom-color: #00ff00;
+}
+
+.admin-nav-link.active {
+  background: rgba(0, 255, 0, 0.2);
+  border-bottom-color: #00ff00;
+  color: #fff;
+}
+
+.admin-nav-icon {
+  margin-right: 8px;
+  font-size: 12px;
+}
+
+.admin-nav-badge {
+  margin-left: 8px;
+  background: #ff0000;
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 8px;
+  min-width: 16px;
+  text-align: center;
+}
+
+.admin-main {
+  background: rgba(0, 10, 0, 0.8);
+  min-height: calc(100vh - 120px);
+}
+
+.admin-topbar {
+  background: rgba(0, 30, 0, 0.9);
+  border-bottom: 1px solid rgba(0, 255, 0, 0.3);
+  padding: 15px 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.admin-breadcrumb {
+  display: flex;
+  align-items: center;
+  font-size: 10px;
+  color: #888;
+}
+
+.admin-breadcrumb a {
+  color: #00ff00;
+  text-decoration: none;
+}
+
+.admin-breadcrumb-separator {
+  margin: 0 10px;
+  color: #555;
+}
+
+.admin-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.admin-user-menu {
+  position: relative;
+}
+
+.admin-user-button {
+  background: none;
+  border: 1px solid #00ff00;
+  color: #00ff00;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 8px;
+  font-family: 'Press Start 2P', monospace;
+}
+
+.admin-user-button:hover {
+  background: rgba(0, 255, 0, 0.1);
+}
+
+.admin-content {
+  padding: 30px;
+}
+
+.admin-page-header {
+  margin-bottom: 30px;
+}
+
+.admin-page-title {
+  font-size: 18px;
+  color: #00ff00;
+  text-shadow: 0 0 10px #00ff00;
+  margin: 0 0 10px 0;
+}
+
+.admin-page-subtitle {
+  font-size: 10px;
+  color: #888;
+  margin: 0;
+}
+
+.mobile-menu-toggle {
+  display: none;
+  background: none;
+  border: 1px solid #00ff00;
+  color: #00ff00;
+  padding: 8px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.mobile-nav-dropdown {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: rgba(0, 20, 0, 0.95);
+  border-bottom: 2px solid #00ff00;
+  z-index: 999;
+}
+
+.mobile-nav-dropdown.active {
+  display: block;
+}
+
+.mobile-nav-dropdown .admin-nav {
+  flex-direction: column;
+  gap: 0;
+}
+
+.mobile-nav-dropdown .admin-nav-item {
+  border-right: none;
+  border-bottom: 1px solid rgba(0, 255, 0, 0.2);
+}
+
+.mobile-nav-dropdown .admin-nav-link {
+  padding: 15px 20px;
+  border-bottom: none;
+  justify-content: flex-start;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .admin-header-top {
+    margin-bottom: 10px;
+  }
+  
+  .admin-nav {
+    display: none;
+  }
+  
+  .mobile-menu-toggle {
+    display: block;
+  }
+  
+  .admin-topbar {
+    padding: 15px 20px;
+  }
+  
+  .admin-content {
+    padding: 20px;
+  }
+  
+  .admin-breadcrumb {
+    display: none;
+  }
+  
+  .admin-logo {
+    font-size: 12px;
+  }
+}
+
+/* Development banner */
+.dev-banner {
+  background: #ff6600;
+  color: #000;
+  text-align: center;
+  padding: 5px;
+  font-size: 8px;
+  position: sticky;
+  top: 0;
+  z-index: 1001;
+}
