@@ -139,34 +139,6 @@
       gap: 15px;
     }
     
-    .admin-notification-bell {
-      position: relative;
-      background: none;
-      border: 1px solid #00ff00;
-      color: #00ff00;
-      padding: 8px;
-      cursor: pointer;
-      font-size: 12px;
-    }
-    
-    .admin-notification-bell:hover {
-      background: rgba(0, 255, 0, 0.1);
-    }
-    
-    .admin-notification-badge {
-      position: absolute;
-      top: -5px;
-      right: -5px;
-      background: #ff0000;
-      color: #fff;
-      border-radius: 50%;
-      width: 16px;
-      height: 16px;
-      font-size: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
     
     .admin-user-menu {
       position: relative;
@@ -309,13 +281,6 @@
         
         <div class="admin-header-actions">
           <button class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
-          
-          <button class="admin-notification-bell" title="Notifications">
-            🔔
-            <% if (typeof totalPending !== 'undefined' && totalPending > 0) { %>
-              <span class="admin-notification-badge"><%= totalPending %></span>
-            <% } %>
-          </button>
           
           <div class="admin-user-menu">
             <button class="admin-user-button" onclick="toggleUserMenu()">
