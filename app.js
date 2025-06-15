@@ -884,6 +884,80 @@ app.get('/event/:id/duplicate', ensureAuthenticated, ensureNotBlocked, async (re
   }
 });
 
+// Duplicate event POST route
+app.post('/event/:id/duplicate', ensureAuthenticated, ensureNotBlocked, validateEventDuplication, handleValidationErrors, async (req, res) => {
+  try {
+    const originalEvent = await Event.findById(req.params.id)
+      .populate('createdBy')
+      .populate('players')
+      .populate('requiredExtensions')
+      .populate('game');
+    
+    if (!originalEvent) {
+      return res.status(404).send('Original event not found');
+    }
+    
+    // Check permissions (same as GET route)
+    const isCreator = originalEvent.createdBy && originalEvent.createdBy._id.equals(req.user._id);
+    const isLegacyCreator = !originalEvent.createdBy && originalEvent.players.length > 0 && originalEvent.players[0]._id.equals(req.user._id);
+    const canDuplicate = isCreator || isLegacyCreator || req.user.isAdmin;
+    
+    if (!canDuplicate) {
+      return res.status(403).send('You are not authorized to duplicate this event');
+    }
+    
+    const { name, description, date, playerLimit, platforms, 'copy-extensions': copyExtensions } = req.body;
+    
+    // Create the new event data
+    const newEventData = {
+      name: name || originalEvent.name,
+      description: description || originalEvent.description,
+      date: new Date(date),
+      playerLimit: parseInt(playerLimit) || originalEvent.playerLimit,
+      platforms: Array.isArray(platforms) ? platforms : [platforms],
+      game: originalEvent.game._id,
+      createdBy: req.user._id,
+      players: [req.user._id], // Creator automatically joins
+      isVisible: originalEvent.game && originalEvent.game.status === 'approved' ? true : false,
+      gameStatus: originalEvent.game && originalEvent.game.status === 'approved' ? 'approved' : 'pending'
+    };
+    
+    // Handle extensions if copy-extensions is checked
+    if (copyExtensions && originalEvent.requiredExtensions && originalEvent.requiredExtensions.length > 0) {
+      const newExtensionIds = [];
+      
+      for (const originalExtension of originalEvent.requiredExtensions) {
+        // Create a new extension (duplicate the original)
+        const newExtension = new Extension({
+          name: originalExtension.name,
+          downloadLink: originalExtension.downloadLink,
+          installationTime: originalExtension.installationTime,
+          description: originalExtension.description || ''
+        });
+        await newExtension.save();
+        newExtensionIds.push(newExtension._id);
+      }
+      
+      newEventData.requiredExtensions = newExtensionIds;
+    }
+    
+    // Create the new event
+    const newEvent = new Event(newEventData);
+    await newEvent.save();
+    
+    console.log('Event duplicated successfully:', {
+      originalId: originalEvent._id,
+      newId: newEvent._id,
+      creator: req.user.email
+    });
+    
+    res.redirect(`/event/${newEvent._id}`);
+  } catch (err) {
+    console.error('Error duplicating event:', err);
+    res.status(500).send('Error duplicating event');
+  }
+});
+
 // Delete event route
 app.post('/event/:id/delete', ensureAuthenticated, ensureNotBlocked, async (req, res) => {
   try {
