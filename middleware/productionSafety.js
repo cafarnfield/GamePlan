@@ -26,8 +26,10 @@ const validateEnvVarsMiddleware = (req, res, next) => {
  * @param {Function} next - Express next function
  */
 const enforceHttps = (req, res, next) => {
-  if (process.env.NODE_ENV === 'production' && !req.secure) {
-    // Redirect to HTTPS
+  if (process.env.NODE_ENV === 'production' && 
+      process.env.FORCE_HTTPS === 'true' && 
+      !req.secure) {
+    // Redirect to HTTPS only if FORCE_HTTPS is explicitly enabled
     return res.redirect(`https://${req.get('host')}${req.url}`);
   }
 
