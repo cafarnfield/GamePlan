@@ -19,6 +19,9 @@ const { requestLogger, apiRequestLogger } = require('./middleware/requestLogger'
 // Import validation middleware and validators
 const { handleValidationErrors } = require('./middleware/validation');
 
+// Import authentication middleware
+const { ensureAuthenticated, ensureNotBlocked } = require('./middleware/auth');
+
 // Import centralized error handling
 const {
   requestIdMiddleware,
@@ -37,11 +40,6 @@ const {
   DatabaseError,
   ExternalServiceError
 } = require('./utils/errors');
-const {
-  validateRegistration,
-  validateLogin,
-  validateProfileUpdate
-} = require('./validators/authValidators');
 const {
   validateEventCreation,
   validateEventEdit,
@@ -406,90 +404,7 @@ app.use('/', require('./routes/auth'));
 // Import and use admin routes
 app.use('/admin', require('./routes/admin'));
 
-// Passport configuration with debug logging
-passport.use(new LocalStrategy(
-  { usernameField: 'email' },
-  async (email, password, done) => {
-    try {
-      console.log('Passport strategy accessed');
-      console.log('Authentication attempt with email:', email);
-      const user = await User.findOne({ email });
-      if (!user) {
-        console.log('No user found with email:', email);
-        return done(null, false, { message: 'No user with that email' });
-      }
 
-      // Check user status before password verification
-      if (user.status === 'pending') {
-        console.log('User account pending approval:', email);
-        return done(null, false, { message: 'Your account is pending admin approval. Please wait for approval before logging in.' });
-      }
-
-      if (user.status === 'rejected') {
-        console.log('User account rejected:', email);
-        return done(null, false, { message: 'Your account has been rejected. Please contact support for more information.' });
-      }
-
-      const isMatch = await bcrypt.compare(password, user.password);
-      if (!isMatch) {
-        console.log('Password incorrect for user:', email);
-        return done(null, false, { message: 'Password incorrect' });
-      }
-
-      // Only allow approved users to login
-      if (user.status !== 'approved') {
-        console.log('User not approved:', email, 'Status:', user.status);
-        return done(null, false, { message: 'Your account is not approved for login.' });
-      }
-
-      console.log('Authentication successful for user:', email);
-      return done(null, user);
-    } catch (err) {
-      console.error('Error during authentication:', err);
-      return done(err);
-    }
-  }
-));
-
-passport.serializeUser((user, done) => {
-  done(null, user.id);
-});
-
-passport.deserializeUser(async (id, done) => {
-  try {
-    const user = await User.findById(id);
-    done(null, user);
-  } catch (err) {
-    done(err);
-  }
-});
-
-// Middleware to check if user is authenticated
-const ensureAuthenticated = (req, res, next) => {
-  // Check for auto-login in development mode
-  if (process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development') {
-    return next();
-  }
-  if (req.isAuthenticated && req.isAuthenticated()) {
-    return next();
-  }
-  res.redirect('/login');
-};
-
-
-// Middleware to check if user is blocked
-const ensureNotBlocked = (req, res, next) => {
-  if (req.isAuthenticated() && req.user.isBlocked) {
-    req.logout((err) => {
-      if (err) {
-        console.error('Error during logout:', err);
-      }
-      res.status(403).send('Your account has been blocked. Please contact support.');
-    });
-  } else {
-    next();
-  }
-};
 
 // Health check endpoint for Docker
 app.get('/api/health', (req, res) => {

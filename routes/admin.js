@@ -110,52 +110,8 @@ const setProbationaryPeriod = (user, days = 30) => {
   return user;
 };
 
-// Middleware to check if user is authenticated
-const ensureAuthenticated = (req, res, next) => {
-  // Check for auto-login in development mode
-  if (process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development') {
-    return next();
-  }
-  if (req.isAuthenticated && req.isAuthenticated()) {
-    return next();
-  }
-  res.redirect('/login');
-};
-
-// Middleware to check if user is admin
-const ensureAdmin = (req, res, next) => {
-  console.log('ensureAdmin middleware accessed');
-  console.log('req.isAuthenticated():', req.isAuthenticated());
-  console.log('req.user:', req.user);
-
-  // Check for auto-login admin in development mode
-  if (process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development' && req.user && req.user.isAdmin) {
-    return next();
-  }
-
-  if (req.isAuthenticated() && req.user && req.user.isAdmin) {
-    return next();
-  }
-  
-  throw new AuthorizationError('You are not authorized to perform this action');
-};
-
-// Middleware to check if user is super admin
-const ensureSuperAdmin = (req, res, next) => {
-  console.log('ensureSuperAdmin middleware accessed');
-  console.log('req.user:', req.user);
-
-  // Check for auto-login super admin in development mode
-  if (process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development' && req.user && req.user.isSuperAdmin) {
-    return next();
-  }
-
-  if (req.isAuthenticated() && req.user && req.user.isSuperAdmin) {
-    return next();
-  }
-  
-  throw new AuthorizationError('Super Admin privileges required for this action');
-};
+// Import authentication middleware
+const { ensureAuthenticated, ensureAdmin, ensureSuperAdmin } = require('../middleware/auth');
 
 // Middleware to check admin operation permissions
 const checkAdminOperationPermission = async (req, res, next) => {

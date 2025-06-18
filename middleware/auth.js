@@ -1,0 +1,93 @@
+/**
+ * Authentication middleware for GamePlan application
+ * Provides reusable authentication and authorization middleware functions
+ */
+
+/**
+ * Middleware to check if user is authenticated
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next function
+ */
+const ensureAuthenticated = (req, res, next) => {
+  // Check for auto-login in development mode
+  if (process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development') {
+    return next();
+  }
+  if (req.isAuthenticated && req.isAuthenticated()) {
+    return next();
+  }
+  res.redirect('/login');
+};
+
+/**
+ * Middleware to check if user is blocked
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next function
+ */
+const ensureNotBlocked = (req, res, next) => {
+  if (req.isAuthenticated() && req.user.isBlocked) {
+    req.logout((err) => {
+      if (err) {
+        console.error('Error during logout:', err);
+      }
+      res.status(403).send('Your account has been blocked. Please contact support.');
+    });
+  } else {
+    next();
+  }
+};
+
+/**
+ * Middleware to check if user is an admin
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next function
+ */
+const ensureAdmin = (req, res, next) => {
+  // Check for auto-login in development mode
+  if (process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development') {
+    return next();
+  }
+  
+  if (!req.isAuthenticated || !req.isAuthenticated()) {
+    return res.redirect('/login');
+  }
+  
+  if (!req.user.isAdmin) {
+    return res.status(403).send('Access denied. Admin privileges required.');
+  }
+  
+  next();
+};
+
+/**
+ * Middleware to check if user is a super admin
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next function
+ */
+const ensureSuperAdmin = (req, res, next) => {
+  // Check for auto-login in development mode
+  if (process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development') {
+    return next();
+  }
+  
+  if (!req.isAuthenticated || !req.isAuthenticated()) {
+    return res.redirect('/login');
+  }
+  
+  if (!req.user.isSuperAdmin) {
+    return res.status(403).send('Access denied. Super admin privileges required.');
+  }
+  
+  next();
+};
+
+module.exports = {
+  ensureAuthenticated,
+  ensureNotBlocked,
+  ensureAdmin,
+  ensureSuperAdmin
+};
