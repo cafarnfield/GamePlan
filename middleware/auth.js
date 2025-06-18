@@ -14,7 +14,7 @@ const ensureAuthenticated = (req, res, next) => {
   if (process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development') {
     return next();
   }
-  if (req.isAuthenticated && req.isAuthenticated()) {
+  if (req.isAuthenticated && typeof req.isAuthenticated === 'function' && req.isAuthenticated()) {
     return next();
   }
   res.redirect('/login');
@@ -27,7 +27,7 @@ const ensureAuthenticated = (req, res, next) => {
  * @param {Function} next - Express next function
  */
 const ensureNotBlocked = (req, res, next) => {
-  if (req.isAuthenticated() && req.user.isBlocked) {
+  if (req.isAuthenticated && req.isAuthenticated() && req.user && req.user.isBlocked) {
     req.logout((err) => {
       if (err) {
         console.error('Error during logout:', err);
@@ -55,7 +55,7 @@ const ensureAdmin = (req, res, next) => {
     return res.redirect('/login');
   }
   
-  if (!req.user.isAdmin) {
+  if (!req.user || !req.user.isAdmin) {
     return res.status(403).send('Access denied. Admin privileges required.');
   }
   
@@ -78,7 +78,7 @@ const ensureSuperAdmin = (req, res, next) => {
     return res.redirect('/login');
   }
   
-  if (!req.user.isSuperAdmin) {
+  if (!req.user || !req.user.isSuperAdmin) {
     return res.status(403).send('Access denied. Super admin privileges required.');
   }
   
