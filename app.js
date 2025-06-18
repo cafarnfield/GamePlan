@@ -407,25 +407,8 @@ app.use('/admin', require('./routes/admin'));
 // Import and use event routes
 app.use('/event', require('./routes/events'));
 
-
-
-// Health check endpoint for Docker
-app.get('/api/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'healthy', 
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    environment: process.env.NODE_ENV || 'development'
-  });
-});
-
-// Add configuration health endpoint
-app.get('/api/config-health', (req, res) => {
-  const { getConfigHealth } = require('./utils/configHealth');
-  const health = getConfigHealth();
-  res.json(health);
-});
-
+// Import and use game routes
+app.use('/games', require('./routes/games'));
 
 // Steam search API endpoint
 app.get('/api/steam/search', apiLimiter, validateSteamSearch, handleValidationErrors, asyncErrorHandler(async (req, res) => {
@@ -452,6 +435,25 @@ app.get('/api/rawg/search', apiLimiter, validateRawgSearch, handleValidationErro
   const results = await rawgService.searchGames(q.trim());
   res.json(results);
 }));
+
+// Health check endpoint for Docker
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'healthy', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
+// Add configuration health endpoint
+app.get('/api/config-health', (req, res) => {
+  const { getConfigHealth } = require('./utils/configHealth');
+  const health = getConfigHealth();
+  res.json(health);
+});
+
+
 
 // Home page route - Display all events
 app.get('/', async (req, res) => {
