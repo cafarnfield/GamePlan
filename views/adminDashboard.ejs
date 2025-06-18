@@ -439,7 +439,7 @@
   // Auto-refresh pending counts every 30 seconds
   setInterval(async () => {
     try {
-      const response = await fetch('/api/admin/pending-count');
+      const response = await fetch('/admin/api/pending-count');
       const data = await response.json();
       
       // Update notification badge if it exists

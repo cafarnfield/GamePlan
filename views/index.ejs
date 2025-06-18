@@ -807,7 +807,7 @@
     // Fetch pending user count for admin alert
     async function fetchPendingUserCount() {
       try {
-        const response = await fetch('/api/admin/pending-count');
+        const response = await fetch('/admin/api/pending-count');
         const data = await response.json();
         const alertDiv = document.getElementById('admin-alert');
         const countSpan = document.getElementById('pending-count');
