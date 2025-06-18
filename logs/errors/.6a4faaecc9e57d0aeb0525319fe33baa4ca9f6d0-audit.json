@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 30
+    },
+    "auditLog": "C:\\Users\\cafar\\OneDrive - Iconology Ltd\\My Projects\\GamePlan\\logs\\errors\\.6a4faaecc9e57d0aeb0525319fe33baa4ca9f6d0-audit.json",
+    "files": [
+        {
+            "date": 1750271405126,
+            "name": "C:\\Users\\cafar\\OneDrive - Iconology Ltd\\My Projects\\GamePlan\\logs\\errors\\exceptions-2025-06-18.log",
+            "hash": "b7dd175a1b1179437f9f37a68630912b73ac222c8adad5abff111ba3a60f4611"
+        }
+    ],
+    "hashType": "sha256"
+}

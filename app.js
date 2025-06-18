@@ -12,6 +12,10 @@ const rateLimit = require('express-rate-limit');
 const steamService = require('./services/steamService');
 const rawgService = require('./services/rawgService');
 
+// Import winston logger
+const { systemLogger, authLogger, adminLogger, securityLogger } = require('./utils/logger');
+const { requestLogger, apiRequestLogger } = require('./middleware/requestLogger');
+
 // Import validation middleware and validators
 const { handleValidationErrors } = require('./middleware/validation');
 
@@ -162,8 +166,11 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use(express.static('public'));
 app.use((req, res, next) => {
-  console.log('Session middleware accessed');
-  console.log('Session before middleware:', req.session);
+  systemLogger.debug('Session middleware accessed', {
+    requestId: req.requestId,
+    sessionId: req.sessionID,
+    hasSession: !!req.session
+  });
   next();
 });
 app.use(session({
@@ -185,13 +192,22 @@ app.use(session({
   })
 }));
 app.use((req, res, next) => {
-  console.log('Session middleware accessed');
-  console.log('Session before middleware:', req.session);
-  console.log('Authenticated user:', req.isAuthenticated ? req.isAuthenticated() : false, req.user);
+  systemLogger.debug('Session middleware post-init accessed', {
+    requestId: req.requestId,
+    sessionId: req.sessionID,
+    hasSession: !!req.session,
+    isAuthenticated: req.isAuthenticated ? req.isAuthenticated() : false,
+    userId: req.user?._id,
+    userEmail: req.user?.email
+  });
   next();
 });
 app.use((req, res, next) => {
-  console.log('Session after middleware:', req.session);
+  systemLogger.debug('Session middleware final check', {
+    requestId: req.requestId,
+    sessionId: req.sessionID,
+    sessionData: req.session ? Object.keys(req.session) : []
+  });
   next();
 });
 app.use(passport.initialize());
@@ -210,7 +226,10 @@ const {
 // Initialize database connection
 const initializeDatabase = async () => {
   try {
-    console.log('🚀 Initializing enhanced database connection...');
+    systemLogger.info('Initializing enhanced database connection', {
+      mockDb: !!process.env.MOCK_DB,
+      environment: process.env.NODE_ENV
+    });
     
     // Connect to database with retry logic
     if (process.env.MOCK_DB) {
@@ -219,31 +238,54 @@ const initializeDatabase = async () => {
       await connectDatabase();
     }
     
-    console.log('✅ Database connection initialized successfully');
+    systemLogger.info('Database connection initialized successfully', {
+      connectionState: 'connected',
+      environment: process.env.NODE_ENV
+    });
   } catch (error) {
-    console.error('❌ Failed to initialize database connection:', error.message);
+    systemLogger.error('Failed to initialize database connection', {
+      error: error.message,
+      stack: error.stack,
+      environment: process.env.NODE_ENV
+    });
     
     // In production, we might want to exit the process
     if (process.env.NODE_ENV === 'production') {
-      console.error('💥 Exiting due to database connection failure in production');
+      systemLogger.error('Exiting due to database connection failure in production', {
+        exitCode: 1,
+        reason: 'database_connection_failure'
+      });
       process.exit(1);
     } else {
-      console.warn('⚠️ Continuing in development mode despite database connection failure');
+      systemLogger.warn('Continuing in development mode despite database connection failure', {
+        environment: 'development',
+        allowContinue: true
+      });
     }
   }
 };
 
 // Setup database event listeners
 onDatabaseEvent('connected', () => {
-  console.log('📊 Database connection established - monitoring started');
+  systemLogger.info('Database connection established - monitoring started', {
+    event: 'database_connected',
+    monitoringActive: true
+  });
 });
 
 onDatabaseEvent('disconnected', () => {
-  console.warn('⚠️ Database connection lost - attempting reconnection');
+  systemLogger.warn('Database connection lost - attempting reconnection', {
+    event: 'database_disconnected',
+    reconnectionAttempt: true
+  });
 });
 
 onDatabaseEvent('error', (error) => {
-  console.error('💾 Database connection error:', error.message);
+  systemLogger.error('Database connection error', {
+    event: 'database_error',
+    error: error.message,
+    errorType: error.name
+  });
 });
 
 // Initialize database connection
@@ -283,9 +325,20 @@ const createAuditLog = async (adminUser, action, targetUser, notes = '', ipAddre
       details
     });
     await auditLog.save();
-    console.log('Audit log created:', action, targetUser ? targetUser.email : 'bulk action');
+    adminLogger.logAdminAction(action, adminUser._id, targetUser?._id, {
+      targetEmail: targetUser?.email,
+      notes,
+      ipAddress,
+      bulkCount,
+      details
+    });
   } catch (err) {
-    console.error('Error creating audit log:', err);
+    adminLogger.error('Error creating audit log', {
+      error: err.message,
+      action,
+      adminId: adminUser._id,
+      targetUserId: targetUser?._id
+    });
   }
 };
 
@@ -298,7 +351,10 @@ const getPendingCounts = async () => {
       pendingGames: await Game.countDocuments({ status: 'pending' })
     };
   } catch (err) {
-    console.error('Error getting pending counts:', err);
+    adminLogger.error('Error getting pending counts', {
+      error: err.message,
+      stack: err.stack
+    });
     return {
       pendingUsers: 0,
       pendingEvents: 0,
@@ -354,7 +410,12 @@ const loginLimiter = rateLimit({
     return getClientIP(req); // Use the existing helper function for IP detection
   },
   handler: (req, res) => {
-    console.log(`Login rate limit exceeded for IP: ${getClientIP(req)}`);
+    securityLogger.logSecurityEvent('RATE_LIMIT_EXCEEDED', 'warn', {
+      type: 'login_rate_limit',
+      ip: getClientIP(req),
+      limit: 5,
+      window: '15 minutes'
+    });
     const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
     res.status(429).render('login', { 
       isDevelopmentAutoLogin,
@@ -458,6 +519,9 @@ app.use(autoLoginMiddleware);
 // Add request ID middleware for error tracking
 app.use(requestIdMiddleware);
 
+// Add request logging middleware
+app.use(requestLogger);
+
 // Apply database middleware
 app.use(addDatabaseMetrics);
 app.use(ensureDatabaseConnection({ skipHealthCheck: true }));
@@ -465,7 +529,8 @@ app.use(ensureDatabaseConnection({ skipHealthCheck: true }));
 // Apply general rate limiting to all routes (except static assets)
 app.use(generalLimiter);
 
-// Apply API rate limiting to all /api routes
+// Apply API rate limiting to all /api routes with enhanced logging
+app.use('/api', apiRequestLogger);
 app.use('/api', apiLimiter);
 
 // Apply admin database info middleware to admin routes
@@ -2292,6 +2357,84 @@ app.get('/admin/error-logs', ensureAuthenticated, ensureAdmin, asyncErrorHandler
     console.error('Error loading error logs:', err);
     throw new DatabaseError('Failed to load error logs');
   }
+}));
+
+// Export error logs (must come before parameterized routes)
+app.get('/admin/error-logs/export', ensureAuthenticated, ensureAdmin, asyncErrorHandler(async (req, res) => {
+  const { 
+    filter, 
+    errorType, 
+    severity, 
+    status, 
+    search, 
+    dateFrom, 
+    dateTo 
+  } = req.query;
+  
+  // Build same query as main listing
+  let query = {};
+  
+  if (filter === 'unresolved') {
+    query['resolution.status'] = { $in: ['new', 'investigating'] };
+  } else if (filter === 'critical') {
+    query['analytics.severity'] = 'critical';
+  } else if (filter === 'today') {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    query.timestamp = { $gte: today, $lt: tomorrow };
+  } else if (filter === 'hour') {
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    query.timestamp = { $gte: oneHourAgo };
+  }
+  
+  if (errorType) query.errorType = errorType;
+  if (severity) query['analytics.severity'] = severity;
+  if (status) query['resolution.status'] = status;
+  
+  if (dateFrom || dateTo) {
+    query.timestamp = {};
+    if (dateFrom) query.timestamp.$gte = new Date(dateFrom);
+    if (dateTo) {
+      const endDate = new Date(dateTo);
+      endDate.setHours(23, 59, 59, 999);
+      query.timestamp.$lte = endDate;
+    }
+  }
+  
+  if (search) {
+    query.$or = [
+      { message: { $regex: search, $options: 'i' } },
+      { 'userContext.email': { $regex: search, $options: 'i' } },
+      { 'requestContext.url': { $regex: search, $options: 'i' } }
+    ];
+  }
+  
+  const errorLogs = await ErrorLog.find(query)
+    .sort({ timestamp: -1 })
+    .limit(1000); // Limit export to 1000 records
+  
+  // Create CSV content
+  const csvHeader = 'Timestamp,Type,Message,User,URL,Severity,Status,Request ID\n';
+  const csvRows = errorLogs.map(error => {
+    const timestamp = error.timestamp.toISOString();
+    const type = error.errorType;
+    const message = `"${error.message.replace(/"/g, '""')}"`;
+    const user = error.userContext.email || 'Anonymous';
+    const url = `"${error.requestContext.originalUrl}"`;
+    const severity = error.analytics.severity;
+    const status = error.resolution.status;
+    const requestId = error.requestId;
+    
+    return `${timestamp},${type},${message},${user},${url},${severity},${status},${requestId}`;
+  }).join('\n');
+  
+  const csvContent = csvHeader + csvRows;
+  
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', `attachment; filename="error-logs-${new Date().toISOString().split('T')[0]}.csv"`);
+  res.send(csvContent);
 }));
 
 // Get single error log details
