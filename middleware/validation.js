@@ -135,8 +135,12 @@ const validateFutureDate = (value) => {
     throw new Error('Invalid date format');
   }
   
-  if (date <= now) {
-    throw new Error('Date must be in the future');
+  // Add 30-minute buffer to prevent events scheduled too close to now
+  const minimumTime = new Date(now.getTime() + (30 * 60 * 1000)); // 30 minutes from now
+  
+  if (date <= minimumTime) {
+    const bufferMinutes = Math.ceil((minimumTime - now) / (60 * 1000));
+    throw new Error(`Event date must be at least ${bufferMinutes} minutes in the future`);
   }
   
   // Check if date is not too far in the future (e.g., 2 years)

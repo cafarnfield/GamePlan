@@ -176,6 +176,18 @@
             return false;
           }
 
+          // Validate event date
+          const eventDate = new Date(document.getElementById('date').value);
+          const now = new Date();
+          const minimumTime = new Date(now.getTime() + (30 * 60 * 1000)); // 30 minutes from now
+          
+          if (eventDate <= minimumTime) {
+            const bufferMinutes = Math.ceil((minimumTime - now) / (60 * 1000));
+            alert(`Event date must be at least ${bufferMinutes} minutes in the future`);
+            event.preventDefault();
+            return false;
+          }
+
           // Remove any existing extensions hidden input
           const existingExtensionsInput = document.querySelector('input[name="extensions"]');
           if (existingExtensionsInput) {

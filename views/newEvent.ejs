@@ -429,16 +429,16 @@
       setupDescriptionValidation();
     });
 
-    // Set default date/time to 1 hour from now
+    // Set default date/time to 1.5 hours from now (to provide buffer)
     function setDefaultDateTime() {
       const now = new Date();
-      const oneHourLater = new Date(now.getTime() + (60 * 60 * 1000));
+      const oneAndHalfHoursLater = new Date(now.getTime() + (90 * 60 * 1000)); // 1.5 hours
       
-      const year = oneHourLater.getFullYear();
-      const month = String(oneHourLater.getMonth() + 1).padStart(2, '0');
-      const day = String(oneHourLater.getDate()).padStart(2, '0');
-      const hours = String(oneHourLater.getHours()).padStart(2, '0');
-      const minutes = String(oneHourLater.getMinutes()).padStart(2, '0');
+      const year = oneAndHalfHoursLater.getFullYear();
+      const month = String(oneAndHalfHoursLater.getMonth() + 1).padStart(2, '0');
+      const day = String(oneAndHalfHoursLater.getDate()).padStart(2, '0');
+      const hours = String(oneAndHalfHoursLater.getHours()).padStart(2, '0');
+      const minutes = String(oneAndHalfHoursLater.getMinutes()).padStart(2, '0');
       
       const formattedDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
       document.getElementById('eventDate').value = formattedDateTime;
@@ -528,8 +528,11 @@
 
       const eventDate = new Date(date);
       const now = new Date();
-      if (eventDate <= now) {
-        showError('Event date must be in the future');
+      const minimumTime = new Date(now.getTime() + (30 * 60 * 1000)); // 30 minutes from now
+      
+      if (eventDate <= minimumTime) {
+        const bufferMinutes = Math.ceil((minimumTime - now) / (60 * 1000));
+        showError(`Event date must be at least ${bufferMinutes} minutes in the future`);
         return false;
       }
 

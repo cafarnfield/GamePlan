@@ -133,16 +133,16 @@
       </form>
 
       <script>
-        // Auto-populate date/time field with current time + 1 hour
+        // Auto-populate date/time field with current time + 1.5 hours (to provide buffer)
         function setDefaultDateTime() {
           const now = new Date();
-          const oneHourLater = new Date(now.getTime() + (60 * 60 * 1000));
+          const oneAndHalfHoursLater = new Date(now.getTime() + (90 * 60 * 1000)); // 1.5 hours
           
-          const year = oneHourLater.getFullYear();
-          const month = String(oneHourLater.getMonth() + 1).padStart(2, '0');
-          const day = String(oneHourLater.getDate()).padStart(2, '0');
-          const hours = String(oneHourLater.getHours()).padStart(2, '0');
-          const minutes = String(oneHourLater.getMinutes()).padStart(2, '0');
+          const year = oneAndHalfHoursLater.getFullYear();
+          const month = String(oneAndHalfHoursLater.getMonth() + 1).padStart(2, '0');
+          const day = String(oneAndHalfHoursLater.getDate()).padStart(2, '0');
+          const hours = String(oneAndHalfHoursLater.getHours()).padStart(2, '0');
+          const minutes = String(oneAndHalfHoursLater.getMinutes()).padStart(2, '0');
           
           const formattedDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
           
@@ -165,11 +165,14 @@
             return false;
           }
 
-          // Validate date is in the future
+          // Validate date is in the future with 30-minute buffer
           const selectedDate = new Date(document.getElementById('date').value);
           const now = new Date();
-          if (selectedDate <= now) {
-            alert('Please select a date and time in the future.');
+          const minimumTime = new Date(now.getTime() + (30 * 60 * 1000)); // 30 minutes from now
+          
+          if (selectedDate <= minimumTime) {
+            const bufferMinutes = Math.ceil((minimumTime - now) / (60 * 1000));
+            alert(`Event date must be at least ${bufferMinutes} minutes in the future`);
             event.preventDefault();
             return false;
           }
