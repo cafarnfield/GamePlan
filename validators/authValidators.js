@@ -47,22 +47,6 @@ const validateRegistration = [
     .custom(validateGameNickname)
     .escape(), // HTML escape the game nickname
 
-  // reCAPTCHA validation (conditional - only required if RECAPTCHA_SECRET_KEY is configured)
-  body('g-recaptcha-response')
-    .custom((value, { req }) => {
-      // If reCAPTCHA is not configured, skip validation
-      if (!process.env.RECAPTCHA_SECRET_KEY) {
-        return true;
-      }
-      // If reCAPTCHA is configured, require the response
-      if (!value || value.trim() === '') {
-        throw new Error('Please complete the CAPTCHA verification');
-      }
-      if (value.length > 2000) {
-        throw new Error('Invalid CAPTCHA response');
-      }
-      return true;
-    })
 ];
 
 /**

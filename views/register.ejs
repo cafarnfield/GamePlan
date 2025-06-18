@@ -6,9 +6,6 @@
   <title>Register - GamePlan</title>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
-  <% if (recaptchaSiteKey) { %>
-    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
-  <% } %>
   <style>
     .error-message {
       color: #ff0000;
@@ -27,11 +24,6 @@
       margin: 10px 0;
       font-size: 12px;
       text-align: center;
-    }
-    .captcha-container {
-      margin: 15px 0;
-      display: flex;
-      justify-content: center;
     }
   </style>
 </head>
@@ -83,15 +75,6 @@
       <label for="gameNickname">Game Nickname (Optional):</label>
       <input type="text" id="gameNickname" name="gameNickname" placeholder="How you want to be known in games">
 
-      <% if (recaptchaSiteKey) { %>
-        <div class="captcha-container">
-          <div class="g-recaptcha" data-sitekey="<%= recaptchaSiteKey %>"></div>
-        </div>
-      <% } else { %>
-        <div class="info-message">
-          CAPTCHA not configured - registration will proceed without verification
-        </div>
-      <% } %>
 
       <button type="submit">Register Account</button>
     </form>

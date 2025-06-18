@@ -40,9 +40,7 @@ const validateRequiredEnvVars = () => {
 const validateOptionalEnvVars = () => {
   const optionalVars = [
     'STEAM_API_KEY',
-    'RAWG_API_KEY',
-    'RECAPTCHA_SITE_KEY',
-    'RECAPTCHA_SECRET_KEY'
+    'RAWG_API_KEY'
   ];
 
   const missingOptionalVars = optionalVars.filter(varName => !process.env[varName]);

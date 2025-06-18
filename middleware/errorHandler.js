@@ -163,10 +163,8 @@ const handleWebError = (req, res, error, isDevelopment) => {
 
   // Handle specific routes that need custom error handling
   if (req.originalUrl.includes('/register')) {
-    const recaptchaSiteKey = process.env.RECAPTCHA_SITE_KEY || '';
     return res.render('register', {
       isDevelopmentAutoLogin,
-      recaptchaSiteKey,
       error: error.message
     });
   }

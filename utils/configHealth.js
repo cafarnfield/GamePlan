@@ -42,9 +42,7 @@ const getConfigHealth = () => {
   // Check optional environment variables
   const optionalVars = [
     'STEAM_API_KEY',
-    'RAWG_API_KEY',
-    'RECAPTCHA_SITE_KEY',
-    'RECAPTCHA_SECRET_KEY'
+    'RAWG_API_KEY'
   ];
 
   optionalVars.forEach(varName => {

@@ -60,9 +60,7 @@ const checkAutoLoginAdmin = (req, res, next) => {
 const validateOptionalEnvVars = (req, res, next) => {
   const optionalVars = [
     'STEAM_API_KEY',
-    'RAWG_API_KEY',
-    'RECAPTCHA_SITE_KEY',
-    'RECAPTCHA_SECRET_KEY'
+    'RAWG_API_KEY'
   ];
 
   const missingOptionalVars = optionalVars.filter(varName => !process.env[varName]);

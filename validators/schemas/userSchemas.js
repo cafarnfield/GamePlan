@@ -27,16 +27,7 @@ const userRegistrationSchema = Joi.object({
       'any.only': 'Password confirmation does not match password',
       'any.required': 'Password confirmation is required'
     }),
-  gameNickname: gameNickname.optional(),
-  'g-recaptcha-response': Joi.string()
-    .when('$recaptchaRequired', {
-      is: true,
-      then: Joi.string().required().max(2000).messages({
-        'any.required': 'Please complete the CAPTCHA verification',
-        'string.max': 'Invalid CAPTCHA response'
-      }),
-      otherwise: Joi.optional()
-    })
+  gameNickname: gameNickname.optional()
 }).messages({
   'object.unknown': 'Unknown field provided'
 });

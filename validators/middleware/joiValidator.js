@@ -52,7 +52,6 @@ const createJoiValidator = (schema, source = 'body', options = {}) => {
 
     // Add context data for conditional validation
     const context = {
-      recaptchaRequired: !!process.env.RECAPTCHA_SECRET_KEY,
       twoYearsFromNow: new Date(Date.now() + (2 * 365 * 24 * 60 * 60 * 1000)),
       operation: dataToValidate.operation,
       user: req.user,
@@ -165,7 +164,6 @@ const validateMultiple = (schemas, options = {}) => {
   return (req, res, next) => {
     const errors = [];
     const context = {
-      recaptchaRequired: !!process.env.RECAPTCHA_SECRET_KEY,
       twoYearsFromNow: new Date(Date.now() + (2 * 365 * 24 * 60 * 60 * 1000)),
       operation: req.body?.operation || req.query?.operation,
       user: req.user,

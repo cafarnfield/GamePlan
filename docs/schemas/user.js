@@ -63,7 +63,6 @@
  *         - name
  *         - email
  *         - password
- *         - g-recaptcha-response
  *       properties:
  *         name:
  *           type: string
@@ -82,10 +81,6 @@
  *           type: string
  *           maxLength: 30
  *           example: "JohnGamer123"
- *         g-recaptcha-response:
- *           type: string
- *           description: "reCAPTCHA response token"
- *           example: "03AGdBq25..."
  *     
  *     UserLogin:
  *       type: object

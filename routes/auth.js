@@ -2,7 +2,6 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const passport = require('passport');
 const LocalStrategy = require('passport-local').Strategy;
-const axios = require('axios');
 const rateLimit = require('express-rate-limit');
 
 // Import models
@@ -65,26 +64,6 @@ const createAuditLog = async (adminUser, action, targetUser, notes = '', ipAddre
   }
 };
 
-// Helper function to verify reCAPTCHA
-const verifyRecaptcha = async (recaptchaResponse) => {
-  if (!process.env.RECAPTCHA_SECRET_KEY) {
-    console.warn('reCAPTCHA secret key not configured, skipping verification');
-    return true; // Skip verification if not configured
-  }
-
-  try {
-    const response = await axios.post('https://www.google.com/recaptcha/api/siteverify', null, {
-      params: {
-        secret: process.env.RECAPTCHA_SECRET_KEY,
-        response: recaptchaResponse
-      }
-    });
-    return response.data.success;
-  } catch (error) {
-    console.error('reCAPTCHA verification error:', error);
-    return false;
-  }
-};
 
 // Helper function to set probationary period
 const setProbationaryPeriod = (user, days = 30) => {
@@ -198,10 +177,8 @@ const registrationLimiter = rateLimit({
   handler: (req, res) => {
     console.log(`Registration rate limit exceeded for IP: ${getClientIP(req)}`);
     const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
-    const recaptchaSiteKey = process.env.RECAPTCHA_SITE_KEY || '';
     res.status(429).render('register', { 
-      isDevelopmentAutoLogin, 
-      recaptchaSiteKey,
+      isDevelopmentAutoLogin,
       error: 'Too many registration attempts from this IP, please try again in an hour.'
     });
   }
@@ -229,8 +206,7 @@ const { ensureAuthenticated, ensureNotBlocked } = require('../middleware/auth');
  */
 router.get('/register', (req, res) => {
   const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
-  const recaptchaSiteKey = process.env.RECAPTCHA_SITE_KEY || '';
-  res.render('register', { isDevelopmentAutoLogin, recaptchaSiteKey, error: null });
+  res.render('register', { isDevelopmentAutoLogin, error: null });
 });
 
 /**
@@ -240,7 +216,7 @@ router.get('/register', (req, res) => {
  *     tags: [Authentication]
  *     summary: Register a new user account
  *     description: |
- *       Creates a new user account with pending status. Requires reCAPTCHA verification.
+ *       Creates a new user account with pending status.
  *       Account will need admin approval before the user can log in.
  *     requestBody:
  *       required: true
@@ -270,7 +246,6 @@ router.post('/register', registrationLimiter, validateRegistration, (req, res, n
   
   if (!errors.isEmpty()) {
     const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
-    const recaptchaSiteKey = process.env.RECAPTCHA_SITE_KEY || '';
     
     // Create detailed error message for debugging
     const errorMessages = errors.array().map(error => `${error.path}: ${error.msg}`);
@@ -279,8 +254,7 @@ router.post('/register', registrationLimiter, validateRegistration, (req, res, n
     console.log('Registration validation errors:', errors.array());
     
     return res.render('register', { 
-      isDevelopmentAutoLogin, 
-      recaptchaSiteKey,
+      isDevelopmentAutoLogin,
       error: detailedError
     });
   }
@@ -288,17 +262,15 @@ router.post('/register', registrationLimiter, validateRegistration, (req, res, n
   next();
 }, async (req, res) => {
   try {
-    const { name, email, password, gameNickname, 'g-recaptcha-response': recaptchaResponse } = req.body;
+    const { name, email, password, gameNickname } = req.body;
     const clientIP = getClientIP(req);
     const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
-    const recaptchaSiteKey = process.env.RECAPTCHA_SITE_KEY || '';
 
     // Check if email is in rejected list
     const rejectedEmail = await RejectedEmail.findOne({ email: email.toLowerCase() });
     if (rejectedEmail) {
       return res.render('register', { 
-        isDevelopmentAutoLogin, 
-        recaptchaSiteKey,
+        isDevelopmentAutoLogin,
         error: 'This email address has been rejected and cannot be used for registration. Please contact support if you believe this is an error.' 
       });
     }
@@ -307,19 +279,8 @@ router.post('/register', registrationLimiter, validateRegistration, (req, res, n
     const existingUser = await User.findOne({ email: email.toLowerCase() });
     if (existingUser) {
       return res.render('register', { 
-        isDevelopmentAutoLogin, 
-        recaptchaSiteKey,
+        isDevelopmentAutoLogin,
         error: 'An account with this email already exists.' 
-      });
-    }
-
-    // Verify reCAPTCHA
-    const recaptchaValid = await verifyRecaptcha(recaptchaResponse);
-    if (!recaptchaValid) {
-      return res.render('register', { 
-        isDevelopmentAutoLogin, 
-        recaptchaSiteKey,
-        error: 'Please complete the CAPTCHA verification.' 
       });
     }
 
@@ -342,10 +303,8 @@ router.post('/register', registrationLimiter, validateRegistration, (req, res, n
   } catch (err) {
     console.error('Error registering user:', err);
     const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
-    const recaptchaSiteKey = process.env.RECAPTCHA_SITE_KEY || '';
     res.render('register', { 
-      isDevelopmentAutoLogin, 
-      recaptchaSiteKey,
+      isDevelopmentAutoLogin,
       error: 'Error registering user. Please try again.' 
     });
   }
