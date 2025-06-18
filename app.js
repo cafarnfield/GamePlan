@@ -882,11 +882,103 @@ app.get('/event/:id/edit', ensureAuthenticated, ensureNotBlocked, async (req, re
       return res.status(403).send('You are not authorized to edit this event');
     }
     
+    // Get approved games for the game selection
+    const games = await Game.find({ status: 'approved' }).sort({ name: 1 });
+    
     const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
-    res.render('editEvent', { event, user: req.user, isDevelopmentAutoLogin });
+    res.render('editEvent', { event, games, user: req.user, isDevelopmentAutoLogin });
   } catch (err) {
     console.error('Error loading event for editing:', err);
     res.status(500).send('Error loading event');
+  }
+});
+
+// Update event route (POST)
+app.post('/event/:id/edit', ensureAuthenticated, ensureNotBlocked, validateEventEdit, handleValidationErrors, async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id)
+      .populate('createdBy')
+      .populate('players')
+      .populate('requiredExtensions')
+      .populate('game');
+    
+    if (!event) {
+      return res.status(404).send('Event not found');
+    }
+    
+    // Check permissions
+    const isCreator = event.createdBy && event.createdBy._id.equals(req.user._id);
+    const isLegacyCreator = !event.createdBy && event.players.length > 0 && event.players[0]._id.equals(req.user._id);
+    const canEdit = isCreator || isLegacyCreator || req.user.isAdmin;
+    
+    if (!canEdit) {
+      return res.status(403).send('You are not authorized to edit this event');
+    }
+    
+    const { name, gameId, description, playerLimit, date, platforms, extensions } = req.body;
+    
+    // Update basic event fields
+    event.name = name;
+    event.description = description;
+    event.playerLimit = parseInt(playerLimit);
+    event.date = new Date(date);
+    event.platforms = Array.isArray(platforms) ? platforms : [platforms];
+    
+    // Handle game change
+    if (gameId && gameId !== event.game._id.toString()) {
+      event.game = gameId;
+    }
+    
+    // Handle extensions
+    if (extensions && extensions.trim() !== '') {
+      try {
+        const extensionsData = JSON.parse(extensions);
+        
+        // Delete old extensions
+        if (event.requiredExtensions && event.requiredExtensions.length > 0) {
+          await Extension.deleteMany({ _id: { $in: event.requiredExtensions } });
+        }
+        
+        // Create new extensions
+        const extensionIds = [];
+        for (const extData of extensionsData) {
+          if (extData.name && extData.downloadLink && extData.installationTime) {
+            const extension = new Extension({
+              name: extData.name,
+              downloadLink: extData.downloadLink,
+              installationTime: parseInt(extData.installationTime),
+              description: extData.description || ''
+            });
+            await extension.save();
+            extensionIds.push(extension._id);
+          }
+        }
+        event.requiredExtensions = extensionIds;
+      } catch (err) {
+        console.error('Error parsing extensions:', err);
+        // Continue without extensions if parsing fails
+        event.requiredExtensions = [];
+      }
+    } else {
+      // No extensions provided, clear existing ones
+      if (event.requiredExtensions && event.requiredExtensions.length > 0) {
+        await Extension.deleteMany({ _id: { $in: event.requiredExtensions } });
+      }
+      event.requiredExtensions = [];
+    }
+    
+    await event.save();
+    
+    console.log('Event updated successfully:', {
+      eventId: event._id,
+      updatedBy: req.user.email,
+      changes: { name, gameId, description, playerLimit, date, platforms }
+    });
+    
+    res.redirect(`/event/${event._id}`);
+  } catch (err) {
+    console.error('Error updating event:', err);
+    res.status(500).send('Error updating event');
   }
 });
 
@@ -2342,6 +2434,185 @@ app.post('/admin/error-logs/cleanup', ensureAuthenticated, ensureAdmin, asyncErr
     deletedCount: result.deletedCount,
     message: `Cleaned up ${result.deletedCount} old error logs`
   });
+}));
+
+// Clear all error logs (SuperAdmin only)
+app.post('/admin/error-logs/clear-all', ensureAuthenticated, ensureSuperAdmin, asyncErrorHandler(async (req, res) => {
+  const clientIP = getClientIP(req);
+  
+  try {
+    // Count logs before deletion for audit
+    const totalLogs = await ErrorLog.countDocuments();
+    
+    // Delete all error logs
+    const result = await ErrorLog.deleteMany({});
+    
+    // Create audit log for this critical action
+    await createAuditLog(req.user, 'ERROR_LOGS_CLEARED_ALL', null, `Cleared all ${totalLogs} error logs`, clientIP, totalLogs, {
+      totalDeleted: result.deletedCount,
+      action: 'CLEAR_ALL_ERROR_LOGS'
+    });
+    
+    console.log('All error logs cleared by SuperAdmin:', req.user.email, 'Count:', result.deletedCount);
+    
+    res.json({ 
+      success: true, 
+      deletedCount: result.deletedCount,
+      message: `All error logs cleared: ${result.deletedCount} logs deleted`
+    });
+  } catch (err) {
+    console.error('Error clearing all logs:', err);
+    throw new DatabaseError('Failed to clear all error logs');
+  }
+}));
+
+// Bulk mark as investigating
+app.post('/admin/error-logs/bulk-investigate', ensureAuthenticated, ensureAdmin, asyncErrorHandler(async (req, res) => {
+  const { errorIds, notes } = req.body;
+  const clientIP = getClientIP(req);
+  
+  if (!errorIds || !Array.isArray(errorIds) || errorIds.length === 0) {
+    throw new ValidationError('Error IDs array is required');
+  }
+  
+  let successCount = 0;
+  let errorCount = 0;
+  
+  try {
+    for (const errorId of errorIds) {
+      try {
+        const errorLog = await ErrorLog.findById(errorId);
+        if (!errorLog) {
+          errorCount++;
+          continue;
+        }
+        
+        errorLog.resolution.status = 'investigating';
+        if (notes) {
+          await errorLog.addAdminNote(req.user, notes);
+        }
+        await errorLog.save();
+        
+        successCount++;
+      } catch (err) {
+        console.error('Error in bulk investigate for log:', errorId, err);
+        errorCount++;
+      }
+    }
+    
+    // Create audit log
+    await createAuditLog(req.user, 'BULK_ERROR_LOGS_INVESTIGATING', null, notes, clientIP, successCount, {
+      successCount,
+      errorCount,
+      totalRequested: errorIds.length,
+      action: 'BULK_MARK_INVESTIGATING'
+    });
+    
+    console.log('Bulk investigate completed:', successCount, 'success,', errorCount, 'errors, by:', req.user.email);
+    
+    res.json({ 
+      success: true, 
+      successCount,
+      errorCount,
+      message: `Bulk operation completed: ${successCount} updated, ${errorCount} errors`
+    });
+  } catch (err) {
+    console.error('Error in bulk investigate:', err);
+    throw new DatabaseError('Failed to perform bulk investigate operation');
+  }
+}));
+
+// Bulk mark as resolved
+app.post('/admin/error-logs/bulk-resolve', ensureAuthenticated, ensureAdmin, asyncErrorHandler(async (req, res) => {
+  const { errorIds, resolution, notes } = req.body;
+  const clientIP = getClientIP(req);
+  
+  if (!errorIds || !Array.isArray(errorIds) || errorIds.length === 0) {
+    throw new ValidationError('Error IDs array is required');
+  }
+  
+  if (!resolution || resolution.trim() === '') {
+    throw new ValidationError('Resolution details are required');
+  }
+  
+  let successCount = 0;
+  let errorCount = 0;
+  
+  try {
+    for (const errorId of errorIds) {
+      try {
+        const errorLog = await ErrorLog.findById(errorId);
+        if (!errorLog) {
+          errorCount++;
+          continue;
+        }
+        
+        await errorLog.markAsResolved(req.user, resolution, notes);
+        successCount++;
+      } catch (err) {
+        console.error('Error in bulk resolve for log:', errorId, err);
+        errorCount++;
+      }
+    }
+    
+    // Create audit log
+    await createAuditLog(req.user, 'BULK_ERROR_LOGS_RESOLVED', null, `Resolution: ${resolution}. Notes: ${notes || 'None'}`, clientIP, successCount, {
+      successCount,
+      errorCount,
+      totalRequested: errorIds.length,
+      resolution,
+      action: 'BULK_MARK_RESOLVED'
+    });
+    
+    console.log('Bulk resolve completed:', successCount, 'success,', errorCount, 'errors, by:', req.user.email);
+    
+    res.json({ 
+      success: true, 
+      successCount,
+      errorCount,
+      message: `Bulk operation completed: ${successCount} resolved, ${errorCount} errors`
+    });
+  } catch (err) {
+    console.error('Error in bulk resolve:', err);
+    throw new DatabaseError('Failed to perform bulk resolve operation');
+  }
+}));
+
+// Bulk delete error logs (SuperAdmin only)
+app.post('/admin/error-logs/bulk-delete', ensureAuthenticated, ensureSuperAdmin, asyncErrorHandler(async (req, res) => {
+  const { errorIds } = req.body;
+  const clientIP = getClientIP(req);
+  
+  if (!errorIds || !Array.isArray(errorIds) || errorIds.length === 0) {
+    throw new ValidationError('Error IDs array is required');
+  }
+  
+  try {
+    // Get error logs for audit before deletion
+    const errorLogs = await ErrorLog.find({ _id: { $in: errorIds } }).select('_id timestamp errorType message');
+    
+    // Delete the error logs
+    const result = await ErrorLog.deleteMany({ _id: { $in: errorIds } });
+    
+    // Create audit log
+    await createAuditLog(req.user, 'BULK_ERROR_LOGS_DELETED', null, `Deleted ${result.deletedCount} error logs`, clientIP, result.deletedCount, {
+      deletedCount: result.deletedCount,
+      requestedCount: errorIds.length,
+      action: 'BULK_DELETE_ERROR_LOGS',
+      deletedIds: errorLogs.map(log => log._id.toString())
+    });
+    
+    console.log('Bulk delete completed:', result.deletedCount, 'deleted by SuperAdmin:', req.user.email);
+    
+    res.json({ 
+      success: true, 
+      deletedCount: result.deletedCount,
+      message: `Bulk deletion completed: ${result.deletedCount} error logs deleted`
+    });
+  } catch (err) {
+    console.error('Error in bulk delete:', err);
+    throw new DatabaseError('Failed to perform bulk delete operation');
+  }
 }));
 
 // Add 404 handler for unmatched routes

@@ -553,6 +553,53 @@
     flex-wrap: wrap;
   }
   
+  /* Bulk Actions Styles */
+  .bulk-actions-bar {
+    background: rgba(0, 30, 0, 0.9);
+    border: 1px solid #00ff00;
+    padding: 15px 20px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+  }
+  
+  .bulk-actions-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+  }
+  
+  .selected-count {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    color: #00ff00;
+    font-weight: bold;
+  }
+  
+  .bulk-actions-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  
+  .bulk-checkbox {
+    accent-color: #00ff00;
+    transform: scale(1.2);
+    cursor: pointer;
+  }
+  
+  .bulk-checkbox:checked {
+    background-color: #00ff00;
+  }
+  
+  /* Row selection highlighting */
+  .error-logs-table tr.selected {
+    background: rgba(0, 255, 0, 0.1) !important;
+    border: 1px solid #00ff00;
+  }
+  
   /* Mobile optimizations */
   @media (max-width: 768px) {
     .error-logs-header {
@@ -632,6 +679,9 @@
   <div class="error-actions">
     <button onclick="exportErrors()" class="action-btn secondary">📊 Export</button>
     <button onclick="cleanupOldErrors()" class="action-btn danger">🧹 Cleanup</button>
+    <% if (user && user.isSuperAdmin) { %>
+      <button onclick="clearAllLogs()" class="action-btn danger">🗑️ Clear All Logs</button>
+    <% } %>
     <% if (stats.unresolved > 0) { %>
       <a href="/admin/error-logs?filter=unresolved" class="action-btn">⚠️ Review Unresolved</a>
     <% } %>
@@ -727,9 +777,27 @@
       <p>No errors match your current filters.</p>
     </div>
   <% } else { %>
+    <!-- Bulk Actions Bar -->
+    <div id="bulkActionsBar" class="bulk-actions-bar" style="display: none;">
+      <div class="bulk-actions-content">
+        <span id="selectedCount" class="selected-count">0 selected</span>
+        <div class="bulk-actions-buttons">
+          <button onclick="bulkMarkAsInvestigating()" class="action-btn secondary">🔍 Mark as Investigating</button>
+          <button onclick="bulkMarkAsResolved()" class="action-btn">✅ Mark as Resolved</button>
+          <% if (user && user.isSuperAdmin) { %>
+            <button onclick="bulkDelete()" class="action-btn danger">🗑️ Delete Selected</button>
+          <% } %>
+          <button onclick="clearSelection()" class="action-btn secondary">❌ Clear Selection</button>
+        </div>
+      </div>
+    </div>
+    
     <table class="error-logs-table">
       <thead>
         <tr>
+          <th>
+            <input type="checkbox" id="selectAll" onchange="toggleSelectAll()" class="bulk-checkbox">
+          </th>
           <th>⏰ Time</th>
           <th>🏷️ Type</th>
           <th>💬 Message</th>
@@ -743,6 +811,9 @@
       <tbody>
         <% errorLogs.forEach(error => { %>
           <tr>
+            <td>
+              <input type="checkbox" class="bulk-checkbox error-checkbox" value="<%= error._id %>" onchange="updateBulkActions()">
+            </td>
             <td class="timestamp">
               <%= new Date(error.timestamp).toLocaleString() %>
             </td>
@@ -1101,4 +1172,224 @@ Referer: ${error.requestContext.referer || 'Direct access'}</div>
       startAutoRefresh();
     }
   });
+  
+  // Bulk Actions Functions
+  function toggleSelectAll() {
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const errorCheckboxes = document.querySelectorAll('.error-checkbox');
+    
+    errorCheckboxes.forEach(checkbox => {
+      checkbox.checked = selectAllCheckbox.checked;
+      updateRowSelection(checkbox);
+    });
+    
+    updateBulkActions();
+  }
+  
+  function updateBulkActions() {
+    const selectedCheckboxes = document.querySelectorAll('.error-checkbox:checked');
+    const bulkActionsBar = document.getElementById('bulkActionsBar');
+    const selectedCount = document.getElementById('selectedCount');
+    const selectAllCheckbox = document.getElementById('selectAll');
+    
+    if (selectedCheckboxes.length > 0) {
+      bulkActionsBar.style.display = 'block';
+      selectedCount.textContent = `${selectedCheckboxes.length} selected`;
+    } else {
+      bulkActionsBar.style.display = 'none';
+    }
+    
+    // Update select all checkbox state
+    const allCheckboxes = document.querySelectorAll('.error-checkbox');
+    if (selectedCheckboxes.length === allCheckboxes.length) {
+      selectAllCheckbox.checked = true;
+      selectAllCheckbox.indeterminate = false;
+    } else if (selectedCheckboxes.length > 0) {
+      selectAllCheckbox.checked = false;
+      selectAllCheckbox.indeterminate = true;
+    } else {
+      selectAllCheckbox.checked = false;
+      selectAllCheckbox.indeterminate = false;
+    }
+    
+    // Update row highlighting
+    document.querySelectorAll('.error-checkbox').forEach(checkbox => {
+      updateRowSelection(checkbox);
+    });
+  }
+  
+  function updateRowSelection(checkbox) {
+    const row = checkbox.closest('tr');
+    if (checkbox.checked) {
+      row.classList.add('selected');
+    } else {
+      row.classList.remove('selected');
+    }
+  }
+  
+  function clearSelection() {
+    document.querySelectorAll('.error-checkbox').forEach(checkbox => {
+      checkbox.checked = false;
+      updateRowSelection(checkbox);
+    });
+    document.getElementById('selectAll').checked = false;
+    document.getElementById('selectAll').indeterminate = false;
+    updateBulkActions();
+  }
+  
+  function getSelectedErrorIds() {
+    const selectedCheckboxes = document.querySelectorAll('.error-checkbox:checked');
+    return Array.from(selectedCheckboxes).map(checkbox => checkbox.value);
+  }
+  
+  async function bulkMarkAsInvestigating() {
+    const selectedIds = getSelectedErrorIds();
+    if (selectedIds.length === 0) {
+      alert('Please select error logs to mark as investigating');
+      return;
+    }
+    
+    const notes = prompt(`Add investigation notes for ${selectedIds.length} error logs (optional):`);
+    if (notes === null) return; // User cancelled
+    
+    try {
+      const response = await fetch('/admin/error-logs/bulk-investigate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          errorIds: selectedIds,
+          notes: notes || ''
+        })
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        alert(`Bulk operation completed: ${result.successCount} updated, ${result.errorCount} errors`);
+        location.reload();
+      } else {
+        const error = await response.json();
+        alert(`Error: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error performing bulk operation');
+    }
+  }
+  
+  async function bulkMarkAsResolved() {
+    const selectedIds = getSelectedErrorIds();
+    if (selectedIds.length === 0) {
+      alert('Please select error logs to mark as resolved');
+      return;
+    }
+    
+    const resolution = prompt(`How were these ${selectedIds.length} errors resolved?`);
+    if (!resolution || resolution.trim() === '') {
+      alert('Please provide resolution details');
+      return;
+    }
+    
+    const notes = prompt('Additional notes (optional):');
+    if (notes === null) return; // User cancelled
+    
+    try {
+      const response = await fetch('/admin/error-logs/bulk-resolve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          errorIds: selectedIds,
+          resolution: resolution,
+          notes: notes || ''
+        })
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        alert(`Bulk operation completed: ${result.successCount} resolved, ${result.errorCount} errors`);
+        location.reload();
+      } else {
+        const error = await response.json();
+        alert(`Error: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error performing bulk operation');
+    }
+  }
+  
+  async function bulkDelete() {
+    const selectedIds = getSelectedErrorIds();
+    if (selectedIds.length === 0) {
+      alert('Please select error logs to delete');
+      return;
+    }
+    
+    if (!confirm(`⚠️ WARNING: This will permanently delete ${selectedIds.length} error logs. This action cannot be undone. Are you sure?`)) {
+      return;
+    }
+    
+    // Double confirmation for large deletions
+    if (selectedIds.length > 10) {
+      if (!confirm(`🚨 FINAL WARNING: You are about to delete ${selectedIds.length} error logs. This is a large deletion. Are you absolutely sure?`)) {
+        return;
+      }
+    }
+    
+    try {
+      const response = await fetch('/admin/error-logs/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          errorIds: selectedIds
+        })
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        alert(`Bulk deletion completed: ${result.deletedCount} error logs deleted`);
+        location.reload();
+      } else {
+        const error = await response.json();
+        alert(`Error: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error performing bulk deletion');
+    }
+  }
+  
+  async function clearAllLogs() {
+    if (!confirm('🚨 DANGER: This will permanently delete ALL error logs in the database. This action cannot be undone. Are you sure?')) {
+      return;
+    }
+    
+    if (!confirm('⚠️ FINAL WARNING: You are about to delete ALL error logs. This will remove all historical error data. Type "DELETE ALL" in the next prompt to confirm.')) {
+      return;
+    }
+    
+    const confirmation = prompt('Type "DELETE ALL" to confirm complete deletion of all error logs:');
+    if (confirmation !== 'DELETE ALL') {
+      alert('Operation cancelled - confirmation text did not match');
+      return;
+    }
+    
+    try {
+      const response = await fetch('/admin/error-logs/clear-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        alert(`All error logs cleared: ${result.deletedCount} logs deleted`);
+        location.reload();
+      } else {
+        const error = await response.json();
+        alert(`Error: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error clearing all logs');
+    }
+  }
 </script>
