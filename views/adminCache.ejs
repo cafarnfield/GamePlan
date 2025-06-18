@@ -1,0 +1,1151 @@
+<% 
+  const layoutData = {
+    title: 'Cache Management',
+    currentPage: 'cache',
+    pageTitle: 'Cache Performance Dashboard',
+    pageSubtitle: 'Monitor and manage system caching performance',
+    breadcrumbs: [],
+    pendingUsers: pendingUsers,
+    pendingEvents: pendingEvents || 0,
+    pendingGames: pendingGames || 0,
+    totalPending: (pendingUsers || 0) + (pendingEvents || 0) + (pendingGames || 0),
+    isDevelopmentAutoLogin: isDevelopmentAutoLogin,
+    user: typeof user !== 'undefined' ? user : null
+  };
+%>
+
+<%- include('partials/adminLayoutHeader', layoutData) %>
+
+<style>
+  .cache-dashboard {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+  }
+  
+  .cache-card {
+    background: rgba(0, 20, 0, 0.8);
+    border: 2px solid #00ff00;
+    padding: 20px;
+    position: relative;
+    transition: all 0.3s ease;
+  }
+  
+  .cache-card:hover {
+    border-color: #00ffff;
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+  }
+  
+  .cache-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 15px;
+  }
+  
+  .cache-card-title {
+    font-size: 12px;
+    color: #00ff00;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  .cache-card-icon {
+    font-size: 16px;
+  }
+  
+  .cache-card-value {
+    font-size: 24px;
+    color: #00ffff;
+    text-shadow: 0 0 10px #00ffff;
+    margin: 10px 0;
+  }
+  
+  .cache-card-subtitle {
+    font-size: 8px;
+    color: #888;
+    margin-bottom: 15px;
+  }
+  
+  .cache-stats-row {
+    display: flex;
+    justify-content: space-between;
+    margin: 10px 0;
+    font-size: 10px;
+  }
+  
+  .cache-stats-label {
+    color: #888;
+  }
+  
+  .cache-stats-value {
+    color: #00ff00;
+  }
+  
+  .cache-health-indicator {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 8px;
+  }
+  
+  .cache-health-excellent { background-color: #00ff00; }
+  .cache-health-good { background-color: #ffff00; }
+  .cache-health-fair { background-color: #ff6600; }
+  .cache-health-poor { background-color: #ff0000; }
+  
+  .cache-progress-bar {
+    width: 100%;
+    height: 8px;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid #333;
+    margin: 5px 0;
+    position: relative;
+  }
+  
+  .cache-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #00ff00, #00ffff);
+    transition: width 0.3s ease;
+  }
+  
+  .cache-progress-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 8px;
+    color: #fff;
+    text-shadow: 1px 1px 2px #000;
+  }
+  
+  .cache-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 15px;
+  }
+  
+  .cache-btn {
+    background: rgba(0, 100, 255, 0.8);
+    color: #fff;
+    border: 1px solid #0066ff;
+    padding: 8px 12px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    transition: all 0.3s ease;
+  }
+  
+  .cache-btn:hover {
+    background: rgba(0, 150, 255, 0.9);
+    box-shadow: 0 0 10px rgba(0, 100, 255, 0.5);
+  }
+  
+  .cache-btn.primary {
+    background: rgba(0, 255, 0, 0.8);
+    color: #000;
+    border-color: #00ff00;
+  }
+  
+  .cache-btn.primary:hover {
+    background: rgba(0, 255, 0, 0.9);
+  }
+  
+  .cache-btn.danger {
+    background: rgba(255, 0, 0, 0.8);
+    border-color: #ff0000;
+  }
+  
+  .cache-btn.danger:hover {
+    background: rgba(255, 0, 0, 0.9);
+  }
+  
+  .cache-btn.warning {
+    background: rgba(255, 165, 0, 0.8);
+    border-color: #ff6600;
+  }
+  
+  .cache-btn.warning:hover {
+    background: rgba(255, 165, 0, 0.9);
+  }
+  
+  .cache-details-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 15px;
+    margin-top: 30px;
+  }
+  
+  .cache-detail-card {
+    background: rgba(0, 10, 20, 0.8);
+    border: 1px solid #0066ff;
+    padding: 15px;
+  }
+  
+  .cache-detail-title {
+    font-size: 10px;
+    color: #00ff00;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .cache-detail-content {
+    font-size: 8px;
+    color: #ccc;
+    line-height: 1.4;
+  }
+  
+  .cache-config-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 0;
+    border-bottom: 1px solid #333;
+  }
+  
+  .cache-config-item:last-child {
+    border-bottom: none;
+  }
+  
+  .cache-config-key {
+    color: #888;
+  }
+  
+  .cache-config-value {
+    color: #00ff00;
+  }
+  
+  .cache-memory-usage {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 10px 0;
+  }
+  
+  .cache-memory-bar {
+    flex: 1;
+    height: 6px;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid #333;
+    position: relative;
+  }
+  
+  .cache-memory-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #00ff00, #ffff00, #ff6600);
+    transition: width 0.3s ease;
+  }
+  
+  .cache-memory-text {
+    font-size: 8px;
+    color: #888;
+    min-width: 60px;
+  }
+  
+  .cache-status-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 8px;
+    padding: 3px 8px;
+    border-radius: 3px;
+    margin: 2px;
+  }
+  
+  .cache-status-active {
+    background: rgba(0, 255, 0, 0.2);
+    color: #00ff00;
+    border: 1px solid #00ff00;
+  }
+  
+  .cache-status-inactive {
+    background: rgba(255, 0, 0, 0.2);
+    color: #ff0000;
+    border: 1px solid #ff0000;
+  }
+  
+  .cache-status-warning {
+    background: rgba(255, 165, 0, 0.2);
+    color: #ff6600;
+    border: 1px solid #ff6600;
+  }
+  
+  .cache-real-time {
+    position: relative;
+  }
+  
+  .cache-real-time::after {
+    content: "🔄";
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    font-size: 10px;
+    animation: spin 2s linear infinite;
+  }
+  
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  
+  .cache-alert {
+    background: rgba(255, 100, 0, 0.1);
+    border-color: #ff6600;
+    animation: pulse 2s infinite;
+  }
+  
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
+  }
+  
+  /* Mobile optimizations */
+  @media (max-width: 768px) {
+    .cache-dashboard {
+      grid-template-columns: 1fr;
+    }
+    
+    .cache-actions {
+      flex-direction: column;
+    }
+    
+    .cache-btn {
+      text-align: center;
+    }
+    
+    .cache-details-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  
+  /* Loading states */
+  .cache-loading {
+    opacity: 0.6;
+    pointer-events: none;
+  }
+  
+  .cache-loading::before {
+    content: "Loading...";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: #00ff00;
+    padding: 10px;
+    border: 1px solid #00ff00;
+    font-size: 8px;
+  }
+</style>
+
+<!-- Overall Cache Health Status -->
+<div class="cache-card cache-real-time <%= hitRate < 50 ? 'cache-alert' : '' %>">
+  <div class="cache-card-header">
+    <h3 class="cache-card-title">
+      <span class="cache-card-icon">⚡</span>
+      Overall Cache Health
+    </h3>
+    <span class="cache-health-indicator cache-health-<%= healthStatus %>"></span>
+  </div>
+  <div class="cache-card-value" style="color: <%= healthColor %>;">
+    <%= hitRate %>%
+  </div>
+  <div class="cache-card-subtitle">Cache hit rate - <%= healthStatus %> performance</div>
+  
+  <div class="cache-stats-row">
+    <span class="cache-stats-label">Total Requests:</span>
+    <span class="cache-stats-value"><%= totalRequests.toLocaleString() %></span>
+  </div>
+  <div class="cache-stats-row">
+    <span class="cache-stats-label">Cache Hits:</span>
+    <span class="cache-stats-value"><%= overallStats.overall.hits.toLocaleString() %></span>
+  </div>
+  <div class="cache-stats-row">
+    <span class="cache-stats-label">Cache Misses:</span>
+    <span class="cache-stats-value"><%= overallStats.overall.misses.toLocaleString() %></span>
+  </div>
+  <div class="cache-stats-row">
+    <span class="cache-stats-label">Error Rate:</span>
+    <span class="cache-stats-value"><%= errorRate %>%</span>
+  </div>
+  
+  <div class="cache-progress-bar">
+    <div class="cache-progress-fill" style="width: <%= hitRate %>%;"></div>
+    <div class="cache-progress-text">Hit Rate: <%= hitRate %>%</div>
+  </div>
+  
+  <div class="cache-actions">
+    <button class="cache-btn primary" onclick="refreshCacheStats()">Refresh Stats</button>
+    <button class="cache-btn warning" onclick="warmupAllCaches()">Warm-up All</button>
+    <button class="cache-btn danger" onclick="clearAllCaches()">Clear All</button>
+  </div>
+</div>
+
+<!-- Main Cache Dashboard Grid -->
+<div class="cache-dashboard">
+  <!-- Dashboard Cache Performance -->
+  <div class="cache-card">
+    <div class="cache-card-header">
+      <h3 class="cache-card-title">
+        <span class="cache-card-icon">📊</span>
+        Dashboard Cache
+      </h3>
+      <span class="cache-status-indicator <%= dashboardStatus.isHealthy ? 'cache-status-active' : 'cache-status-warning' %>">
+        <%= dashboardStatus.isHealthy ? 'Healthy' : 'Warning' %>
+      </span>
+    </div>
+    <div class="cache-card-value"><%= dashboardStatus.cacheCount %></div>
+    <div class="cache-card-subtitle">Cached dashboard components</div>
+    
+    <div class="cache-stats-row">
+      <span class="cache-stats-label">Statistics Cache:</span>
+      <span class="cache-stats-value"><%= dashboardStatus.statsCache ? 'Active' : 'Inactive' %></span>
+    </div>
+    <div class="cache-stats-row">
+      <span class="cache-stats-label">Activity Cache:</span>
+      <span class="cache-stats-value"><%= dashboardStatus.activityCache ? 'Active' : 'Inactive' %></span>
+    </div>
+    <div class="cache-stats-row">
+      <span class="cache-stats-label">User Counts:</span>
+      <span class="cache-stats-value"><%= dashboardStatus.userCountsCache ? 'Active' : 'Inactive' %></span>
+    </div>
+    
+    <div class="cache-actions">
+      <button class="cache-btn primary" onclick="manageCacheType('dashboard', 'refresh')">Refresh</button>
+      <button class="cache-btn" onclick="manageCacheType('dashboard', 'warm')">Warm-up</button>
+      <button class="cache-btn danger" onclick="manageCacheType('dashboard', 'clear')">Clear</button>
+    </div>
+  </div>
+  
+  <!-- API Cache Performance -->
+  <div class="cache-card">
+    <div class="cache-card-header">
+      <h3 class="cache-card-title">
+        <span class="cache-card-icon">🔌</span>
+        API Cache
+      </h3>
+      <span class="cache-status-indicator cache-status-active">Active</span>
+    </div>
+    <div class="cache-card-value"><%= apiStats.totalCached %></div>
+    <div class="cache-card-subtitle">Cached API responses</div>
+    
+    <div class="cache-stats-row">
+      <span class="cache-stats-label">Steam API:</span>
+      <span class="cache-stats-value"><%= apiStats.steamCached %></span>
+    </div>
+    <div class="cache-stats-row">
+      <span class="cache-stats-label">RAWG API:</span>
+      <span class="cache-stats-value"><%= apiStats.rawgCached %></span>
+    </div>
+    <div class="cache-stats-row">
+      <span class="cache-stats-label">Search Cache:</span>
+      <span class="cache-stats-value"><%= apiStats.searchCached %></span>
+    </div>
+    
+    <div class="cache-actions">
+      <button class="cache-btn primary" onclick="manageCacheType('api', 'refresh')">Refresh</button>
+      <button class="cache-btn" onclick="manageCacheType('api', 'warm')">Warm-up</button>
+      <button class="cache-btn danger" onclick="manageCacheType('api', 'clear')">Clear</button>
+    </div>
+  </div>
+  
+  <!-- Memory Usage -->
+  <div class="cache-card">
+    <div class="cache-card-header">
+      <h3 class="cache-card-title">
+        <span class="cache-card-icon">💾</span>
+        Memory Usage
+      </h3>
+    </div>
+    <div class="cache-card-value"><%= totalMemoryKeys %></div>
+    <div class="cache-card-subtitle">Total cached items in memory</div>
+    
+    <% Object.entries(overallStats.memory).forEach(([cacheType, count]) => { %>
+      <div class="cache-memory-usage">
+        <span class="cache-memory-text"><%= cacheType %>:</span>
+        <div class="cache-memory-bar">
+          <div class="cache-memory-fill" style="width: <%= totalMemoryKeys > 0 ? (count / totalMemoryKeys * 100) : 0 %>%;"></div>
+        </div>
+        <span class="cache-memory-text"><%= count %></span>
+      </div>
+    <% }); %>
+    
+    <div class="cache-actions">
+      <button class="cache-btn" onclick="viewCacheContents()">View Contents</button>
+      <button class="cache-btn warning" onclick="optimizeMemory()">Optimize</button>
+    </div>
+  </div>
+  
+  <!-- Cache Performance Metrics -->
+  <div class="cache-card">
+    <div class="cache-card-header">
+      <h3 class="cache-card-title">
+        <span class="cache-card-icon">📈</span>
+        Performance Metrics
+      </h3>
+    </div>
+    <div class="cache-card-value">
+      <% if (overallStats.overall.errors > 0) { %>
+        <span style="color: #ff6600;">⚠️</span>
+      <% } else { %>
+        <span style="color: #00ff00;">✅</span>
+      <% } %>
+    </div>
+    <div class="cache-card-subtitle">System performance status</div>
+    
+    <div class="cache-stats-row">
+      <span class="cache-stats-label">Cache Errors:</span>
+      <span class="cache-stats-value"><%= overallStats.overall.errors %></span>
+    </div>
+    <div class="cache-stats-row">
+      <span class="cache-stats-label">Success Rate:</span>
+      <span class="cache-stats-value"><%= (100 - errorRate) %>%</span>
+    </div>
+    <div class="cache-stats-row">
+      <span class="cache-stats-label">Efficiency:</span>
+      <span class="cache-stats-value">
+        <% if (hitRate >= 90) { %>Excellent<% } else if (hitRate >= 75) { %>Good<% } else if (hitRate >= 50) { %>Fair<% } else { %>Poor<% } %>
+      </span>
+    </div>
+    
+    <div class="cache-actions">
+      <button class="cache-btn primary" onclick="viewPerformanceReport()">View Report</button>
+      <button class="cache-btn" onclick="exportCacheStats()">Export Stats</button>
+    </div>
+  </div>
+  
+  <!-- Cache Error Monitoring -->
+  <div class="cache-card">
+    <div class="cache-card-header">
+      <h3 class="cache-card-title">
+        <span class="cache-card-icon">🚨</span>
+        Error Monitoring
+      </h3>
+      <span class="cache-status-indicator" id="errorStatus">Loading...</span>
+    </div>
+    <div class="cache-card-value" id="totalCacheErrors">-</div>
+    <div class="cache-card-subtitle">Cache errors in last 24 hours</div>
+    
+    <div class="cache-stats-row">
+      <span class="cache-stats-label">Critical:</span>
+      <span class="cache-stats-value" id="criticalErrors">-</span>
+    </div>
+    <div class="cache-stats-row">
+      <span class="cache-stats-label">High:</span>
+      <span class="cache-stats-value" id="highErrors">-</span>
+    </div>
+    <div class="cache-stats-row">
+      <span class="cache-stats-label">Medium:</span>
+      <span class="cache-stats-value" id="mediumErrors">-</span>
+    </div>
+    
+    <div class="cache-actions">
+      <button class="cache-btn primary" onclick="viewCacheErrors()">View Errors</button>
+      <button class="cache-btn warning" onclick="cleanupCacheErrors()">Cleanup Old</button>
+    </div>
+  </div>
+</div>
+
+<!-- Cache Configuration Details -->
+<div class="cache-details-grid">
+  <div class="cache-detail-card">
+    <div class="cache-detail-title">
+      <span>⚙️</span>
+      Cache Configuration
+    </div>
+    <div class="cache-detail-content">
+      <% Object.entries(cacheConfig).forEach(([key, config]) => { %>
+        <div class="cache-config-item">
+          <span class="cache-config-key"><%= key %>:</span>
+          <span class="cache-config-value"><%= config.ttl %>s TTL</span>
+        </div>
+      <% }); %>
+    </div>
+  </div>
+  
+  <div class="cache-detail-card">
+    <div class="cache-detail-title">
+      <span>📋</span>
+      Cache Types
+    </div>
+    <div class="cache-detail-content">
+      <% Object.entries(cacheConfig).forEach(([key, config]) => { %>
+        <div class="cache-config-item">
+          <span class="cache-config-key"><%= key %>:</span>
+          <span class="cache-config-value" style="font-size: 7px;"><%= config.description %></span>
+        </div>
+      <% }); %>
+    </div>
+  </div>
+  
+  <div class="cache-detail-card">
+    <div class="cache-detail-title">
+      <span>🔄</span>
+      Real-time Status
+    </div>
+    <div class="cache-detail-content">
+      <div class="cache-config-item">
+        <span class="cache-config-key">Last Updated:</span>
+        <span class="cache-config-value" id="lastUpdated">Just now</span>
+      </div>
+      <div class="cache-config-item">
+        <span class="cache-config-key">Auto Refresh:</span>
+        <span class="cache-config-value">Every 10s</span>
+      </div>
+      <div class="cache-config-item">
+        <span class="cache-config-key">Status:</span>
+        <span class="cache-config-value" id="connectionStatus">Connected</span>
+      </div>
+    </div>
+  </div>
+  
+  <div class="cache-detail-card">
+    <div class="cache-detail-title">
+      <span>🎯</span>
+      Quick Actions
+    </div>
+    <div class="cache-detail-content">
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <button class="cache-btn primary" onclick="preloadPopularGames()">Preload Popular Games</button>
+        <button class="cache-btn" onclick="refreshUserCounts()">Refresh User Counts</button>
+        <button class="cache-btn warning" onclick="invalidateStaleData()">Clear Stale Data</button>
+        <button class="cache-btn danger" onclick="emergencyCacheClear()">Emergency Clear</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Real-time cache monitoring
+let cacheMonitorInterval;
+let isMonitoring = true;
+
+// Start monitoring when page loads
+document.addEventListener('DOMContentLoaded', function() {
+  startCacheMonitoring();
+  loadCacheErrorStats();
+});
+
+function startCacheMonitoring() {
+  if (cacheMonitorInterval) {
+    clearInterval(cacheMonitorInterval);
+  }
+  
+  cacheMonitorInterval = setInterval(async () => {
+    if (isMonitoring) {
+      await refreshCacheStats(false); // Silent refresh
+    }
+  }, 10000); // Every 10 seconds
+}
+
+async function refreshCacheStats(showLoading = true) {
+  if (showLoading) {
+    document.body.style.opacity = '0.8';
+  }
+  
+  try {
+    const response = await fetch('/api/cache/stats');
+    const data = await response.json();
+    
+    if (data.success) {
+      // Update the page with new data
+      updateCacheDisplay(data.stats);
+      updateLastUpdated();
+      updateConnectionStatus('Connected', 'cache-status-active');
+    } else {
+      throw new Error(data.error || 'Failed to fetch cache stats');
+    }
+  } catch (error) {
+    console.error('Error refreshing cache stats:', error);
+    updateConnectionStatus('Error', 'cache-status-inactive');
+    showNotification('Failed to refresh cache statistics', 'error');
+  } finally {
+    if (showLoading) {
+      document.body.style.opacity = '1';
+    }
+  }
+}
+
+function updateCacheDisplay(stats) {
+  // Update overall stats
+  const hitRate = stats.totalRequests > 0 ? ((stats.hits / stats.totalRequests) * 100).toFixed(2) : 0;
+  
+  // Update hit rate display
+  const hitRateElements = document.querySelectorAll('.cache-card-value');
+  if (hitRateElements[0]) {
+    hitRateElements[0].textContent = hitRate + '%';
+  }
+  
+  // Update progress bar
+  const progressFill = document.querySelector('.cache-progress-fill');
+  if (progressFill) {
+    progressFill.style.width = hitRate + '%';
+  }
+  
+  const progressText = document.querySelector('.cache-progress-text');
+  if (progressText) {
+    progressText.textContent = `Hit Rate: ${hitRate}%`;
+  }
+}
+
+function updateLastUpdated() {
+  const lastUpdatedElement = document.getElementById('lastUpdated');
+  if (lastUpdatedElement) {
+    lastUpdatedElement.textContent = new Date().toLocaleTimeString();
+  }
+}
+
+function updateConnectionStatus(status, className) {
+  const statusElement = document.getElementById('connectionStatus');
+  if (statusElement) {
+    statusElement.textContent = status;
+    statusElement.className = 'cache-config-value ' + className;
+  }
+}
+
+// Cache management functions
+async function manageCacheType(cacheType, action) {
+  try {
+    const response = await fetch(`/api/cache/${cacheType}/${action}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      showNotification(`${cacheType} cache ${action} completed successfully`, 'success');
+      await refreshCacheStats();
+    } else {
+      throw new Error(data.error || `Failed to ${action} ${cacheType} cache`);
+    }
+  } catch (error) {
+    console.error(`Error managing ${cacheType} cache:`, error);
+    showNotification(`Failed to ${action} ${cacheType} cache: ${error.message}`, 'error');
+  }
+}
+
+async function clearAllCaches() {
+  if (!confirm('Are you sure you want to clear ALL caches? This will temporarily reduce performance.')) {
+    return;
+  }
+  
+  try {
+    const response = await fetch('/api/cache/clear-all', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      showNotification('All caches cleared successfully', 'success');
+      await refreshCacheStats();
+    } else {
+      throw new Error(data.error || 'Failed to clear all caches');
+    }
+  } catch (error) {
+    console.error('Error clearing all caches:', error);
+    showNotification(`Failed to clear all caches: ${error.message}`, 'error');
+  }
+}
+
+async function warmupAllCaches() {
+  try {
+    const response = await fetch('/api/cache/warmup-all', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      showNotification('Cache warm-up initiated successfully', 'success');
+      await refreshCacheStats();
+    } else {
+      throw new Error(data.error || 'Failed to warm up caches');
+    }
+  } catch (error) {
+    console.error('Error warming up caches:', error);
+    showNotification(`Failed to warm up caches: ${error.message}`, 'error');
+  }
+}
+
+// Quick action functions
+async function preloadPopularGames() {
+  await manageCacheType('games', 'preload-popular');
+}
+
+async function refreshUserCounts() {
+  await manageCacheType('user-counts', 'refresh');
+}
+
+async function invalidateStaleData() {
+  await manageCacheType('all', 'invalidate-stale');
+}
+
+async function emergencyCacheClear() {
+  if (!confirm('EMERGENCY CACHE CLEAR: This will clear all caches immediately. Continue?')) {
+    return;
+  }
+  await clearAllCaches();
+}
+
+async function viewCacheContents() {
+  try {
+    const response = await fetch('/api/cache/contents');
+    const data = await response.json();
+    
+    if (data.success) {
+      // Open a new window with cache contents
+      const newWindow = window.open('', '_blank', 'width=800,height=600');
+      newWindow.document.write(`
+        <html>
+          <head><title>Cache Contents</title></head>
+          <body style="font-family: monospace; padding: 20px;">
+            <h2>Cache Contents</h2>
+            <pre>${JSON.stringify(data.contents, null, 2)}</pre>
+          </body>
+        </html>
+      `);
+    } else {
+      throw new Error(data.error || 'Failed to fetch cache contents');
+    }
+  } catch (error) {
+    console.error('Error viewing cache contents:', error);
+    showNotification(`Failed to view cache contents: ${error.message}`, 'error');
+  }
+}
+
+async function viewPerformanceReport() {
+  try {
+    const response = await fetch('/api/cache/performance-report');
+    const data = await response.json();
+    
+    if (data.success) {
+      // Open a new window with performance report
+      const newWindow = window.open('', '_blank', 'width=1000,height=700');
+      newWindow.document.write(`
+        <html>
+          <head><title>Cache Performance Report</title></head>
+          <body style="font-family: monospace; padding: 20px;">
+            <h2>Cache Performance Report</h2>
+            <pre>${JSON.stringify(data.report, null, 2)}</pre>
+          </body>
+        </html>
+      `);
+    } else {
+      throw new Error(data.error || 'Failed to generate performance report');
+    }
+  } catch (error) {
+    console.error('Error viewing performance report:', error);
+    showNotification(`Failed to view performance report: ${error.message}`, 'error');
+  }
+}
+
+async function exportCacheStats() {
+  try {
+    const response = await fetch('/api/cache/export-stats');
+    const blob = await response.blob();
+    
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `cache-stats-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    
+    showNotification('Cache statistics exported successfully', 'success');
+  } catch (error) {
+    console.error('Error exporting cache stats:', error);
+    showNotification(`Failed to export cache statistics: ${error.message}`, 'error');
+  }
+}
+
+async function optimizeMemory() {
+  try {
+    const response = await fetch('/api/cache/optimize-memory', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      showNotification('Memory optimization completed successfully', 'success');
+      await refreshCacheStats();
+    } else {
+      throw new Error(data.error || 'Failed to optimize memory');
+    }
+  } catch (error) {
+    console.error('Error optimizing memory:', error);
+    showNotification(`Failed to optimize memory: ${error.message}`, 'error');
+  }
+}
+
+// Notification system
+function showNotification(message, type = 'info') {
+  // Create notification element
+  const notification = document.createElement('div');
+  notification.className = `cache-notification cache-notification-${type}`;
+  notification.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: ${type === 'success' ? 'rgba(0, 255, 0, 0.9)' : type === 'error' ? 'rgba(255, 0, 0, 0.9)' : 'rgba(0, 100, 255, 0.9)'};
+    color: ${type === 'success' ? '#000' : '#fff'};
+    padding: 15px 20px;
+    border: 2px solid ${type === 'success' ? '#00ff00' : type === 'error' ? '#ff0000' : '#0066ff'};
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    z-index: 10000;
+    max-width: 300px;
+    word-wrap: break-word;
+    animation: slideIn 0.3s ease-out;
+  `;
+  
+  notification.textContent = message;
+  document.body.appendChild(notification);
+  
+  // Auto-remove after 5 seconds
+  setTimeout(() => {
+    if (notification.parentNode) {
+      notification.style.animation = 'slideOut 0.3s ease-in';
+      setTimeout(() => {
+        if (notification.parentNode) {
+          document.body.removeChild(notification);
+        }
+      }, 300);
+    }
+  }, 5000);
+}
+
+// Cache Error Monitoring Functions
+async function loadCacheErrorStats() {
+  try {
+    const response = await fetch('/api/cache/errors/stats?timeWindow=24');
+    const data = await response.json();
+    
+    if (data.success) {
+      updateCacheErrorDisplay(data.errorStats);
+    } else {
+      throw new Error(data.error || 'Failed to fetch cache error stats');
+    }
+  } catch (error) {
+    console.error('Error loading cache error stats:', error);
+    updateCacheErrorDisplay({
+      totalCacheErrors: 0,
+      errorsBySeverity: { critical: 0, high: 0, medium: 0, low: 0 }
+    });
+    updateErrorStatus('Error', 'cache-status-inactive');
+  }
+}
+
+function updateCacheErrorDisplay(errorStats) {
+  // Update total errors
+  const totalErrorsElement = document.getElementById('totalCacheErrors');
+  if (totalErrorsElement) {
+    totalErrorsElement.textContent = errorStats.totalCacheErrors || 0;
+  }
+  
+  // Update severity breakdown
+  const criticalElement = document.getElementById('criticalErrors');
+  if (criticalElement) {
+    criticalElement.textContent = errorStats.errorsBySeverity.critical || 0;
+  }
+  
+  const highElement = document.getElementById('highErrors');
+  if (highElement) {
+    highElement.textContent = errorStats.errorsBySeverity.high || 0;
+  }
+  
+  const mediumElement = document.getElementById('mediumErrors');
+  if (mediumElement) {
+    mediumElement.textContent = errorStats.errorsBySeverity.medium || 0;
+  }
+  
+  // Update status indicator
+  const totalErrors = errorStats.totalCacheErrors || 0;
+  const criticalErrors = errorStats.errorsBySeverity.critical || 0;
+  const highErrors = errorStats.errorsBySeverity.high || 0;
+  
+  if (criticalErrors > 0) {
+    updateErrorStatus('Critical', 'cache-status-inactive');
+  } else if (highErrors > 0) {
+    updateErrorStatus('Warning', 'cache-status-warning');
+  } else if (totalErrors > 0) {
+    updateErrorStatus('Minor Issues', 'cache-status-warning');
+  } else {
+    updateErrorStatus('Healthy', 'cache-status-active');
+  }
+}
+
+function updateErrorStatus(status, className) {
+  const statusElement = document.getElementById('errorStatus');
+  if (statusElement) {
+    statusElement.textContent = status;
+    statusElement.className = 'cache-status-indicator ' + className;
+  }
+}
+
+async function viewCacheErrors() {
+  try {
+    const response = await fetch('/api/cache/errors/recent?limit=20');
+    const data = await response.json();
+    
+    if (data.success) {
+      // Open a new window with cache errors
+      const newWindow = window.open('', '_blank', 'width=1200,height=800');
+      
+      let errorHtml = `
+        <html>
+          <head>
+            <title>Cache Error Log</title>
+            <style>
+              body { font-family: monospace; padding: 20px; background: #000; color: #00ff00; }
+              .error-item { 
+                border: 1px solid #333; 
+                margin: 10px 0; 
+                padding: 15px; 
+                background: rgba(0, 20, 0, 0.5);
+              }
+              .error-header { 
+                font-weight: bold; 
+                color: #00ffff; 
+                margin-bottom: 10px; 
+              }
+              .error-details { 
+                font-size: 12px; 
+                line-height: 1.4; 
+              }
+              .severity-critical { border-left: 4px solid #ff0000; }
+              .severity-high { border-left: 4px solid #ff6600; }
+              .severity-medium { border-left: 4px solid #ffff00; }
+              .severity-low { border-left: 4px solid #00ff00; }
+            </style>
+          </head>
+          <body>
+            <h2>Cache Error Log (Last 20 Errors)</h2>
+            <p>Total Errors Found: ${data.errors.length}</p>
+      `;
+      
+      if (data.errors.length === 0) {
+        errorHtml += '<p>No cache errors found in the recent logs.</p>';
+      } else {
+        data.errors.forEach(error => {
+          errorHtml += `
+            <div class="error-item severity-${error.analytics.severity}">
+              <div class="error-header">
+                ${error.errorType} - ${error.analytics.severity.toUpperCase()}
+                <span style="float: right;">${new Date(error.timestamp).toLocaleString()}</span>
+              </div>
+              <div class="error-details">
+                <strong>Message:</strong> ${error.message}<br>
+                <strong>Cache Type:</strong> ${error.errorDetails.cacheDetails?.cacheType || 'N/A'}<br>
+                <strong>Operation:</strong> ${error.errorDetails.cacheDetails?.operation || 'N/A'}<br>
+                <strong>Status:</strong> ${error.resolution.status}
+              </div>
+            </div>
+          `;
+        });
+      }
+      
+      errorHtml += `
+          </body>
+        </html>
+      `;
+      
+      newWindow.document.write(errorHtml);
+      newWindow.document.close();
+    } else {
+      throw new Error(data.error || 'Failed to fetch cache errors');
+    }
+  } catch (error) {
+    console.error('Error viewing cache errors:', error);
+    showNotification(`Failed to view cache errors: ${error.message}`, 'error');
+  }
+}
+
+async function cleanupCacheErrors() {
+  if (!confirm('Clean up old cache error logs? This will remove resolved errors older than 30 days.')) {
+    return;
+  }
+  
+  try {
+    const response = await fetch('/api/cache/errors/cleanup', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ retentionDays: 30 })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      showNotification(`Cleaned up ${data.deletedCount} old cache error logs`, 'success');
+      await loadCacheErrorStats(); // Refresh error stats
+    } else {
+      throw new Error(data.error || 'Failed to cleanup cache errors');
+    }
+  } catch (error) {
+    console.error('Error cleaning up cache errors:', error);
+    showNotification(`Failed to cleanup cache errors: ${error.message}`, 'error');
+  }
+}
+
+// Add CSS for notifications
+const notificationStyles = document.createElement('style');
+notificationStyles.textContent = `
+  @keyframes slideIn {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+  
+  @keyframes slideOut {
+    from {
+      transform: translateX(0);
+      opacity: 1;
+    }
+    to {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+  }
+`;
+document.head.appendChild(notificationStyles);
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+  if (cacheMonitorInterval) {
+    clearInterval(cacheMonitorInterval);
+  }
+  isMonitoring = false;
+});
+</script>
+
+<%- include('partials/adminLayoutFooter') %>

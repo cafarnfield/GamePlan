@@ -298,6 +298,48 @@ const AuditLog = require('./models/AuditLog');
 const RejectedEmail = require('./models/RejectedEmail');
 const ErrorLog = require('./models/ErrorLog');
 
+// Import cache services
+const cacheService = require('./services/cacheService');
+const dashboardCacheService = require('./services/dashboardCacheService');
+const apiCacheService = require('./services/apiCacheService');
+
+// Initialize cache warm-up after database connection
+const initializeCaches = async () => {
+  try {
+    systemLogger.info('Initializing cache warm-up');
+    
+    // Wait a bit for database to be fully ready
+    setTimeout(async () => {
+      try {
+        const models = { User, Event, Game, AuditLog };
+        
+        // Warm up caches
+        await Promise.all([
+          cacheService.warmUp(models),
+          dashboardCacheService.warmUp(models),
+          apiCacheService.warmUp(models)
+        ]);
+        
+        systemLogger.info('Cache initialization completed successfully');
+      } catch (error) {
+        systemLogger.error('Cache warm-up error', { 
+          error: error.message,
+          stack: error.stack 
+        });
+      }
+    }, 5000); // Wait 5 seconds for database to be ready
+    
+  } catch (error) {
+    systemLogger.error('Cache initialization error', { 
+      error: error.message,
+      stack: error.stack 
+    });
+  }
+};
+
+// Initialize caches
+initializeCaches();
+
 
 
 // Helper function to get client IP address
@@ -410,6 +452,9 @@ app.use('/event', require('./routes/events'));
 // Import and use game routes
 app.use('/games', require('./routes/games'));
 
+// Import and use cache management routes
+app.use('/api/cache', require('./routes/cache'));
+
 // Steam search API endpoint
 app.get('/api/steam/search', apiLimiter, validateSteamSearch, handleValidationErrors, asyncErrorHandler(async (req, res) => {
   const { q } = req.query;
@@ -419,7 +464,8 @@ app.get('/api/steam/search', apiLimiter, validateSteamSearch, handleValidationEr
     throw new ValidationError('Search query is required');
   }
   
-  const results = await steamService.searchGames(q.trim());
+  // Use cached Steam search
+  const results = await apiCacheService.cachedSteamSearch(q.trim(), steamService);
   res.json(results);
 }));
 
@@ -432,7 +478,8 @@ app.get('/api/rawg/search', apiLimiter, validateRawgSearch, handleValidationErro
     throw new ValidationError('Search query is required');
   }
   
-  const results = await rawgService.searchGames(q.trim());
+  // Use cached RAWG search
+  const results = await apiCacheService.cachedRawgSearch(q.trim(), rawgService);
   res.json(results);
 }));
 

@@ -10,6 +10,11 @@ const AuditLog = require('../models/AuditLog');
 const RejectedEmail = require('../models/RejectedEmail');
 const ErrorLog = require('../models/ErrorLog');
 
+// Import cache services
+const dashboardCacheService = require('../services/dashboardCacheService');
+const apiCacheService = require('../services/apiCacheService');
+const cacheService = require('../services/cacheService');
+
 // Import validation middleware and validators
 const { handleValidationErrors } = require('../middleware/validation');
 const {
@@ -158,46 +163,10 @@ router.get('/add-game', ensureAuthenticated, ensureAdmin, (req, res) => {
 // Admin Dashboard
 router.get('/', ensureAuthenticated, ensureAdmin, async (req, res) => {
   try {
-    // Calculate statistics for dashboard
-    const stats = {
-      totalUsers: await User.countDocuments(),
-      approvedUsers: await User.countDocuments({ status: 'approved' }),
-      pendingUsers: await User.countDocuments({ status: 'pending' }),
-      blockedUsers: await User.countDocuments({ isBlocked: true }),
-      totalEvents: await Event.countDocuments(),
-      activeEvents: await Event.countDocuments({ date: { $gte: new Date() } }),
-      eventsToday: await Event.countDocuments({ 
-        date: { 
-          $gte: new Date(new Date().setHours(0, 0, 0, 0)),
-          $lt: new Date(new Date().setHours(23, 59, 59, 999))
-        }
-      }),
-      eventsThisWeek: await Event.countDocuments({ 
-        date: { 
-          $gte: new Date(new Date().setDate(new Date().getDate() - new Date().getDay())),
-          $lt: new Date(new Date().setDate(new Date().getDate() - new Date().getDay() + 7))
-        }
-      }),
-      totalGames: await Game.countDocuments(),
-      steamGames: await Game.countDocuments({ source: 'steam' }),
-      manualGames: await Game.countDocuments({ source: 'manual' }),
-      pendingGames: await Game.countDocuments({ gameStatus: 'pending' }),
-      recentRegistrations: await User.countDocuments({ 
-        createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
-      }),
-      probationaryUsers: await User.countDocuments({ 
-        probationaryUntil: { $gte: new Date() }
-      })
-    };
-
-    // Calculate approval rate
-    const totalProcessed = stats.approvedUsers + await User.countDocuments({ status: 'rejected' });
-    stats.approvalRate = totalProcessed > 0 ? Math.round((stats.approvedUsers / totalProcessed) * 100) : 100;
-
-    // Get recent admin activity
-    const recentActivity = await AuditLog.find()
-      .sort({ timestamp: -1 })
-      .limit(10);
+    // Use cached dashboard statistics
+    const models = { User, Event, Game, AuditLog };
+    const stats = await dashboardCacheService.getDashboardStats(models);
+    const recentActivity = await dashboardCacheService.getRecentActivity(models);
 
     const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
     res.render('adminDashboard', { 
@@ -360,6 +329,88 @@ router.get('/events', ensureAuthenticated, ensureAdmin, async (req, res) => {
 });
 
 
+// Admin cache management
+router.get('/cache', ensureAuthenticated, ensureAdmin, async (req, res) => {
+  try {
+    // Get comprehensive cache statistics
+    const overallStats = cacheService.getStats();
+    const rawDashboardStatus = dashboardCacheService.getCacheStatus();
+    const rawApiStats = apiCacheService.getApiCacheStats();
+    
+    // Calculate cache health metrics
+    const totalRequests = overallStats.overall.hits + overallStats.overall.misses;
+    const hitRate = totalRequests > 0 ? ((overallStats.overall.hits / totalRequests) * 100).toFixed(2) : 0;
+    const errorRate = totalRequests > 0 ? ((overallStats.overall.errors / totalRequests) * 100).toFixed(2) : 0;
+    
+    // Determine overall health status
+    let healthStatus = 'excellent';
+    let healthColor = '#00ff00';
+    if (hitRate < 50) {
+      healthStatus = 'poor';
+      healthColor = '#ff0000';
+    } else if (hitRate < 75) {
+      healthStatus = 'fair';
+      healthColor = '#ff6600';
+    } else if (hitRate < 90) {
+      healthStatus = 'good';
+      healthColor = '#ffff00';
+    }
+    
+    // Transform dashboard status to match template expectations
+    const dashboardCacheCount = overallStats.memory.dashboard || 0;
+    const dashboardStatus = {
+      isHealthy: dashboardCacheCount > 0 && hitRate > 50,
+      cacheCount: dashboardCacheCount,
+      statsCache: rawDashboardStatus.dashboard?.dashboard_stats || false,
+      activityCache: rawDashboardStatus.dashboard?.recent_activity || false,
+      userCountsCache: rawDashboardStatus.userCounts?.pending_counts || false
+    };
+    
+    // Transform API stats to match template expectations
+    const apiStats = {
+      totalCached: (rawApiStats.steamSearchCaches || 0) + (rawApiStats.rawgSearchCaches || 0) + (rawApiStats.gameListCaches || 0),
+      steamCached: rawApiStats.steamSearchCaches || 0,
+      rawgCached: rawApiStats.rawgSearchCaches || 0,
+      searchCached: rawApiStats.totalApiCaches || 0
+    };
+    
+    // Get cache configuration
+    const cacheConfig = {
+      dashboard: { ttl: 300, description: 'Dashboard statistics and metrics' },
+      gameLists: { ttl: 1800, description: 'Game lists for admin dropdowns' },
+      userCounts: { ttl: 120, description: 'User counts and navigation badges' },
+      api: { ttl: 3600, description: 'Steam and RAWG API responses' },
+      systemHealth: { ttl: 60, description: 'System health and monitoring data' }
+    };
+    
+    // Calculate memory usage summary
+    const totalMemoryKeys = Object.values(overallStats.memory).reduce((sum, count) => sum + count, 0);
+    
+    // Get pending counts for navigation badges
+    const pendingCounts = await getPendingCounts();
+
+    const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
+    res.render('adminCache', { 
+      user: req.user, 
+      isDevelopmentAutoLogin,
+      overallStats,
+      dashboardStatus, // Now properly structured
+      apiStats, // Now properly structured
+      hitRate: parseFloat(hitRate),
+      errorRate: parseFloat(errorRate),
+      totalRequests,
+      healthStatus,
+      healthColor,
+      cacheConfig,
+      totalMemoryKeys,
+      ...pendingCounts // Spread the pending counts for navigation badges
+    });
+  } catch (err) {
+    console.error('Error loading admin cache page:', err);
+    res.status(500).send('Error loading cache management page');
+  }
+});
+
 // Admin system management
 router.get('/system', ensureAuthenticated, ensureSuperAdmin, async (req, res) => {
   try {
@@ -445,15 +496,15 @@ router.get('/system', ensureAuthenticated, ensureSuperAdmin, async (req, res) =>
 // API endpoint for pending count (used by dashboard auto-refresh)
 router.get('/api/pending-count', ensureAuthenticated, ensureAdmin, async (req, res) => {
   try {
-    const pendingUsers = await User.countDocuments({ status: 'pending' });
-    const pendingEvents = await Event.countDocuments({ gameStatus: 'pending' });
-    const pendingGames = await Game.countDocuments({ gameStatus: 'pending' });
+    // Use cached pending counts
+    const models = { User, Event, Game };
+    const pendingCounts = await dashboardCacheService.getPendingCounts(models);
     
     res.json({ 
-      count: pendingUsers + pendingEvents + pendingGames,
-      users: pendingUsers,
-      events: pendingEvents,
-      games: pendingGames
+      count: pendingCounts.pendingUsers + pendingCounts.pendingEvents + pendingCounts.pendingGames,
+      users: pendingCounts.pendingUsers,
+      events: pendingCounts.pendingEvents,
+      games: pendingCounts.pendingGames
     });
   } catch (err) {
     console.error('Error getting pending count:', err);
@@ -676,6 +727,9 @@ router.post('/user/approve/:id', ensureAuthenticated, ensureAdmin, validateUserA
     // Create audit log
     await createAuditLog(req.user, 'USER_APPROVED', user, notes, clientIP);
 
+    // Invalidate user-related caches
+    dashboardCacheService.invalidateUserCaches();
+
     console.log('User approved:', user.email, 'by:', req.user.email);
     res.status(200).json({ success: true, message: 'User approved successfully' });
   } catch (err) {
@@ -714,6 +768,9 @@ router.post('/user/reject/:id', ensureAuthenticated, ensureAdmin, validateUserRe
 
     // Create audit log
     await createAuditLog(req.user, 'USER_REJECTED', user, notes, clientIP);
+
+    // Invalidate user-related caches
+    dashboardCacheService.invalidateUserCaches();
 
     console.log('User rejected:', user.email, 'by:', req.user.email, 'reason:', notes);
     res.status(200).json({ success: true, message: 'User rejected successfully' });
