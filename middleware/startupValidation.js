@@ -39,7 +39,6 @@ const validateRequiredEnvVars = () => {
  */
 const validateOptionalEnvVars = () => {
   const optionalVars = [
-    'STEAM_API_KEY',
     'RAWG_API_KEY'
   ];
 

@@ -41,7 +41,6 @@ const getConfigHealth = () => {
 
   // Check optional environment variables
   const optionalVars = [
-    'STEAM_API_KEY',
     'RAWG_API_KEY'
   ];
 

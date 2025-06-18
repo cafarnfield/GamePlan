@@ -134,7 +134,16 @@ This tests:
 ## Configuration
 
 ### Environment Variables
-No additional environment variables required. The integration uses Steam's public APIs.
+**No Steam API key required!** The integration uses Steam's public APIs that don't require authentication:
+
+- `ISteamApps/GetAppList/v2/` - Gets list of all Steam games
+- `store.steampowered.com/api/appdetails` - Gets game details  
+- `ISteamNews/GetNewsForApp/v2/` - Gets game news
+
+This means you can use all Steam features without needing to:
+- Register for a Steam API key
+- Configure any Steam-related environment variables
+- Worry about API rate limits or authentication
 
 ### Rate Limiting
 - Steam app list: Cached for 24 hours

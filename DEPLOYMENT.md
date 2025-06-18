@@ -59,13 +59,12 @@ ADMIN_NAME=GamePlan Administrator
 ADMIN_NICKNAME=Admin
 ```
 
-#### API Keys (Optional but Recommended)
+#### API Keys (Optional)
 ```bash
-# Steam API Key (for enhanced game integration)
-STEAM_API_KEY=your_steam_api_key_here
-
 # RAWG API Key (already provided, but you can use your own)
 RAWG_API_KEY=3963501b74354e0688413453cb8c6bc4
+
+# Note: Steam integration works automatically without requiring an API key
 ```
 
 #### Database Admin Interface

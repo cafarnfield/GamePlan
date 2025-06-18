@@ -95,8 +95,9 @@ For detailed Docker deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.md).
    # OR
    # MONGO_URI=mongodb+srv://<username>:<password>@cluster0.mongodb.net/gameplan?retryWrites=true&w=majority  # For MongoDB Atlas
    SESSION_SECRET=your_secret_key
-   STEAM_API_KEY=your_steam_api_key
    RAWG_API_KEY=3963501b74354e0688413453cb8c6bc4
+   
+   # Note: Steam integration works automatically without requiring an API key
    ```
 
 4. Start the server:
@@ -131,7 +132,6 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for comprehensive Docker deployment instructi
    - `PORT`: The port number (e.g., 3000)
    - `MONGO_URI`: Your MongoDB connection string
    - `SESSION_SECRET`: A secret key for session management
-   - `STEAM_API_KEY`: Your Steam API key (optional)
    - `RAWG_API_KEY`: Your RAWG API key
 
 4. Deploy the application.

@@ -69,9 +69,11 @@ SECURE_COOKIES=false
 
 ### Optional Variables (with warnings if missing)
 ```env
-STEAM_API_KEY=your_steam_api_key
+RAWG_API_KEY=your_rawg_api_key
 RECAPTCHA_SITE_KEY=your_recaptcha_site_key
 RECAPTCHA_SECRET_KEY=your_recaptcha_secret_key
+
+# Note: Steam integration works automatically without requiring an API key
 ```
 
 ### Development Safety Variable

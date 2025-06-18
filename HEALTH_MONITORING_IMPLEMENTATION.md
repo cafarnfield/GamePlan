@@ -58,7 +58,7 @@ A centralized health monitoring service that aggregates health information from:
       "rawgAPI": { "status": "unhealthy" }
     }
   },
-  "warnings": ["Missing optional variable: STEAM_API_KEY"],
+  "warnings": [],
   "errors": []
 }
 ```
