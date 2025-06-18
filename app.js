@@ -197,14 +197,57 @@ app.use((req, res, next) => {
 app.use(passport.initialize());
 app.use(passport.session());
 
-// MongoDB connection
+// Enhanced MongoDB connection with retry logic and monitoring
+const { connect: connectDatabase, on: onDatabaseEvent } = require('./utils/database');
+const { connectionMonitor } = require('./utils/connectionMonitor');
+const {
+  ensureDatabaseConnection,
+  addDatabaseMetrics,
+  addAdminDatabaseInfo,
+  handleDatabaseErrors: handleDbErrors
+} = require('./middleware/databaseMiddleware');
 
-// Mock database connection for testing
-if (process.env.MOCK_DB) {
-  mongoose.connect('mongodb://localhost:27017/gameplan');
-} else {
-  mongoose.connect(process.env.MONGO_URI);
-}
+// Initialize database connection
+const initializeDatabase = async () => {
+  try {
+    console.log('🚀 Initializing enhanced database connection...');
+    
+    // Connect to database with retry logic
+    if (process.env.MOCK_DB) {
+      await connectDatabase('mongodb://localhost:27017/gameplan');
+    } else {
+      await connectDatabase();
+    }
+    
+    console.log('✅ Database connection initialized successfully');
+  } catch (error) {
+    console.error('❌ Failed to initialize database connection:', error.message);
+    
+    // In production, we might want to exit the process
+    if (process.env.NODE_ENV === 'production') {
+      console.error('💥 Exiting due to database connection failure in production');
+      process.exit(1);
+    } else {
+      console.warn('⚠️ Continuing in development mode despite database connection failure');
+    }
+  }
+};
+
+// Setup database event listeners
+onDatabaseEvent('connected', () => {
+  console.log('📊 Database connection established - monitoring started');
+});
+
+onDatabaseEvent('disconnected', () => {
+  console.warn('⚠️ Database connection lost - attempting reconnection');
+});
+
+onDatabaseEvent('error', (error) => {
+  console.error('💾 Database connection error:', error.message);
+});
+
+// Initialize database connection
+initializeDatabase();
 
 // Models
 const User = require('./models/User');
@@ -415,14 +458,18 @@ app.use(autoLoginMiddleware);
 // Add request ID middleware for error tracking
 app.use(requestIdMiddleware);
 
+// Apply database middleware
+app.use(addDatabaseMetrics);
+app.use(ensureDatabaseConnection({ skipHealthCheck: true }));
+
 // Apply general rate limiting to all routes (except static assets)
 app.use(generalLimiter);
 
 // Apply API rate limiting to all /api routes
 app.use('/api', apiLimiter);
 
-// Initialize database error handling
-handleDatabaseErrors();
+// Apply admin database info middleware to admin routes
+app.use('/admin', addAdminDatabaseInfo);
 
 // Passport configuration with debug logging
 passport.use(new LocalStrategy(
@@ -592,6 +639,79 @@ app.get('/api/config-health', (req, res) => {
   const health = getConfigHealth();
   res.json(health);
 });
+
+// Database monitoring API endpoints
+app.get('/api/database/status', ensureAuthenticated, ensureAdmin, asyncErrorHandler(async (req, res) => {
+  const { getStatus } = require('./utils/database');
+  const status = getStatus();
+  res.json(status);
+}));
+
+app.get('/api/database/health', ensureAuthenticated, ensureAdmin, asyncErrorHandler(async (req, res) => {
+  const { healthCheck } = require('./utils/database');
+  const health = await healthCheck();
+  res.json(health);
+}));
+
+app.get('/api/database/monitoring', ensureAuthenticated, ensureAdmin, asyncErrorHandler(async (req, res) => {
+  const { getReport } = require('./utils/connectionMonitor');
+  const report = getReport();
+  res.json(report);
+}));
+
+app.get('/api/database/trends', ensureAuthenticated, ensureAdmin, asyncErrorHandler(async (req, res) => {
+  const { getTrends } = require('./utils/connectionMonitor');
+  const trends = getTrends();
+  res.json(trends);
+}));
+
+app.get('/api/database/metrics', ensureAuthenticated, ensureAdmin, asyncErrorHandler(async (req, res) => {
+  const { exportMetrics } = require('./utils/connectionMonitor');
+  const metrics = exportMetrics();
+  res.json(metrics);
+}));
+
+app.post('/api/database/reconnect', ensureAuthenticated, ensureSuperAdmin, asyncErrorHandler(async (req, res) => {
+  const { forceReconnect } = require('./utils/database');
+  const clientIP = getClientIP(req);
+  
+  try {
+    await forceReconnect();
+    
+    // Create audit log for this action
+    await createAuditLog(req.user, 'DATABASE_FORCE_RECONNECT', null, 'Forced database reconnection', clientIP, 1, {
+      action: 'FORCE_DATABASE_RECONNECT',
+      timestamp: new Date()
+    });
+    
+    console.log('Database force reconnect initiated by SuperAdmin:', req.user.email);
+    res.json({ success: true, message: 'Database reconnection initiated successfully' });
+  } catch (error) {
+    console.error('Error during force reconnect:', error.message);
+    res.status(500).json({ error: 'Failed to reconnect to database', message: error.message });
+  }
+}));
+
+app.post('/api/database/reset-metrics', ensureAuthenticated, ensureSuperAdmin, asyncErrorHandler(async (req, res) => {
+  const { resetMetrics } = require('./utils/connectionMonitor');
+  const clientIP = getClientIP(req);
+  
+  try {
+    resetMetrics();
+    
+    // Create audit log for this action
+    await createAuditLog(req.user, 'DATABASE_METRICS_RESET', null, 'Reset database monitoring metrics', clientIP, 1, {
+      action: 'RESET_DATABASE_METRICS',
+      timestamp: new Date()
+    });
+    
+    console.log('Database metrics reset by SuperAdmin:', req.user.email);
+    res.json({ success: true, message: 'Database monitoring metrics reset successfully' });
+  } catch (error) {
+    console.error('Error resetting metrics:', error.message);
+    res.status(500).json({ error: 'Failed to reset metrics', message: error.message });
+  }
+}));
 
 // Steam search API endpoint
 app.get('/api/steam/search', apiLimiter, validateSteamSearch, handleValidationErrors, asyncErrorHandler(async (req, res) => {
@@ -2614,6 +2734,9 @@ app.post('/admin/error-logs/bulk-delete', ensureAuthenticated, ensureSuperAdmin,
     throw new DatabaseError('Failed to perform bulk delete operation');
   }
 }));
+
+// Add database-specific error handler before general error handler
+app.use(handleDbErrors);
 
 // Add 404 handler for unmatched routes
 app.use(notFoundHandler);
