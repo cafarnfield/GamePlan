@@ -293,7 +293,66 @@ const validateAuditLogFilter = [
 ];
 
 /**
- * Validation rules for IP-based operations
+ * Validation rules for IP operations (block, whitelist, etc.)
+ */
+const validateIPOperation = [
+  param('ipAddress')
+    .custom((value) => {
+      // Basic IP validation (IPv4 and IPv6)
+      const ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+      // More comprehensive IPv6 regex that handles compressed notation like ::1
+      const ipv6Regex = /^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$/;
+      if (!ipv4Regex.test(value) && !ipv6Regex.test(value)) {
+        throw new Error('Invalid IP address format');
+      }
+      return true;
+    }),
+
+  body('reason')
+    .trim()
+    .isLength({ min: 1, max: 500 })
+    .withMessage('Reason must be between 1 and 500 characters')
+    .custom(checkXSS)
+    .withMessage('Reason contains potentially dangerous content')
+    .escape()
+];
+
+/**
+ * Validation rules for bulk IP operations
+ */
+const validateBulkIPOperation = [
+  body('ipAddresses')
+    .isArray({ min: 1, max: 50 })
+    .withMessage('IP addresses must be an array with 1-50 items')
+    .custom((ipAddresses) => {
+      const ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+      // More comprehensive IPv6 regex that handles compressed notation like ::1
+      const ipv6Regex = /^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$/;
+      
+      for (const ip of ipAddresses) {
+        if (typeof ip !== 'string' || (!ipv4Regex.test(ip) && !ipv6Regex.test(ip))) {
+          throw new Error('All IP addresses must be valid IPv4 or IPv6 addresses');
+        }
+      }
+      return true;
+    }),
+
+  body('reason')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Reason cannot exceed 500 characters')
+    .custom(checkXSS)
+    .withMessage('Reason contains potentially dangerous content')
+    .escape(),
+
+  param('action')
+    .isIn(['block', 'unblock', 'whitelist', 'remove-whitelist'])
+    .withMessage('Invalid bulk IP action')
+];
+
+/**
+ * Validation rules for IP-based operations (legacy - keeping for compatibility)
  */
 const validateIpOperation = [
   body('ipAddress')
@@ -325,5 +384,7 @@ module.exports = {
   validateSystemOperation,
   validateUserRoleChange,
   validateAuditLogFilter,
-  validateIpOperation
+  validateIpOperation,
+  validateIPOperation,
+  validateBulkIPOperation
 };

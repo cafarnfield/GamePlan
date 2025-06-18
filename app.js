@@ -455,6 +455,9 @@ app.use('/games', require('./routes/games'));
 // Import and use cache management routes
 app.use('/api/cache', require('./routes/cache'));
 
+// Import and use IP management routes
+app.use('/admin/ip-management', require('./routes/ipManagement'));
+
 // Swagger API Documentation (Admin-only access)
 const { specs, swaggerUi, swaggerUiOptions } = require('./config/swagger');
 const { ensureAdmin } = require('./middleware/auth');
