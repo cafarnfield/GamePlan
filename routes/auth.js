@@ -211,12 +211,58 @@ const registrationLimiter = rateLimit({
 const { ensureAuthenticated, ensureNotBlocked } = require('../middleware/auth');
 
 // Registration routes
+/**
+ * @swagger
+ * /register:
+ *   get:
+ *     tags: [Authentication]
+ *     summary: Display user registration form
+ *     description: Shows the registration form for new users to create an account
+ *     responses:
+ *       200:
+ *         description: Registration form displayed successfully
+ *         content:
+ *           text/html:
+ *             schema:
+ *               type: string
+ *               example: "HTML registration form"
+ */
 router.get('/register', (req, res) => {
   const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
   const recaptchaSiteKey = process.env.RECAPTCHA_SITE_KEY || '';
   res.render('register', { isDevelopmentAutoLogin, recaptchaSiteKey, error: null });
 });
 
+/**
+ * @swagger
+ * /register:
+ *   post:
+ *     tags: [Authentication]
+ *     summary: Register a new user account
+ *     description: |
+ *       Creates a new user account with pending status. Requires reCAPTCHA verification.
+ *       Account will need admin approval before the user can log in.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/x-www-form-urlencoded:
+ *           schema:
+ *             $ref: '#/components/schemas/UserRegistration'
+ *     responses:
+ *       200:
+ *         description: Registration successful, account pending approval
+ *         content:
+ *           text/html:
+ *             schema:
+ *               type: string
+ *               example: "Registration pending approval page"
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       429:
+ *         $ref: '#/components/responses/RateLimitError'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
 router.post('/register', registrationLimiter, validateRegistration, (req, res, next) => {
   // Custom validation error handler for registration to show specific errors
   const { validationResult } = require('express-validator');
@@ -306,11 +352,54 @@ router.post('/register', registrationLimiter, validateRegistration, (req, res, n
 });
 
 // Login routes
+/**
+ * @swagger
+ * /login:
+ *   get:
+ *     tags: [Authentication]
+ *     summary: Display login form
+ *     description: Shows the login form for existing users
+ *     responses:
+ *       200:
+ *         description: Login form displayed successfully
+ *         content:
+ *           text/html:
+ *             schema:
+ *               type: string
+ *               example: "HTML login form"
+ */
 router.get('/login', (req, res) => {
   const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
   res.render('login', { isDevelopmentAutoLogin });
 });
 
+/**
+ * @swagger
+ * /login:
+ *   post:
+ *     tags: [Authentication]
+ *     summary: Authenticate user login
+ *     description: |
+ *       Authenticates user credentials and creates a session.
+ *       Only approved users can successfully log in.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/x-www-form-urlencoded:
+ *           schema:
+ *             $ref: '#/components/schemas/UserLogin'
+ *     responses:
+ *       302:
+ *         description: Login successful, redirected to home page
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       429:
+ *         $ref: '#/components/responses/RateLimitError'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
 router.post('/login', loginLimiter, validateLogin, handleValidationErrors, (req, res, next) => {
   console.log('Login route accessed');
   console.log('Login attempt with email:', req.body.email);
@@ -338,6 +427,28 @@ router.post('/login', loginLimiter, validateLogin, handleValidationErrors, (req,
 });
 
 // Profile routes
+/**
+ * @swagger
+ * /profile:
+ *   get:
+ *     tags: [Authentication]
+ *     summary: Display user profile
+ *     description: Shows the current user's profile information and settings
+ *     security:
+ *       - SessionAuth: []
+ *     responses:
+ *       200:
+ *         description: Profile page displayed successfully
+ *         content:
+ *           text/html:
+ *             schema:
+ *               type: string
+ *               example: "HTML profile page"
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ */
 router.get('/profile', ensureAuthenticated, ensureNotBlocked, (req, res) => {
   console.log('Profile route accessed');
   console.log('User:', req.user);
@@ -347,6 +458,33 @@ router.get('/profile', ensureAuthenticated, ensureNotBlocked, (req, res) => {
   res.render('profile', { user, isDevelopmentAutoLogin });
 });
 
+/**
+ * @swagger
+ * /profile/update:
+ *   post:
+ *     tags: [Authentication]
+ *     summary: Update user profile
+ *     description: Updates the current user's profile information (currently only game nickname)
+ *     security:
+ *       - SessionAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/x-www-form-urlencoded:
+ *           schema:
+ *             $ref: '#/components/schemas/UserProfileUpdate'
+ *     responses:
+ *       302:
+ *         description: Profile updated successfully, redirected to profile page
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       403:
+ *         $ref: '#/components/responses/ForbiddenError'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
 router.post('/profile/update', ensureAuthenticated, ensureNotBlocked, validateProfileUpdate, handleValidationErrors, async (req, res) => {
   try {
     const { gameNickname } = req.body;
@@ -359,6 +497,21 @@ router.post('/profile/update', ensureAuthenticated, ensureNotBlocked, validatePr
 });
 
 // Logout route
+/**
+ * @swagger
+ * /logout:
+ *   get:
+ *     tags: [Authentication]
+ *     summary: Log out current user
+ *     description: |
+ *       Destroys the current user session and clears authentication cookies.
+ *       Redirects to the home page after successful logout.
+ *     responses:
+ *       302:
+ *         description: Logout successful, redirected to home page
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
 router.get('/logout', (req, res) => {
   req.session.destroy((err) => {
     if (err) {

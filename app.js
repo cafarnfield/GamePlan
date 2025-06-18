@@ -455,7 +455,47 @@ app.use('/games', require('./routes/games'));
 // Import and use cache management routes
 app.use('/api/cache', require('./routes/cache'));
 
+// Swagger API Documentation (Admin-only access)
+const { specs, swaggerUi, swaggerUiOptions } = require('./config/swagger');
+const { ensureAdmin } = require('./middleware/auth');
+
+// Swagger UI endpoint with admin authentication
+app.use('/api-docs', ensureAdmin, swaggerUi.serve);
+app.get('/api-docs', ensureAdmin, swaggerUi.setup(specs, swaggerUiOptions));
+
 // Steam search API endpoint
+/**
+ * @swagger
+ * /api/steam/search:
+ *   get:
+ *     tags: [Search]
+ *     summary: Search Steam games
+ *     description: |
+ *       Search for games using the Steam API. Results are cached for performance.
+ *       Rate limited to 100 requests per 15 minutes per IP.
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         required: true
+ *         schema:
+ *           type: string
+ *           minLength: 1
+ *         description: Search query for game name
+ *         example: "counter strike"
+ *     responses:
+ *       200:
+ *         description: Search results from Steam API
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/GameSearchResponse'
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       429:
+ *         $ref: '#/components/responses/RateLimitError'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
 app.get('/api/steam/search', apiLimiter, validateSteamSearch, handleValidationErrors, asyncErrorHandler(async (req, res) => {
   const { q } = req.query;
   console.log('Steam search request for:', q);
@@ -470,6 +510,38 @@ app.get('/api/steam/search', apiLimiter, validateSteamSearch, handleValidationEr
 }));
 
 // RAWG search API endpoint
+/**
+ * @swagger
+ * /api/rawg/search:
+ *   get:
+ *     tags: [Search]
+ *     summary: Search RAWG games database
+ *     description: |
+ *       Search for games using the RAWG API. Results are cached for performance.
+ *       Rate limited to 100 requests per 15 minutes per IP.
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         required: true
+ *         schema:
+ *           type: string
+ *           minLength: 1
+ *         description: Search query for game name
+ *         example: "counter strike"
+ *     responses:
+ *       200:
+ *         description: Search results from RAWG API
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/GameSearchResponse'
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       429:
+ *         $ref: '#/components/responses/RateLimitError'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
 app.get('/api/rawg/search', apiLimiter, validateRawgSearch, handleValidationErrors, asyncErrorHandler(async (req, res) => {
   const { q } = req.query;
   console.log('RAWG search request for:', q);
@@ -484,6 +556,36 @@ app.get('/api/rawg/search', apiLimiter, validateRawgSearch, handleValidationErro
 }));
 
 // Health check endpoint for Docker
+/**
+ * @swagger
+ * /api/health:
+ *   get:
+ *     tags: [System]
+ *     summary: System health check
+ *     description: Returns the current health status of the application
+ *     responses:
+ *       200:
+ *         description: System is healthy
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "healthy"
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *                   example: "2023-12-01T10:30:00.000Z"
+ *                 uptime:
+ *                   type: number
+ *                   description: "Server uptime in seconds"
+ *                   example: 86400
+ *                 environment:
+ *                   type: string
+ *                   example: "development"
+ */
 app.get('/api/health', (req, res) => {
   res.status(200).json({ 
     status: 'healthy', 
@@ -494,6 +596,21 @@ app.get('/api/health', (req, res) => {
 });
 
 // Add configuration health endpoint
+/**
+ * @swagger
+ * /api/config-health:
+ *   get:
+ *     tags: [System]
+ *     summary: Configuration health check
+ *     description: Returns the current configuration health status including environment variables
+ *     responses:
+ *       200:
+ *         description: Configuration health status
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ConfigHealth'
+ */
 app.get('/api/config-health', (req, res) => {
   const { getConfigHealth } = require('./utils/configHealth');
   const health = getConfigHealth();
