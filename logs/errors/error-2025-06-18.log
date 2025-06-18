@@ -1,1 +1,0 @@
-{"category":"admin","error":"AuditLog validation failed: action: `ERROR_LOGS_CLEARED_ALL` is not a valid enum value for path `action`.","action":"ERROR_LOGS_CLEARED_ALL","adminId":{"buffer":{"0":104,"1":68,"2":128,"3":34,"4":100,"5":165,"6":224,"7":161,"8":224,"9":241,"10":178,"11":110}},"level":"error","message":"Error creating audit log","timestamp":"2025-06-18T18:30:56.661Z"}
