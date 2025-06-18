@@ -23,6 +23,15 @@ const {
   validateRawgSearch
 } = require('../validators/searchValidators');
 
+// Import new Joi validation system
+const {
+  validateBody,
+  validateQuery,
+  validateParams,
+  gameSchemas,
+  commonSchemas
+} = require('../validators');
+
 // Import authentication middleware
 const { ensureAuthenticated, ensureAdmin } = require('../middleware/auth');
 
@@ -253,7 +262,7 @@ router.post('/approve/:id', ensureAuthenticated, ensureAdmin, validateGameApprov
 });
 
 // Reject game
-router.post('/reject/:id', ensureAuthenticated, ensureAdmin, async (req, res) => {
+router.post('/reject/:id', ensureAuthenticated, ensureAdmin, validateBody(gameSchemas.gameRejectionSchema), async (req, res) => {
   try {
     const { notes } = req.body;
     const game = await Game.findById(req.params.id);
