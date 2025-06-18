@@ -59,7 +59,13 @@
 
     <% if (error) { %>
       <div class="error-message">
-        <%= error %>
+        <% if (error.includes('\n')) { %>
+          <% error.split('\n').forEach(line => { %>
+            <%= line %><br>
+          <% }); %>
+        <% } else { %>
+          <%= error %>
+        <% } %>
       </div>
     <% } %>
 
@@ -71,10 +77,11 @@
       <input type="email" id="email" name="email" required>
       
       <label for="password">Password:</label>
-      <input type="password" id="password" name="password" required minlength="6">
+      <input type="password" id="password" name="password" required minlength="8" 
+             title="Password must be at least 8 characters and contain uppercase, lowercase, number, and special character">
       
-      <label for="gameNickname">Game Nickname:</label>
-      <input type="text" id="gameNickname" name="gameNickname" placeholder="How you want to be known in games" required>
+      <label for="gameNickname">Game Nickname (Optional):</label>
+      <input type="text" id="gameNickname" name="gameNickname" placeholder="How you want to be known in games">
 
       <% if (recaptchaSiteKey) { %>
         <div class="captcha-container">
