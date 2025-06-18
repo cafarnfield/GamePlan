@@ -633,6 +633,9 @@
   </table>
 <% } %>
 
+<!-- Pagination -->
+<%- include('partials/pagination', { currentPage, totalPages, req }) %>
+
 <script>
   function toggleBulkActions() {
     const bulkActions = document.getElementById('bulkActions');

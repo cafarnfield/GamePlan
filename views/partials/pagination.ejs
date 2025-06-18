@@ -1,0 +1,137 @@
+<%
+// Pagination partial component
+// Expected variables: currentPage, totalPages, req (for query parameters)
+// Optional: baseUrl (defaults to current path)
+
+const queryParams = new URLSearchParams();
+// Use originalUrl to get the full path including /admin prefix
+const pageBaseUrl = (typeof locals !== 'undefined' && locals.baseUrl) ? locals.baseUrl : req.originalUrl.split('?')[0];
+
+// Add all current query parameters except 'page'
+if (req && req.query) {
+  Object.entries(req.query).forEach(([key, value]) => {
+    if (key !== 'page' && value) {
+      queryParams.append(key, value);
+    }
+  });
+}
+
+const queryString = queryParams.toString();
+const separator = queryString ? '&' : '';
+
+function buildPageUrl(pageNum) {
+  return `${pageBaseUrl}?page=${pageNum}${separator}${queryString}`;
+}
+%>
+
+<% if (totalPages > 1) { %>
+  <div class="pagination">
+    <% if (currentPage > 1) { %>
+      <a href="<%= buildPageUrl(currentPage - 1) %>">⬅️ Previous</a>
+    <% } %>
+    
+    <% 
+    // Calculate page range to show
+    const startPage = Math.max(1, currentPage - 2);
+    const endPage = Math.min(totalPages, currentPage + 2);
+    %>
+    
+    <% if (startPage > 1) { %>
+      <a href="<%= buildPageUrl(1) %>">1</a>
+      <% if (startPage > 2) { %>
+        <span class="ellipsis">...</span>
+      <% } %>
+    <% } %>
+    
+    <% for (let i = startPage; i <= endPage; i++) { %>
+      <% if (i === currentPage) { %>
+        <span class="current"><%= i %></span>
+      <% } else { %>
+        <a href="<%= buildPageUrl(i) %>"><%= i %></a>
+      <% } %>
+    <% } %>
+    
+    <% if (endPage < totalPages) { %>
+      <% if (endPage < totalPages - 1) { %>
+        <span class="ellipsis">...</span>
+      <% } %>
+      <a href="<%= buildPageUrl(totalPages) %>"><%= totalPages %></a>
+    <% } %>
+    
+    <% if (currentPage < totalPages) { %>
+      <a href="<%= buildPageUrl(currentPage + 1) %>">Next ➡️</a>
+    <% } %>
+  </div>
+  
+  <div class="pagination-info">
+    <span>Page <%= currentPage %> of <%= totalPages %></span>
+  </div>
+<% } %>
+
+<style>
+  .pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  
+  .pagination a,
+  .pagination span {
+    background: rgba(0, 50, 0, 0.8);
+    color: #00ff00;
+    border: 1px solid #00ff00;
+    padding: 8px 12px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    min-width: 30px;
+    text-align: center;
+  }
+  
+  .pagination .current {
+    background: rgba(0, 255, 0, 0.8);
+    color: #000;
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+    font-weight: bold;
+  }
+  
+  .pagination .ellipsis {
+    background: transparent;
+    border: none;
+    color: #888;
+    cursor: default;
+  }
+  
+  .pagination a:hover {
+    background: rgba(0, 255, 0, 0.8);
+    color: #000;
+    box-shadow: 0 0 5px rgba(0, 255, 0, 0.3);
+  }
+  
+  .pagination-info {
+    text-align: center;
+    margin-top: 10px;
+    font-size: 8px;
+    color: #888;
+    font-family: 'Press Start 2P', monospace;
+  }
+  
+  /* Mobile optimizations */
+  @media (max-width: 768px) {
+    .pagination {
+      padding: 15px 10px;
+      gap: 5px;
+    }
+    
+    .pagination a,
+    .pagination span {
+      padding: 6px 8px;
+      font-size: 7px;
+      min-width: 25px;
+    }
+  }
+</style>

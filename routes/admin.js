@@ -151,9 +151,78 @@ const checkAdminOperationPermission = async (req, res, next) => {
   }
 };
 
-// Redirect game routes to the new games module
-router.get('/games', ensureAuthenticated, ensureAdmin, (req, res) => {
-  res.redirect('/games' + (req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : ''));
+// Admin games management
+router.get('/games', ensureAuthenticated, ensureAdmin, async (req, res) => {
+  try {
+    const { filter, sourceFilter, search, addedBy, page = 1 } = req.query;
+    const limit = 20;
+    const skip = (page - 1) * limit;
+
+    let query = {};
+    
+    // Status filter
+    if (filter === 'pending') query.status = 'pending';
+    else if (filter === 'approved') query.status = 'approved';
+    else if (filter === 'rejected') query.status = 'rejected';
+
+    // Source filter
+    if (sourceFilter === 'steam') query.source = 'steam';
+    else if (sourceFilter === 'rawg') query.source = 'rawg';
+    else if (sourceFilter === 'manual') query.source = 'manual';
+    else if (sourceFilter === 'admin') query.source = 'admin';
+
+    // Search filter
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    // Added by filter
+    if (addedBy) {
+      const users = await User.find({
+        $or: [
+          { name: { $regex: addedBy, $options: 'i' } },
+          { email: { $regex: addedBy, $options: 'i' } }
+        ]
+      }).select('_id');
+
+      if (users.length > 0) {
+        query.addedBy = { $in: users.map(u => u._id) };
+      }
+    }
+
+    const games = await Game.find(query)
+      .populate('addedBy')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const totalGames = await Game.countDocuments(query);
+    const totalPages = Math.ceil(totalGames / limit);
+
+    // Get pending counts for navigation badges
+    const pendingCounts = await getPendingCounts();
+
+    const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
+    res.render('adminGames', {
+      games,
+      filter,
+      sourceFilter,
+      search,
+      addedBy,
+      currentPage: parseInt(page),
+      totalPages,
+      user: req.user,
+      req: req,
+      isDevelopmentAutoLogin,
+      ...pendingCounts // Spread the pending counts for navigation badges
+    });
+  } catch (err) {
+    console.error('Error loading admin games:', err);
+    res.status(500).send('Error loading games');
+  }
 });
 
 router.get('/add-game', ensureAuthenticated, ensureAdmin, (req, res) => {
@@ -219,6 +288,7 @@ router.get('/users', ensureAuthenticated, ensureAdmin, async (req, res) => {
       currentPage: parseInt(page), 
       totalPages, 
       user: req.user, 
+      req: req,
       isDevelopmentAutoLogin 
     });
   } catch (err) {
@@ -319,6 +389,7 @@ router.get('/events', ensureAuthenticated, ensureAdmin, async (req, res) => {
       currentPage: parseInt(page),
       totalPages,
       user: req.user,
+      req: req,
       isDevelopmentAutoLogin,
       ...pendingCounts // Spread the pending counts for navigation badges
     });
@@ -696,6 +767,7 @@ router.get('/logs', ensureAuthenticated, ensureAdmin, async (req, res) => {
       currentPage: parseInt(page),
       totalPages,
       user: req.user,
+      req: req,
       isDevelopmentAutoLogin
     });
   } catch (err) {

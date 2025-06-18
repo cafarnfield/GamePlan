@@ -869,25 +869,7 @@
   <% } %>
   
   <!-- Pagination -->
-  <% if (totalPages > 1) { %>
-    <div class="pagination">
-      <% if (page > 1) { %>
-        <a href="?page=<%= page - 1 %>&<%= new URLSearchParams(Object.entries(req.query).filter(([key]) => key !== 'page')).toString() %>">⬅️ Previous</a>
-      <% } %>
-      
-      <% for (let i = Math.max(1, page - 2); i <= Math.min(totalPages, page + 2); i++) { %>
-        <% if (i === page) { %>
-          <span class="current"><%= i %></span>
-        <% } else { %>
-          <a href="?page=<%= i %>&<%= new URLSearchParams(Object.entries(req.query).filter(([key]) => key !== 'page')).toString() %>"><%= i %></a>
-        <% } %>
-      <% } %>
-      
-      <% if (page < totalPages) { %>
-        <a href="?page=<%= page + 1 %>&<%= new URLSearchParams(Object.entries(req.query).filter(([key]) => key !== 'page')).toString() %>">Next ➡️</a>
-      <% } %>
-    </div>
-  <% } %>
+  <%- include('partials/pagination', { currentPage: page, totalPages, req }) %>
 </div>
 
 <!-- Error Detail Modal -->
