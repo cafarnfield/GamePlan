@@ -123,7 +123,71 @@ This script automatically:
 
 For complete Debian deployment guide with SSL setup, see [DEBIAN_DEPLOYMENT.md](DEBIAN_DEPLOYMENT.md).
 
-### Manual Installation (Development)
+### Local Development (Recommended for Development)
+
+GamePlan includes a comprehensive local development system with automatic setup, backup, and reset capabilities.
+
+#### Prerequisites
+
+- Docker Desktop (with Docker Compose)
+- Git
+
+#### Quick Start
+
+**Windows (PowerShell):**
+```powershell
+.\setup-local.ps1
+```
+
+**Linux/Mac (Bash):**
+```bash
+./setup-local.sh
+```
+
+This one-command setup will:
+- ✅ Check Docker availability
+- ✅ Create optimized local configuration
+- ✅ Install dependencies
+- ✅ Build and start all services
+- ✅ Initialize admin user
+- ✅ Show access URLs
+
+#### Access Points
+
+After setup:
+- **Main Application**: http://localhost:3000
+- **Database Admin**: http://localhost:8081
+- **API Health**: http://localhost:3000/api/health
+
+#### Development Features
+
+- 🔄 **Hot Reload**: Code changes automatically restart the app
+- 🐛 **Debug Mode**: Verbose logging and debug port (9229) exposed
+- 🗄️ **Auto Backup**: Built-in backup and restore system
+- 🔧 **Easy Reset**: One-command environment reset
+- 📊 **Database UI**: Mongo Express for database management
+
+#### Development Commands
+
+```bash
+# Backup your work
+./backup-local.sh        # Linux/Mac
+.\backup-local.ps1       # Windows
+
+# Reset environment
+./reset-local.sh         # Linux/Mac
+.\reset-local.ps1        # Windows
+
+# View logs
+docker compose logs -f
+
+# Stop services
+docker compose down
+```
+
+For complete local development guide, see [LOCAL_DEVELOPMENT.md](LOCAL_DEVELOPMENT.md).
+
+### Manual Installation (Advanced)
 
 #### Prerequisites
 

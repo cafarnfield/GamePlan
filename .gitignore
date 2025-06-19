@@ -156,3 +156,20 @@ temp/
 # Application specific
 uploads/
 public/uploads/
+
+# Local development configuration (protected)
+.env.local
+.env.development
+.env.production
+docker-compose.local.yml
+docker-compose.production.yml
+config-backups/
+local-backups/
+
+# Template files that should be tracked
+!docker-compose.production.yml.example
+!.env.local.example
+
+# Deployment scripts with sensitive data
+deploy-to-server.sh
+sync-to-production.sh
