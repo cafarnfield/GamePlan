@@ -64,6 +64,28 @@ These are harmless warnings about newer Docker Compose format. No action needed 
 
 ---
 
+## 📁 Log Directory Permission Issues
+
+### **Problem: Permission denied creating log directories**
+```
+Error: EACCES: permission denied, mkdir '/app/logs/application'
+```
+
+**Solution:**
+```bash
+# Rebuild containers with fixed permissions
+docker compose down
+docker compose build --no-cache
+docker compose up -d
+
+# Verify logs are working
+docker compose logs -f gameplan-app
+```
+
+**Root Cause:** Docker container user doesn't have permission to create log directories.
+
+---
+
 ## 🔧 Container Issues
 
 ### **Problem: Container fails to start**

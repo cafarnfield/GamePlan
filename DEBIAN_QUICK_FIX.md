@@ -13,7 +13,17 @@ Based on your screenshot, your GamePlan deployment is **working correctly** but 
 
 ## 🔧 Quick Fixes Needed
 
-### **1. Fix Docker Permissions (Most Important)**
+### **1. Fix Log Directory Permissions (Critical)**
+```bash
+# Rebuild containers with fixed permissions
+docker compose down
+docker compose build --no-cache
+docker compose up -d
+```
+
+**Why this matters:** The application can't create log directories due to Docker container permissions.
+
+### **2. Fix Docker User Permissions (Important)**
 ```bash
 # Add your user to docker group
 sudo usermod -aG docker $USER

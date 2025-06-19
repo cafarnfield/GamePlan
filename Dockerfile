@@ -17,8 +17,11 @@ COPY . .
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S gameplan -u 1001
 
-# Change ownership of the app directory
-RUN chown -R gameplan:nodejs /app
+# Create logs directories with proper permissions
+RUN mkdir -p /app/logs/application /app/logs/errors /app/logs/debug && \
+    chown -R gameplan:nodejs /app && \
+    chmod -R 755 /app/logs
+
 USER gameplan
 
 # Expose port
