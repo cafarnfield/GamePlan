@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Password Reset Successful - GamePlan</title>
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+</head>
+<body>
+    <div class="container">
+        <div class="auth-container">
+            <div class="success-header">
+                <div class="success-icon">✅</div>
+                <h1>🎮 GamePlan</h1>
+                <h2>Password Reset Successful!</h2>
+            </div>
+
+            <div class="success-message">
+                <p><%= message %></p>
+            </div>
+
+            <div class="next-steps">
+                <h3>What's Next?</h3>
+                <ul>
+                    <li>Your password has been securely updated</li>
+                    <li>You can now log in with your new password</li>
+                    <li>Consider updating your password manager</li>
+                    <li>Log out of other devices for security</li>
+                </ul>
+            </div>
+
+            <div class="action-buttons">
+                <a href="/login" class="btn btn-primary btn-full">
+                    Sign In Now
+                </a>
+                <a href="/" class="btn btn-secondary btn-full">
+                    Go to Home
+                </a>
+            </div>
+
+            <div class="security-tips">
+                <h3>🔒 Security Tips</h3>
+                <ul>
+                    <li><strong>Keep it secure:</strong> Don't share your password with anyone</li>
+                    <li><strong>Use unique passwords:</strong> Don't reuse this password elsewhere</li>
+                    <li><strong>Stay vigilant:</strong> Log out when using shared computers</li>
+                    <li><strong>Regular updates:</strong> Consider changing passwords periodically</li>
+                </ul>
+            </div>
+
+            <% if (isDevelopmentAutoLogin) { %>
+                <div class="dev-notice">
+                    <p><strong>Development Mode:</strong> Auto-login is enabled</p>
+                </div>
+            <% } %>
+        </div>
+    </div>
+
+    <style>
+        .auth-container {
+            max-width: 500px;
+            margin: 50px auto;
+            padding: 30px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+
+        .success-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .success-icon {
+            font-size: 4em;
+            margin-bottom: 10px;
+        }
+
+        .success-header h1 {
+            color: #007bff;
+            margin: 0 0 10px 0;
+            font-size: 2.5em;
+        }
+
+        .success-header h2 {
+            color: #28a745;
+            margin: 0;
+            font-size: 1.8em;
+        }
+
+        .success-message {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+
+        .success-message p {
+            margin: 0;
+            font-size: 1.1em;
+            font-weight: 500;
+        }
+
+        .next-steps, .security-tips {
+            margin: 25px 0;
+        }
+
+        .next-steps h3, .security-tips h3 {
+            color: #333;
+            margin: 0 0 15px 0;
+            font-size: 1.2em;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 5px;
+        }
+
+        .next-steps ul, .security-tips ul {
+            margin: 0;
+            padding-left: 20px;
+            color: #555;
+        }
+
+        .next-steps li, .security-tips li {
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+
+        .security-tips li strong {
+            color: #333;
+        }
+
+        .action-buttons {
+            margin: 30px 0 20px 0;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background-color: #545b62;
+        }
+
+        .btn-full {
+            width: 100%;
+        }
+
+        .dev-notice {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 20px;
+            text-align: center;
+            font-size: 0.9em;
+        }
+
+        @media (max-width: 480px) {
+            .auth-container {
+                margin: 20px;
+                padding: 20px;
+            }
+
+            .success-header h1 {
+                font-size: 2em;
+            }
+
+            .success-header h2 {
+                font-size: 1.5em;
+            }
+
+            .success-icon {
+                font-size: 3em;
+            }
+        }
+
+        /* Animation for success icon */
+        .success-icon {
+            animation: bounceIn 0.8s ease-out;
+        }
+
+        @keyframes bounceIn {
+            0% {
+                transform: scale(0.3);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.05);
+            }
+            70% {
+                transform: scale(0.9);
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+    </style>
+</body>
+</html>

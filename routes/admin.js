@@ -23,7 +23,9 @@ const {
   validateBulkUserOperation,
   validateGameApproval,
   validateAdminGameAddition,
-  validateBulkEventOperation
+  validateBulkEventOperation,
+  validateAdminPasswordReset,
+  validateAdminPasswordResetEmail
 } = require('../validators/adminValidators');
 
 // Import centralized error handling
@@ -1238,6 +1240,122 @@ router.post('/users/bulk-delete', ensureAuthenticated, ensureAdmin, validateBulk
   } catch (err) {
     console.error('Error in bulk delete:', err);
     res.status(500).json({ error: 'Error in bulk delete operation' });
+  }
+});
+
+// Admin Password Reset Routes
+
+// Reset user password directly
+router.post('/user/reset-password/:id', ensureAuthenticated, ensureAdmin, validateAdminPasswordReset, handleValidationErrors, checkAdminOperationPermission, async (req, res) => {
+  try {
+    const { newPassword, reason, notifyUser = false, forceChange = false } = req.body;
+    const user = req.targetUser;
+    const clientIP = getClientIP(req);
+    const bcrypt = require('bcrypt');
+
+    // Hash the new password
+    const saltRounds = 12;
+    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+
+    // Update user password
+    user.password = hashedPassword;
+    user.passwordResetBy = req.user._id;
+    user.passwordResetAt = new Date();
+    
+    // Force password change on next login if requested
+    if (forceChange) {
+      user.mustChangePassword = true;
+      user.mustChangePasswordReason = 'Admin reset - security requirement';
+    }
+
+    await user.save();
+
+    // Create audit log
+    await createAuditLog(req.user, 'PASSWORD_RESET_BY_ADMIN', user, reason || 'Admin password reset', clientIP, 1, {
+      forceChange,
+      notifyUser,
+      resetReason: reason
+    });
+
+    // Send notification email if requested
+    if (notifyUser) {
+      try {
+        const emailService = require('../services/emailService');
+        if (emailService.isReady()) {
+          await emailService.sendPasswordChangeNotification(user.email, user.name, {
+            resetBy: req.user.name,
+            resetAt: new Date(),
+            reason: reason || 'Administrative password reset',
+            forceChange
+          });
+        }
+      } catch (emailError) {
+        console.error('Error sending password reset notification:', emailError);
+        // Don't fail the password reset if email fails
+      }
+    }
+
+    console.log('Password reset by admin:', req.user.email, 'for user:', user.email);
+    res.status(200).json({ 
+      success: true, 
+      message: 'Password reset successfully',
+      forceChange,
+      notificationSent: notifyUser
+    });
+  } catch (err) {
+    console.error('Error resetting password:', err);
+    res.status(500).json({ error: 'Error resetting password' });
+  }
+});
+
+// Send password reset email for user
+router.post('/user/send-reset-email/:id', ensureAuthenticated, ensureAdmin, validateAdminPasswordResetEmail, handleValidationErrors, checkAdminOperationPermission, async (req, res) => {
+  try {
+    const { reason } = req.body;
+    const user = req.targetUser;
+    const clientIP = getClientIP(req);
+
+    // Generate reset token using existing utility
+    const TokenUtils = require('../utils/tokenUtils');
+    const resetToken = TokenUtils.generateResetToken();
+    const resetTokenExpiry = new Date(Date.now() + (process.env.RESET_TOKEN_EXPIRY || 3600000)); // 1 hour default
+
+    // Update user with reset token
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordExpires = resetTokenExpiry;
+    user.resetRequestedBy = req.user._id;
+    user.resetRequestedAt = new Date();
+    
+    await user.save();
+
+    // Send reset email
+    const emailService = require('../services/emailService');
+    if (!emailService.isReady()) {
+      return res.status(500).json({ error: 'Email service not configured' });
+    }
+
+    const emailSent = await emailService.sendPasswordResetEmail(user.email, resetToken, user.name);
+    
+    if (!emailSent) {
+      return res.status(500).json({ error: 'Failed to send reset email' });
+    }
+
+    // Create audit log
+    await createAuditLog(req.user, 'PASSWORD_RESET_EMAIL_SENT', user, reason || 'Admin-triggered password reset email', clientIP, 1, {
+      resetToken: resetToken.substring(0, 8) + '...', // Log partial token for audit
+      expiresAt: resetTokenExpiry,
+      requestReason: reason
+    });
+
+    console.log('Password reset email sent by admin:', req.user.email, 'for user:', user.email);
+    res.status(200).json({ 
+      success: true, 
+      message: 'Password reset email sent successfully',
+      expiresAt: resetTokenExpiry
+    });
+  } catch (err) {
+    console.error('Error sending password reset email:', err);
+    res.status(500).json({ error: 'Error sending password reset email' });
   }
 });
 

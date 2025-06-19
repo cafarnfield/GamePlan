@@ -21,6 +21,36 @@ const ensureAuthenticated = (req, res, next) => {
 };
 
 /**
+ * Middleware to check if user must change password
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next function
+ */
+const ensurePasswordNotExpired = (req, res, next) => {
+  // Skip check for auto-login in development mode
+  if (process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development') {
+    return next();
+  }
+  
+  // Skip check if not authenticated
+  if (!req.isAuthenticated || !req.isAuthenticated() || !req.user) {
+    return next();
+  }
+  
+  // Skip check for password change routes to avoid infinite redirect
+  if (req.path === '/change-password' || req.path === '/logout') {
+    return next();
+  }
+  
+  // Check if user must change password
+  if (req.user.mustChangePassword) {
+    return res.redirect('/change-password');
+  }
+  
+  next();
+};
+
+/**
  * Middleware to check if user is blocked
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
@@ -87,6 +117,7 @@ const ensureSuperAdmin = (req, res, next) => {
 
 module.exports = {
   ensureAuthenticated,
+  ensurePasswordNotExpired,
   ensureNotBlocked,
   ensureAdmin,
   ensureSuperAdmin

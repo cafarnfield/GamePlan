@@ -20,7 +20,7 @@ const { requestLogger, apiRequestLogger } = require('./middleware/requestLogger'
 const { handleValidationErrors } = require('./middleware/validation');
 
 // Import authentication middleware
-const { ensureAuthenticated, ensureNotBlocked } = require('./middleware/auth');
+const { ensureAuthenticated, ensureNotBlocked, ensurePasswordNotExpired } = require('./middleware/auth');
 
 // Import centralized error handling
 const {
@@ -1085,7 +1085,7 @@ app.get('/api/deployment-test', (req, res) => {
 
 
 // Home page route - Display all events
-app.get('/', async (req, res) => {
+app.get('/', ensurePasswordNotExpired, async (req, res) => {
   let query = {};
   
   // Filter events based on user role and visibility

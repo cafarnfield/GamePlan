@@ -20,8 +20,21 @@ const userSchema = new mongoose.Schema({
   probationaryUntil: Date,
   createdAt: { type: Date, default: Date.now },
   approvedAt: Date,
-  approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+  approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  // Password reset fields
+  resetToken: String,
+  resetTokenExpiry: Date,
+  resetTokenUsed: { type: Boolean, default: false },
+  // Admin password reset fields
+  mustChangePassword: { type: Boolean, default: false },
+  mustChangePasswordReason: String,
+  passwordResetBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  passwordResetAt: Date
 });
+
+// Add indexes for password reset functionality
+userSchema.index({ resetToken: 1 });
+userSchema.index({ resetTokenExpiry: 1 });
 
 const User = mongoose.model('User', userSchema);
 

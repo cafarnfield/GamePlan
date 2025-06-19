@@ -373,6 +373,68 @@ const validateIpOperation = [
     .escape()
 ];
 
+/**
+ * Validation rules for admin password reset
+ */
+const validateAdminPasswordReset = [
+  param('id')
+    .isMongoId()
+    .withMessage('Invalid user ID format'),
+
+  body('newPassword')
+    .isLength({ min: 8, max: 128 })
+    .withMessage('Password must be between 8 and 128 characters')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
+    .withMessage('Password must contain at least one lowercase letter, one uppercase letter, one number, and one special character'),
+
+  body('confirmPassword')
+    .custom((value, { req }) => {
+      if (value !== req.body.newPassword) {
+        throw new Error('Password confirmation does not match');
+      }
+      return true;
+    }),
+
+  body('reason')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Reason cannot exceed 500 characters')
+    .custom(checkXSS)
+    .withMessage('Reason contains potentially dangerous content')
+    .escape(),
+
+  body('notifyUser')
+    .optional()
+    .isBoolean()
+    .withMessage('Notify user must be a boolean value')
+    .toBoolean(),
+
+  body('forceChange')
+    .optional()
+    .isBoolean()
+    .withMessage('Force change must be a boolean value')
+    .toBoolean()
+];
+
+/**
+ * Validation rules for admin-triggered password reset email
+ */
+const validateAdminPasswordResetEmail = [
+  param('id')
+    .isMongoId()
+    .withMessage('Invalid user ID format'),
+
+  body('reason')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Reason cannot exceed 500 characters')
+    .custom(checkXSS)
+    .withMessage('Reason contains potentially dangerous content')
+    .escape()
+];
+
 module.exports = {
   validateUserApproval,
   validateUserRejection,
@@ -386,5 +448,7 @@ module.exports = {
   validateAuditLogFilter,
   validateIpOperation,
   validateIPOperation,
-  validateBulkIPOperation
+  validateBulkIPOperation,
+  validateAdminPasswordReset,
+  validateAdminPasswordResetEmail
 };
