@@ -1425,6 +1425,10 @@ p {
   transition: all 0.3s ease;
   font-family: 'Press Start 2P', cursive;
   border-radius: 4px;
+  position: absolute;
+  top: 1.5rem;
+  right: 1.5rem;
+  z-index: 1001;
 }
 
 .mobile-nav-toggle:hover {
@@ -1479,6 +1483,12 @@ p {
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 4px;
+}
+
+.mobile-nav-menu nav a:hover {
+  background: var(--dark-blue);
+  border-color: var(--teal-cyan);
 }
 
 .mobile-nav-menu nav p {
