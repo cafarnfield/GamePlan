@@ -147,6 +147,13 @@ nav {
   flex-wrap: wrap;
 }
 
+/* Hide desktop nav on mobile */
+@media (max-width: 768px) {
+  nav {
+    display: none;
+  }
+}
+
 nav a {
   color: var(--muted-cyan);
   text-decoration: none;
