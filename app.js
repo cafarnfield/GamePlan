@@ -994,6 +994,55 @@ app.get('/api/config-health', (req, res) => {
   res.json(health);
 });
 
+// Test endpoint to verify deployment updates
+/**
+ * @swagger
+ * /api/version:
+ *   get:
+ *     tags: [System]
+ *     summary: Application version and deployment info
+ *     description: Returns application version, deployment timestamp, and environment information
+ *     responses:
+ *       200:
+ *         description: Version information
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 version:
+ *                   type: string
+ *                   example: "1.0.0"
+ *                 deploymentTest:
+ *                   type: string
+ *                   example: "2025-06-19T11:15:00.000Z"
+ *                 environment:
+ *                   type: string
+ *                   example: "production"
+ *                 uptime:
+ *                   type: string
+ *                   example: "2h 30m 45s"
+ *                 nodeVersion:
+ *                   type: string
+ *                   example: "18.17.0"
+ */
+app.get('/api/version', (req, res) => {
+  const uptime = process.uptime();
+  const hours = Math.floor(uptime / 3600);
+  const minutes = Math.floor((uptime % 3600) / 60);
+  const seconds = Math.floor(uptime % 60);
+  
+  res.json({
+    version: "1.0.0",
+    deploymentTest: "2025-06-19T11:15:00.000Z", // This timestamp will prove the update worked
+    environment: process.env.NODE_ENV || 'development',
+    uptime: `${hours}h ${minutes}m ${seconds}s`,
+    nodeVersion: process.version,
+    timestamp: new Date().toISOString(),
+    message: "🎉 Resilient deployment system test - Update successful!"
+  });
+});
+
 
 
 // Home page route - Display all events
