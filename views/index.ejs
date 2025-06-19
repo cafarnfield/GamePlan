@@ -40,7 +40,7 @@
     <button class="mobile-nav-toggle" onclick="toggleMobileNav()" aria-label="Toggle navigation">
       ☰
     </button>
-    <nav>
+    <nav id="mainNav">
       <% if (typeof user !== 'undefined') { %>
         <a href="/profile">Profile</a>
         <% if (user.isAdmin) { %>
@@ -53,21 +53,6 @@
         <a href="/register">Register</a>
       <% } %>
     </nav>
-    <div class="mobile-nav-menu" id="mobileNavMenu">
-      <nav>
-        <% if (typeof user !== 'undefined') { %>
-          <a href="/profile">Profile</a>
-          <% if (user.isAdmin) { %>
-            <a href="/admin">Admin</a>
-          <% } %>
-          <a href="/logout">Logout</a>
-          <p>Welcome, <%= user.gameNickname ? user.gameNickname : user.name %></p>
-        <% } else { %>
-          <a href="/login">Login</a>
-          <a href="/register">Register</a>
-        <% } %>
-      </nav>
-    </div>
   </header>
   <main>
     <h2>Events</h2>
@@ -353,24 +338,24 @@
 
     // Mobile Navigation Toggle
     function toggleMobileNav() {
-      const mobileNavMenu = document.getElementById('mobileNavMenu');
-      mobileNavMenu.classList.toggle('active');
+      const mainNav = document.getElementById('mainNav');
+      mainNav.classList.toggle('mobile-active');
     }
 
     // Close mobile nav when clicking outside
     document.addEventListener('click', function(event) {
-      const mobileNavMenu = document.getElementById('mobileNavMenu');
+      const mainNav = document.getElementById('mainNav');
       const mobileNavToggle = document.querySelector('.mobile-nav-toggle');
       
-      if (!mobileNavMenu.contains(event.target) && !mobileNavToggle.contains(event.target)) {
-        mobileNavMenu.classList.remove('active');
+      if (!mainNav.contains(event.target) && !mobileNavToggle.contains(event.target)) {
+        mainNav.classList.remove('mobile-active');
       }
     });
 
     // Close mobile nav when window is resized to desktop
     window.addEventListener('resize', function() {
       if (window.innerWidth > 768) {
-        document.getElementById('mobileNavMenu').classList.remove('active');
+        document.getElementById('mainNav').classList.remove('mobile-active');
       }
     });
 

@@ -1444,8 +1444,8 @@ p {
   box-shadow: 0 0 15px rgba(0, 255, 204, 0.5);
 }
 
-.mobile-nav-menu {
-  display: none;
+/* Mobile Navigation Styles */
+nav.mobile-active {
   position: absolute;
   top: 100%;
   left: 0;
@@ -1455,10 +1455,10 @@ p {
   border-top: none;
   z-index: 1000;
   box-shadow: 0 4px 20px rgba(0, 255, 204, 0.3);
-}
-
-.mobile-nav-menu.active {
-  display: block;
+  flex-direction: column;
+  gap: 0;
+  margin: 0;
+  padding: 1rem;
   animation: slideDown 0.3s ease;
 }
 
@@ -1473,14 +1473,7 @@ p {
   }
 }
 
-.mobile-nav-menu nav {
-  flex-direction: column;
-  gap: 0;
-  margin: 0;
-  padding: 1rem;
-}
-
-.mobile-nav-menu nav a {
+nav.mobile-active a {
   padding: 1rem;
   margin: 0.2rem 0;
   border: 1px solid var(--dark-teal);
@@ -1493,12 +1486,12 @@ p {
   border-radius: 4px;
 }
 
-.mobile-nav-menu nav a:hover {
+nav.mobile-active a:hover {
   background: var(--dark-blue);
   border-color: var(--teal-cyan);
 }
 
-.mobile-nav-menu nav p {
+nav.mobile-active p {
   padding: 1rem;
   margin: 0.5rem 0;
   text-align: center;
