@@ -175,28 +175,33 @@ nav {
 }
 
 /* Desktop Navigation - Always visible on large screens */
-@media (min-width: 769px) {
-  nav {
+@media screen and (min-width: 769px) {
+  header nav {
     display: flex !important;
+    visibility: visible !important;
   }
   
-  .mobile-nav-toggle {
+  header .mobile-nav-toggle {
     display: none !important;
+    visibility: hidden !important;
   }
 }
 
 /* Mobile Navigation - Hidden by default, shown when active */
-@media (max-width: 768px) {
-  nav {
+@media screen and (max-width: 768px) {
+  header nav {
     display: none !important;
+    visibility: hidden !important;
   }
   
-  nav.mobile-active {
+  header nav.mobile-active {
     display: flex !important;
+    visibility: visible !important;
   }
   
-  .mobile-nav-toggle {
+  header .mobile-nav-toggle {
     display: block !important;
+    visibility: visible !important;
   }
 }
 
