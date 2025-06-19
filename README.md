@@ -95,6 +95,34 @@ This script automatically:
 
 For complete Ubuntu deployment guide with SSL setup, see [UBUNTU_DEPLOYMENT.md](UBUNTU_DEPLOYMENT.md).
 
+### Debian Server Deployment (One-Click Install)
+
+For Debian Server users, we provide a complete automated installation:
+
+**Quick Install:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/cafarnfield/GamePlan/main/scripts/debian-install.sh | bash
+```
+
+**Manual Install:**
+```bash
+git clone https://github.com/cafarnfield/GamePlan.git
+cd GamePlan
+chmod +x scripts/debian-install.sh
+./scripts/debian-install.sh
+```
+
+This script automatically:
+- ✅ Installs Docker and Docker Compose
+- ✅ Configures system requirements
+- ✅ Sets up secure passwords
+- ✅ Configures firewall (UFW)
+- ✅ Creates systemd service for auto-start
+- ✅ Deploys and initializes GamePlan
+- ✅ Handles Docker permission setup
+
+For complete Debian deployment guide with SSL setup, see [DEBIAN_DEPLOYMENT.md](DEBIAN_DEPLOYMENT.md).
+
 ### Manual Installation (Development)
 
 #### Prerequisites
