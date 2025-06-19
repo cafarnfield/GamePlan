@@ -168,16 +168,28 @@ log "Environment configured with secure passwords"
 # Phase 4: GamePlan Deployment
 log "Phase 4: GamePlan Deployment"
 log "Starting Docker Compose services..."
-docker compose up -d
+# Copy production template if it doesn't exist
+if [ ! -f docker-compose.production.yml ]; then
+    log "Creating production compose file from template..."
+    cp docker-compose.production.yml.example docker-compose.production.yml
+fi
+
+# Disable development override if it exists
+if [ -f docker-compose.override.yml ]; then
+    warn "Development override file detected - disabling for production"
+    mv docker-compose.override.yml docker-compose.override.yml.disabled
+fi
+
+docker compose -f docker-compose.yml -f docker-compose.production.yml up -d
 
 log "Waiting for services to start..."
 sleep 30
 
 log "Checking service status..."
-docker compose ps
+docker compose -f docker-compose.yml -f docker-compose.production.yml ps
 
 log "Initializing admin user..."
-docker compose --profile init up init-admin
+docker compose -f docker-compose.yml -f docker-compose.production.yml exec gameplan-app node scripts/init-admin.js
 
 # Phase 5: Firewall Configuration
 log "Phase 5: Firewall Configuration"

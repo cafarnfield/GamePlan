@@ -178,12 +178,25 @@ manage_services() {
             ;;
         "start")
             print_info "Starting services with production configuration..."
-            if [ -f "docker-compose.production.yml" ]; then
-                docker compose -f docker-compose.yml -f docker-compose.production.yml up -d --build
-            else
-                print_warning "Production configuration not found, using default"
-                docker compose up -d --build
+            
+            # Copy production template if it doesn't exist
+            if [ ! -f "docker-compose.production.yml" ]; then
+                if [ -f "docker-compose.production.yml.example" ]; then
+                    print_info "Creating production compose file from template..."
+                    cp docker-compose.production.yml.example docker-compose.production.yml
+                else
+                    print_error "No production configuration template found!"
+                    exit 1
+                fi
             fi
+            
+            # Disable development override if it exists
+            if [ -f "docker-compose.override.yml" ]; then
+                print_warning "Development override file detected - disabling for production"
+                mv docker-compose.override.yml docker-compose.override.yml.disabled
+            fi
+            
+            docker compose -f docker-compose.yml -f docker-compose.production.yml up -d --build
             print_status "Services started"
             ;;
         "restart")
