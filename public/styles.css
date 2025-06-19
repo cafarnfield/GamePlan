@@ -28,6 +28,33 @@ body {
   min-height: 100vh;
   position: relative;
   overflow-x: hidden;
+  /* Mobile optimizations */
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+}
+
+/* Mobile scroll improvements */
+@media (max-width: 768px) {
+  body {
+    /* Prevent zoom on input focus */
+    -webkit-text-size-adjust: 100%;
+    /* Smooth scrolling on mobile */
+    -webkit-overflow-scrolling: touch;
+    /* Prevent horizontal scroll */
+    overflow-x: hidden;
+    /* Better touch scrolling */
+    scroll-behavior: smooth;
+  }
+  
+  /* Prevent zoom on form inputs */
+  input, textarea, select {
+    font-size: 16px !important;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+  }
 }
 
 /* Animated Starfield Background */
@@ -1499,13 +1526,47 @@ nav.mobile-active p {
   font-size: 0.5rem;
 }
 
-/* Enhanced Touch Targets */
+/* Enhanced Touch Targets for Mobile */
 button, .action-button, nav a, .platform-tag, .status-btn, .availability-btn, .view-btn {
-  min-height: 44px;
-  min-width: 44px;
+  min-height: 48px;
+  min-width: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Touch feedback animation */
+button::after, .action-button::after, nav a::after, .status-btn::after, .availability-btn::after, .view-btn::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width 0.3s ease, height 0.3s ease;
+  pointer-events: none;
+}
+
+button:active::after, .action-button:active::after, nav a:active::after, .status-btn:active::after, .availability-btn:active::after, .view-btn:active::after {
+  width: 100px;
+  height: 100px;
+}
+
+/* Improved mobile tap targets */
+.event-card {
+  cursor: pointer;
+  -webkit-tap-highlight-color: rgba(0, 255, 204, 0.2);
+  tap-highlight-color: rgba(0, 255, 204, 0.2);
+}
+
+.event-card:active {
+  transform: scale(0.98);
+  transition: transform 0.1s ease;
 }
 
 /* Mobile-First Breakpoints */
@@ -1806,19 +1867,23 @@ button, .action-button, nav a, .platform-tag, .status-btn, .availability-btn, .v
   .filter-panel {
     margin: 1rem 0;
     border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 255, 204, 0.15);
   }
   
   .filter-toggle {
-    padding: 1rem 1.5rem;
-    min-height: 56px;
+    padding: 1.2rem 1.5rem;
+    min-height: 60px;
+    border-radius: 12px 12px 0 0;
   }
   
   .filter-text {
-    font-size: 0.6rem;
+    font-size: 0.7rem;
+    font-weight: bold;
   }
   
   .filter-content {
     padding: 1.5rem;
+    border-radius: 0 0 12px 12px;
   }
   
   .filter-row {
@@ -1827,55 +1892,104 @@ button, .action-button, nav a, .platform-tag, .status-btn, .availability-btn, .v
     margin-bottom: 1.5rem;
   }
   
+  .filter-group {
+    background: rgba(26, 26, 46, 0.3);
+    padding: 1rem;
+    border-radius: 12px;
+    border: 1px solid var(--dark-teal);
+  }
+  
+  .filter-group label {
+    font-size: 0.6rem;
+    margin-bottom: 0.8rem;
+    color: var(--teal-cyan);
+    text-shadow: 0 0 5px var(--teal-cyan);
+  }
+  
   .filter-group input,
   .filter-group select {
-    padding: 1rem;
-    font-size: 0.5rem;
-    border-radius: 8px;
-    min-height: 48px;
+    padding: 1.2rem;
+    font-size: 0.55rem;
+    border-radius: 10px;
+    min-height: 52px;
+    border: 2px solid var(--dark-teal);
+    background: var(--darker-blue);
+    transition: all 0.3s ease;
+  }
+  
+  .filter-group input:focus,
+  .filter-group select:focus {
+    border-color: var(--teal-cyan);
+    box-shadow: 0 0 15px rgba(0, 255, 204, 0.4);
+    transform: scale(1.02);
   }
   
   .status-buttons,
   .availability-buttons,
   .view-buttons {
     flex-direction: column;
-    gap: 0.8rem;
+    gap: 1rem;
   }
   
   .status-btn,
   .availability-btn,
   .view-btn {
-    padding: 1rem;
-    font-size: 0.5rem;
-    border-radius: 8px;
-    min-height: 48px;
+    padding: 1.2rem;
+    font-size: 0.55rem;
+    border-radius: 10px;
+    min-height: 52px;
+    border: 2px solid var(--dark-teal);
+    transition: all 0.3s ease;
+  }
+  
+  .status-btn:active,
+  .availability-btn:active,
+  .view-btn:active {
+    transform: scale(0.98);
   }
   
   .platform-checkboxes {
     grid-template-columns: 1fr;
-    gap: 0.8rem;
+    gap: 1rem;
   }
   
   .checkbox-label {
-    padding: 1rem;
-    border-radius: 8px;
-    font-size: 0.5rem;
-    min-height: 48px;
+    padding: 1.2rem;
+    border-radius: 10px;
+    font-size: 0.55rem;
+    min-height: 52px;
+    border: 2px solid var(--dark-teal);
+    transition: all 0.3s ease;
+  }
+  
+  .checkbox-label:active {
+    transform: scale(0.98);
   }
   
   .clear-filters-btn {
-    padding: 1rem 1.5rem;
-    font-size: 0.5rem;
-    border-radius: 8px;
-    min-height: 48px;
+    padding: 1.2rem 1.5rem;
+    font-size: 0.6rem;
+    border-radius: 12px;
+    min-height: 56px;
     width: 100%;
+    background: linear-gradient(135deg, var(--warning-orange) 0%, var(--warning-orange-light) 100%);
+    box-shadow: 0 4px 0 #cc5529, 0 0 15px rgba(255, 107, 53, 0.3);
+  }
+  
+  .clear-filters-btn:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 #cc5529;
   }
   
   .results-counter {
-    padding: 1rem;
-    font-size: 0.5rem;
-    border-radius: 8px;
-    min-height: 48px;
+    padding: 1.2rem;
+    font-size: 0.6rem;
+    border-radius: 10px;
+    min-height: 52px;
+    background: rgba(0, 255, 204, 0.1);
+    border: 2px solid var(--teal-cyan);
+    color: var(--teal-cyan);
+    text-shadow: 0 0 5px var(--teal-cyan);
   }
 }
 
