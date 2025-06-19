@@ -174,10 +174,29 @@ nav {
   flex-wrap: wrap;
 }
 
-/* Hide desktop nav on mobile */
+/* Desktop Navigation - Always visible on large screens */
+@media (min-width: 769px) {
+  nav {
+    display: flex !important;
+  }
+  
+  .mobile-nav-toggle {
+    display: none !important;
+  }
+}
+
+/* Mobile Navigation - Hidden by default, shown when active */
 @media (max-width: 768px) {
   nav {
-    display: none;
+    display: none !important;
+  }
+  
+  nav.mobile-active {
+    display: flex !important;
+  }
+  
+  .mobile-nav-toggle {
+    display: block !important;
   }
 }
 
