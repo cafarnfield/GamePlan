@@ -237,12 +237,17 @@ router.get('/', ensureAuthenticated, ensureAdmin, async (req, res) => {
     const stats = await dashboardCacheService.getDashboardStats(models);
     const recentActivity = await dashboardCacheService.getRecentActivity(models);
 
+    // Get app version from package.json
+    const packageJson = require('../package.json');
+    const appVersion = packageJson.version;
+
     const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
     res.render('adminDashboard', { 
       stats, 
       recentActivity, 
       user: req.user, 
-      isDevelopmentAutoLogin 
+      isDevelopmentAutoLogin,
+      appVersion
     });
   } catch (err) {
     console.error('Error loading admin dashboard:', err);
@@ -485,13 +490,18 @@ router.get('/cache', ensureAuthenticated, ensureAdmin, async (req, res) => {
 // Admin system management
 router.get('/system', ensureAuthenticated, ensureSuperAdmin, async (req, res) => {
   try {
+    // Get app version from package.json
+    const packageJson = require('../package.json');
+    const appVersion = packageJson.version;
+
     // Gather system health data
     const systemHealth = {
       databaseConnected: mongoose.connection.readyState === 1,
       uptime: process.uptime(),
       nodeVersion: process.version,
       environment: process.env.NODE_ENV || 'development',
-      memoryUsage: process.memoryUsage()
+      memoryUsage: process.memoryUsage(),
+      appVersion: appVersion
     };
 
     // Gather system statistics

@@ -342,6 +342,36 @@
     </div>
   </div>
   
+  <!-- Application Information -->
+  <div class="dashboard-card">
+    <div class="dashboard-card-header">
+      <h3 class="dashboard-card-title">
+        <span class="dashboard-card-icon">📦</span>
+        Application Info
+      </h3>
+    </div>
+    <div class="dashboard-card-value">v<%= appVersion %></div>
+    <div class="dashboard-card-subtitle">Current version</div>
+    
+    <div class="stats-row">
+      <span class="stats-label">Environment:</span>
+      <span class="stats-value"><%= process.env.NODE_ENV || 'development' %></span>
+    </div>
+    <div class="stats-row">
+      <span class="stats-label">Node.js:</span>
+      <span class="stats-value"><%= process.version %></span>
+    </div>
+    <div class="stats-row">
+      <span class="stats-label">Uptime:</span>
+      <span class="stats-value"><%= Math.floor(process.uptime() / 3600) %>h <%= Math.floor((process.uptime() % 3600) / 60) %>m</span>
+    </div>
+    
+    <div class="dashboard-card-actions">
+      <a href="/admin/system" class="dashboard-btn primary">System Details</a>
+      <a href="/api/version" class="dashboard-btn" target="_blank">API Info</a>
+    </div>
+  </div>
+  
   <!-- System Health -->
   <div class="dashboard-card">
     <div class="dashboard-card-header">
