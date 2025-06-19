@@ -10,7 +10,6 @@ services:
       - PORT=3000
       - MONGO_URI=mongodb://gameplan_user:${MONGO_PASSWORD}@mongodb:27017/gameplan?authSource=gameplan
       - SESSION_SECRET=${SESSION_SECRET}
-      - STEAM_API_KEY=${STEAM_API_KEY}
       - RAWG_API_KEY=${RAWG_API_KEY}
       - AUTO_LOGIN_ADMIN=${AUTO_LOGIN_ADMIN:-false}
     depends_on:
