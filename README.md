@@ -68,6 +68,33 @@ The easiest way to deploy GamePlan is using Docker Compose:
 
 For detailed Docker deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.md).
 
+### Ubuntu Server Deployment (One-Click Install)
+
+For Ubuntu Server users, we provide a complete automated installation:
+
+**Quick Install:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/cafarnfield/GamePlan/main/scripts/ubuntu-install.sh | bash
+```
+
+**Manual Install:**
+```bash
+git clone https://github.com/cafarnfield/GamePlan.git
+cd GamePlan
+chmod +x scripts/ubuntu-install.sh
+./scripts/ubuntu-install.sh
+```
+
+This script automatically:
+- ✅ Installs Docker and Docker Compose
+- ✅ Configures system requirements
+- ✅ Sets up secure passwords
+- ✅ Configures firewall (UFW)
+- ✅ Creates systemd service for auto-start
+- ✅ Deploys and initializes GamePlan
+
+For complete Ubuntu deployment guide with SSL setup, see [UBUNTU_DEPLOYMENT.md](UBUNTU_DEPLOYMENT.md).
+
 ### Manual Installation (Development)
 
 #### Prerequisites
