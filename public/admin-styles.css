@@ -261,7 +261,7 @@
     margin-bottom: 10px;
   }
   
-  .admin-header .admin-nav {
+  .admin-header nav > .admin-nav {
     display: none !important;
     visibility: hidden !important;
   }
@@ -290,7 +290,7 @@
 
 /* Desktop Admin Navigation - Always visible on large screens */
 @media screen and (min-width: 769px) {
-  .admin-header .admin-nav {
+  .admin-header nav > .admin-nav {
     display: flex !important;
     visibility: visible !important;
   }
