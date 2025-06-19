@@ -1595,8 +1595,8 @@ button:active::after, .action-button:active::after, nav a:active::after, .status
   }
 }
 
-@media (max-width: 480px) {
-  /* Small phones */
+@media (max-width: 768px) {
+  /* Mobile devices */
   header {
     padding: 1rem;
     position: relative;
@@ -1616,6 +1616,13 @@ button:active::after, .action-button:active::after, nav a:active::after, .status
   
   nav {
     display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Small phones - additional adjustments */
+  header h1 {
+    font-size: 1.2rem;
   }
   
   main {
