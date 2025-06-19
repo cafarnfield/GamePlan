@@ -3,30 +3,6 @@
   </div>
   
   <script>
-    // Mobile menu functionality
-    const mobileMenuToggle = document.getElementById('mobileMenuToggle');
-    const mobileNavDropdown = document.getElementById('mobileNavDropdown');
-    
-    if (mobileMenuToggle && mobileNavDropdown) {
-      mobileMenuToggle.addEventListener('click', () => {
-        mobileNavDropdown.classList.toggle('active');
-      });
-      
-      // Close mobile menu when clicking outside
-      document.addEventListener('click', (e) => {
-        if (!mobileMenuToggle.contains(e.target) && !mobileNavDropdown.contains(e.target)) {
-          mobileNavDropdown.classList.remove('active');
-        }
-      });
-      
-      // Auto-hide mobile menu on navigation
-      document.querySelectorAll('.mobile-nav-dropdown .admin-nav-link').forEach(link => {
-        link.addEventListener('click', () => {
-          mobileNavDropdown.classList.remove('active');
-        });
-      });
-    }
-    
     // User menu functionality
     function toggleUserMenu() {
       // Simple logout for now

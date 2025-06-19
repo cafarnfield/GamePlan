@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Real Admin Mobile Test</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/admin-styles.css">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #000;
+      color: #00ff00;
+      font-family: 'Press Start 2P', monospace;
+    }
+    
+    /* Force mobile view for testing */
+    @media screen and (min-width: 1px) {
+      .admin-header nav > .admin-nav {
+        display: none !important;
+        visibility: hidden !important;
+      }
+      
+      .admin-header .mobile-menu-toggle {
+        display: flex !important;
+        visibility: visible !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="scanlines"></div>
+  
+  <div class="admin-layout">
+    <!-- Top Header with Navigation -->
+    <header class="admin-header">
+      <div class="admin-header-top">
+        <h1 class="admin-logo">GamePlan Admin</h1>
+        
+        <div class="admin-header-actions">
+          <button class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
+          
+          <div class="admin-user-menu">
+            <button class="admin-user-button" onclick="toggleUserMenu()">
+              Admin ▼
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Main Navigation -->
+      <nav>
+        <ul class="admin-nav">
+          <li class="admin-nav-item">
+            <a href="/admin" class="admin-nav-link active">
+              <span class="admin-nav-icon">📊</span>
+              Dashboard
+            </a>
+          </li>
+          
+          <li class="admin-nav-item">
+            <a href="/admin/events" class="admin-nav-link">
+              <span class="admin-nav-icon">🎮</span>
+              Events
+            </a>
+          </li>
+          
+          <li class="admin-nav-item">
+            <a href="/admin/users" class="admin-nav-link">
+              <span class="admin-nav-icon">👥</span>
+              Users
+              <span class="admin-nav-badge">3</span>
+            </a>
+          </li>
+          
+          <li class="admin-nav-item">
+            <a href="/admin/games" class="admin-nav-link">
+              <span class="admin-nav-icon">🎯</span>
+              Games
+            </a>
+          </li>
+          
+          <li class="admin-nav-item">
+            <a href="/" class="admin-nav-link">
+              <span class="admin-nav-icon">🏠</span>
+              Back to Site
+            </a>
+          </li>
+        </ul>
+        
+        <!-- Mobile Navigation Dropdown -->
+        <div class="mobile-nav-dropdown" id="mobileNavDropdown">
+          <ul class="admin-nav">
+            <li class="admin-nav-item">
+              <a href="/admin" class="admin-nav-link active">
+                <span class="admin-nav-icon">📊</span>
+                Dashboard
+              </a>
+            </li>
+            
+            <li class="admin-nav-item">
+              <a href="/admin/events" class="admin-nav-link">
+                <span class="admin-nav-icon">🎮</span>
+                Events
+              </a>
+            </li>
+            
+            <li class="admin-nav-item">
+              <a href="/admin/users" class="admin-nav-link">
+                <span class="admin-nav-icon">👥</span>
+                Users
+                <span class="admin-nav-badge">3</span>
+              </a>
+            </li>
+            
+            <li class="admin-nav-item">
+              <a href="/admin/games" class="admin-nav-link">
+                <span class="admin-nav-icon">🎯</span>
+                Games
+              </a>
+            </li>
+            
+            <li class="admin-nav-item">
+              <a href="/admin/ip-management" class="admin-nav-link">
+                <span class="admin-nav-icon">🛡️</span>
+                IP Management
+              </a>
+            </li>
+            
+            <li class="admin-nav-item">
+              <a href="/admin/error-logs" class="admin-nav-link">
+                <span class="admin-nav-icon">🚨</span>
+                Error Logs
+              </a>
+            </li>
+            
+            <li class="admin-nav-item">
+              <a href="/admin/cache" class="admin-nav-link">
+                <span class="admin-nav-icon">⚡</span>
+                Cache
+              </a>
+            </li>
+            
+            <li class="admin-nav-item">
+              <a href="/admin/system" class="admin-nav-link">
+                <span class="admin-nav-icon">⚙️</span>
+                System
+              </a>
+            </li>
+            
+            <li class="admin-nav-item">
+              <a href="/" class="admin-nav-link">
+                <span class="admin-nav-icon">🏠</span>
+                Back to Site
+              </a>
+            </li>
+          </ul>
+        </div>
+      </nav>
+    </header>
+    
+    <!-- Main Content -->
+    <main class="admin-main">
+      <div class="admin-content">
+        <div class="admin-page-header">
+          <h1 class="admin-page-title">Mobile Navigation Test</h1>
+          <p class="admin-page-subtitle">Testing the real admin mobile navigation</p>
+        </div>
+        
+        <div style="background: rgba(0, 20, 0, 0.8); border: 2px solid #00ff00; padding: 20px; margin: 20px 0;">
+          <h3 style="color: #00ff00; font-size: 12px; margin-bottom: 15px;">Test Status</h3>
+          <div style="font-size: 10px; line-height: 1.6;">
+            ✅ Using real admin CSS file<br>
+            ✅ Using exact HTML structure from admin templates<br>
+            ✅ Mobile view forced for testing<br>
+            ✅ Hamburger menu should be visible<br><br>
+            <strong>Status:</strong> <span id="status" style="color: #00ff00;">Ready to test</span>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+  
+  <script>
+    console.log('🚀 Real admin mobile test loading...');
+    
+    // Mobile menu functionality (exact copy from adminLayoutFooter.ejs)
+    const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+    const mobileNavDropdown = document.getElementById('mobileNavDropdown');
+    const status = document.getElementById('status');
+    
+    console.log('🔍 Mobile menu toggle:', mobileMenuToggle);
+    console.log('🔍 Mobile nav dropdown:', mobileNavDropdown);
+    
+    if (mobileMenuToggle && mobileNavDropdown) {
+      console.log('✅ Elements found, adding event listeners...');
+      
+      mobileMenuToggle.addEventListener('click', () => {
+        console.log('🎯 Mobile menu clicked!');
+        const wasActive = mobileNavDropdown.classList.contains('active');
+        mobileNavDropdown.classList.toggle('active');
+        const isNowActive = mobileNavDropdown.classList.contains('active');
+        
+        console.log('📊 Dropdown state - Was:', wasActive, 'Now:', isNowActive);
+        console.log('📋 Dropdown classes:', mobileNavDropdown.classList.toString());
+        
+        status.textContent = isNowActive ? 'Dropdown OPEN ✅' : 'Dropdown CLOSED ❌';
+        status.style.color = isNowActive ? '#00ff00' : '#ff6600';
+      });
+      
+      // Close mobile menu when clicking outside
+      document.addEventListener('click', (e) => {
+        if (!mobileMenuToggle.contains(e.target) && !mobileNavDropdown.contains(e.target)) {
+          mobileNavDropdown.classList.remove('active');
+          status.textContent = 'Dropdown CLOSED (clicked outside)';
+          status.style.color = '#ff6600';
+        }
+      });
+      
+      // Auto-hide mobile menu on navigation
+      document.querySelectorAll('.mobile-nav-dropdown .admin-nav-link').forEach(link => {
+        link.addEventListener('click', () => {
+          mobileNavDropdown.classList.remove('active');
+          status.textContent = 'Dropdown CLOSED (navigation clicked)';
+          status.style.color = '#ff6600';
+        });
+      });
+      
+      console.log('✅ Event listeners attached successfully');
+    } else {
+      console.error('❌ Elements not found!');
+      if (status) {
+        status.textContent = 'ERROR: Elements not found!';
+        status.style.color = '#ff0000';
+      }
+    }
+    
+    // User menu functionality
+    function toggleUserMenu() {
+      alert('User menu clicked - this would normally show logout options');
+    }
+  </script>
+</body>
+</html>

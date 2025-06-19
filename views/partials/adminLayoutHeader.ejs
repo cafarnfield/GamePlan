@@ -24,8 +24,6 @@
         <h1 class="admin-logo">GamePlan Admin</h1>
         
         <div class="admin-header-actions">
-          <button class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
-          
           <div class="admin-user-menu">
             <button class="admin-user-button" onclick="toggleUserMenu()">
               <%= user ? user.name : 'Admin' %> ▼
@@ -109,83 +107,6 @@
             </a>
           </li>
         </ul>
-        
-        <!-- Mobile Navigation Dropdown -->
-        <div class="mobile-nav-dropdown" id="mobileNavDropdown">
-          <ul class="admin-nav">
-            <li class="admin-nav-item">
-              <a href="/admin" class="admin-nav-link <%= currentPage === 'dashboard' ? 'active' : '' %>">
-                <span class="admin-nav-icon">📊</span>
-                Dashboard
-              </a>
-            </li>
-            
-            <li class="admin-nav-item">
-              <a href="/admin/events" class="admin-nav-link <%= currentPage === 'events' ? 'active' : '' %>">
-                <span class="admin-nav-icon">🎮</span>
-                Events
-                <% if (typeof pendingEvents !== 'undefined' && pendingEvents > 0) { %>
-                  <span class="admin-nav-badge"><%= pendingEvents %></span>
-                <% } %>
-              </a>
-            </li>
-            
-            <li class="admin-nav-item">
-              <a href="/admin/users" class="admin-nav-link <%= currentPage === 'users' ? 'active' : '' %>">
-                <span class="admin-nav-icon">👥</span>
-                Users
-                <% if (typeof pendingUsers !== 'undefined' && pendingUsers > 0) { %>
-                  <span class="admin-nav-badge"><%= pendingUsers %></span>
-                <% } %>
-              </a>
-            </li>
-            
-            <li class="admin-nav-item">
-              <a href="/admin/games" class="admin-nav-link <%= currentPage === 'games' ? 'active' : '' %>">
-                <span class="admin-nav-icon">🎯</span>
-                Games
-                <% if (typeof pendingGames !== 'undefined' && pendingGames > 0) { %>
-                  <span class="admin-nav-badge"><%= pendingGames %></span>
-                <% } %>
-              </a>
-            </li>
-            
-            <li class="admin-nav-item">
-              <a href="/admin/ip-management" class="admin-nav-link <%= currentPage === 'ip-management' ? 'active' : '' %>">
-                <span class="admin-nav-icon">🛡️</span>
-                IP Management
-              </a>
-            </li>
-            
-            <li class="admin-nav-item">
-              <a href="/admin/error-logs" class="admin-nav-link <%= currentPage === 'error-logs' ? 'active' : '' %>">
-                <span class="admin-nav-icon">🚨</span>
-                Error Logs
-              </a>
-            </li>
-            
-            <li class="admin-nav-item">
-              <a href="/admin/cache" class="admin-nav-link <%= currentPage === 'cache' ? 'active' : '' %>">
-                <span class="admin-nav-icon">⚡</span>
-                Cache
-              </a>
-            </li>
-            
-            <li class="admin-nav-item">
-              <a href="/admin/system" class="admin-nav-link <%= currentPage === 'system' ? 'active' : '' %>">
-                <span class="admin-nav-icon">⚙️</span>
-                System
-              </a>
-            </li>
-            
-            <li class="admin-nav-item">
-              <a href="/" class="admin-nav-link">
-                <span class="admin-nav-icon">🏠</span>
-                Back to Site
-              </a>
-            </li>
-          </ul>
-        </div>
       </nav>
     </header>
     

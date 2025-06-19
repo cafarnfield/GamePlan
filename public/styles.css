@@ -203,6 +203,18 @@ nav {
     display: block !important;
     visibility: visible !important;
   }
+  
+  /* Admin navigation should always be visible */
+  .admin-header nav,
+  .admin-header .admin-nav {
+    display: flex !important;
+    visibility: visible !important;
+  }
+  
+  .admin-header .mobile-menu-toggle {
+    display: none !important;
+    visibility: hidden !important;
+  }
 }
 
 nav a {
