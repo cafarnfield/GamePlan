@@ -1,5 +1,5 @@
 # Multi-stage build for GamePlan application
-FROM node:18-alpine AS base
+FROM node:24.2.0-alpine AS base
 
 # Set working directory
 WORKDIR /app
