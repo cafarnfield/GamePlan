@@ -1641,6 +1641,10 @@ button:active::after, .action-button:active::after, nav a:active::after, .status
   header h1 {
     font-size: 1.4rem;
     margin-bottom: 0.5rem;
+    /* Mobile scroll optimization - disable glow animation */
+    animation: none !important;
+    /* Keep static glow effect for visual appeal */
+    text-shadow: 0 0 15px var(--teal-cyan), 0 0 25px var(--teal-cyan), 0 0 35px var(--teal-cyan);
   }
   
   .mobile-nav-toggle {
@@ -1652,6 +1656,28 @@ button:active::after, .action-button:active::after, nav a:active::after, .status
   
   nav {
     display: none;
+  }
+  
+  /* Mobile scroll optimization - disable problematic 2s animations */
+  h2::after {
+    animation: none !important;
+    /* Keep static border effect */
+    opacity: 0.8;
+  }
+  
+  .player-slot.filled {
+    animation: none !important;
+    /* Keep static glow */
+    text-shadow: 0 0 8px var(--teal-cyan);
+  }
+  
+  .event-card.event-starting-soon {
+    animation: none !important;
+  }
+  
+  .steam-equivalent,
+  .exists-indicator {
+    animation: none !important;
   }
 }
 
