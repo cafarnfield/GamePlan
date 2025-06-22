@@ -19,14 +19,23 @@
     "type": "git",
     "url": "git+https://github.com/cafarnfield/GamePlan.git"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "gaming",
+    "events",
+    "management",
+    "nodejs",
+    "express",
+    "mongodb",
+    "steam",
+    "docker"
+  ],
+  "author": "GamePlan Development Team",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/cafarnfield/GamePlan/issues"
   },
   "homepage": "https://github.com/cafarnfield/GamePlan#readme",
-  "description": "",
+  "description": "A comprehensive gaming event management application with Steam integration, user management, and admin dashboard",
   "dependencies": {
     "@mongodb-js/zstd": "^1.2.2",
     "axios": "^1.9.0",

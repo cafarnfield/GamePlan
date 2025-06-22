@@ -64,8 +64,6 @@ app.use('/api', require('./src/routes/api'));
 // Import and use health check routes
 app.use('/api/health', require('./src/routes/health'));
 
-
-
 // Home page route - Display all events
 app.get('/', ensurePasswordNotExpired, async (req, res) => {
   let query = {};
@@ -94,12 +92,6 @@ app.get('/', ensurePasswordNotExpired, async (req, res) => {
   const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
   res.render('index', { events, user: req.user, isDevelopmentAutoLogin });
 });
-
-
-
-
-
-
 
 // Add database-specific error handler before general error handler
 app.use(handleDbErrors);
