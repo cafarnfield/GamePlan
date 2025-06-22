@@ -1,6 +1,10 @@
-# GamePlan Local Development Guide
+# Local Development Guide
 
 This guide provides comprehensive instructions for setting up and managing your local GamePlan development environment.
+
+## Overview
+
+The GamePlan local development environment is designed for quick setup and efficient development workflow. It uses Docker for consistency and includes automated scripts for common tasks.
 
 ## 🚀 Quick Start
 
@@ -306,9 +310,10 @@ npm test
 
 ## 🔗 Related Documentation
 
-- [Main README](./README.md) - Project overview
-- [Deployment Guide](./DEPLOYMENT.md) - Production deployment
-- [API Documentation](./docs/) - API reference
+- [Development Mode](../development/development-mode.md) - Development mode features
+- [Docker Deployment](../deployment/docker-deployment.md) - Production deployment
+- [Environment Validation](../operations/environment-validation.md) - Configuration validation
+- [Troubleshooting](../operations/troubleshooting.md) - Common issues and solutions
 
 ## 🆘 Support
 
@@ -317,7 +322,5 @@ If you encounter issues:
 2. Review the troubleshooting section
 3. Check Docker and Node.js versions
 4. Reset environment as last resort
-
----
 
 **Happy coding! 🎉**

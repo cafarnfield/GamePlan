@@ -1,8 +1,10 @@
-# GamePlan User Approval System
+# User Approval System
+
+GamePlan includes a comprehensive user approval system that requires admin approval for all new user registrations, providing enhanced security, user management capabilities, and detailed audit logging.
 
 ## Overview
 
-GamePlan now includes a comprehensive user approval system that requires admin approval for all new user registrations. This system provides enhanced security, user management capabilities, and detailed audit logging.
+The user approval system ensures that all new registrations are reviewed by administrators before users can access the platform. This provides security, quality control, and comprehensive user management capabilities.
 
 ## Key Features
 
@@ -105,7 +107,7 @@ GamePlan now includes a comprehensive user approval system that requires admin a
 
 ### Environment Variables
 
-```env
+```bash
 # reCAPTCHA configuration (optional - leave empty to disable)
 RECAPTCHA_SITE_KEY=your_recaptcha_site_key
 RECAPTCHA_SECRET_KEY=your_recaptcha_secret_key
@@ -126,7 +128,11 @@ AUTO_LOGIN_ADMIN=true  # Only for development
 ### User Model Extensions
 ```javascript
 {
-  status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+  status: { 
+    type: String, 
+    enum: ['pending', 'approved', 'rejected'], 
+    default: 'pending' 
+  },
   registrationIP: String,
   approvedAt: Date,
   approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
@@ -269,6 +275,13 @@ AUTO_LOGIN_ADMIN=true  # Only for development
 2. **Spam Detection**: Advanced spam detection algorithms
 3. **Geolocation**: Location-based registration analysis
 4. **Machine Learning**: Automated suspicious activity detection
+
+## Related Documentation
+
+- [Admin Dashboard](../features/admin-dashboard.md) - Admin interface overview
+- [Security Features](../operations/security.md) - Security implementation details
+- [User Management](../operations/user-management.md) - User administration
+- [Audit Logging](../operations/audit-logging.md) - Audit trail documentation
 
 ## Support
 

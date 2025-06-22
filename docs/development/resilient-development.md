@@ -1,6 +1,10 @@
-# GamePlan Resilient Development System
+# Resilient Development System
 
 This document outlines the comprehensive resilient development system created for GamePlan, designed to prevent configuration loss and provide a robust local development experience.
+
+## Overview
+
+The resilient development system addresses configuration management challenges in development environments by providing protected configuration files, automated backup capabilities, and cross-platform compatibility.
 
 ## 🎯 Problem Solved
 
@@ -46,7 +50,7 @@ Template Files (Git-Tracked):
 - **`backup-local.ps1`** (Windows PowerShell) - Windows backup
 - **`reset-local.sh`** (Linux/Mac) - Environment reset with backup
 
-#### Server Deployment (Already Created)
+#### Server Deployment
 - **`deploy-update.sh`** - Safe server updates with rollback
 - **`backup-config.sh`** - Server configuration backup
 - **`rollback-config.sh`** - Server configuration rollback
@@ -71,9 +75,9 @@ Template Files (Git-Tracked):
 ### 3. Documentation
 
 #### Comprehensive Guides
-- **`LOCAL_DEVELOPMENT.md`** - Complete local development guide
-- **`RESILIENT_DEVELOPMENT_SYSTEM.md`** - This system overview
-- **Updated `README.md`** - Integrated local development instructions
+- **Local Development Guide** - Complete local development setup
+- **Development Mode Guide** - Development-specific features
+- **Resilient Development System** - System architecture overview
 
 ## 🔧 Features & Benefits
 
@@ -227,9 +231,75 @@ git push origin main        # Safe to push
 - **Documentation**: Keep guides updated with new features
 - **Cross-Platform Testing**: Ensure compatibility across platforms
 
+## Implementation Details
+
+### Script Architecture
+The system uses a layered approach:
+1. **Base Scripts**: Core functionality for setup and backup
+2. **Platform Scripts**: OS-specific implementations
+3. **Helper Functions**: Shared utilities and validation
+4. **Error Handling**: Comprehensive error recovery
+
+### Configuration Management
+- **Template-Based**: All configurations start from templates
+- **Environment-Specific**: Separate configs for different environments
+- **Git-Protected**: Sensitive files automatically ignored
+- **Validation**: Startup validation ensures proper configuration
+
+### Backup Strategy
+- **Incremental**: Only backup changed configurations
+- **Timestamped**: Each backup has unique timestamp
+- **Manifested**: Detailed backup contents and metadata
+- **Automated**: Triggered by major operations
+
+## Troubleshooting
+
+### Common Issues
+
+#### Setup Script Fails
+- Check Docker is running
+- Verify script permissions (`chmod +x *.sh`)
+- Review error messages in script output
+- Check available disk space
+
+#### Configuration Not Loading
+- Verify `.env.local` exists and is properly formatted
+- Check Docker Compose file syntax
+- Review environment variable names
+- Restart Docker services
+
+#### Backup/Restore Issues
+- Check backup directory permissions
+- Verify backup file integrity
+- Review backup manifest files
+- Check available disk space
+
+### Recovery Procedures
+1. **Reset Environment**: Use reset scripts to start fresh
+2. **Restore from Backup**: Use restore scripts if available
+3. **Manual Recovery**: Copy from template files
+4. **Clean Installation**: Remove all files and start over
+
+## Related Documentation
+
+- [Local Development](../development/local-development.md) - Local development setup
+- [Development Mode](../development/development-mode.md) - Development mode features
+- [Docker Deployment](../deployment/docker-deployment.md) - Production deployment
+- [Environment Validation](../operations/environment-validation.md) - Configuration validation
+
+## Support
+
+For issues with the resilient development system:
+
+1. Check script output for error messages
+2. Verify Docker and system requirements
+3. Review configuration file syntax
+4. Use reset scripts to start fresh
+5. Check backup and restore procedures
+
 ## 📝 Conclusion
 
-The GamePlan Resilient Development System successfully addresses the original configuration loss problem while providing a comprehensive, professional-grade local development experience. The system is:
+The GamePlan Resilient Development System successfully addresses configuration loss problems while providing a comprehensive, professional-grade local development experience. The system is:
 
 - **Bulletproof**: Protected against configuration loss
 - **User-Friendly**: One-command setup and operation
@@ -242,6 +312,5 @@ This system transforms GamePlan from a basic application into a professional dev
 ---
 
 **System Status**: ✅ **Complete and Production-Ready**  
-**Last Updated**: June 19, 2025  
 **Compatibility**: Windows 10/11, Linux, macOS  
 **Requirements**: Docker Desktop, Git

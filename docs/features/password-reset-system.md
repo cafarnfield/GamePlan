@@ -1,8 +1,10 @@
-# Password Reset System Implementation
+# Password Reset System
+
+The GamePlan application includes a comprehensive password reset system that allows users to securely reset their passwords via email, following security best practices and providing a user-friendly experience.
 
 ## Overview
 
-The GamePlan application now includes a comprehensive password reset system that allows users to securely reset their passwords via email. This system follows security best practices and provides a user-friendly experience.
+The password reset system provides a secure, user-friendly way for users to reset their passwords when they forget them. The system includes email integration, secure token management, and comprehensive security features.
 
 ## Features
 
@@ -169,19 +171,19 @@ await emailService.sendTestEmail('test@example.com');
 
 ### For Users
 
-1. **Request Password Reset**
-   - Go to `/forgot-password`
-   - Enter email address
-   - Check email for reset link
+#### Request Password Reset
+1. Go to `/forgot-password`
+2. Enter email address
+3. Check email for reset link
 
-2. **Reset Password**
-   - Click link in email
-   - Enter new password (must meet strength requirements)
-   - Confirm new password
-   - Submit form
+#### Reset Password
+1. Click link in email
+2. Enter new password (must meet strength requirements)
+3. Confirm new password
+4. Submit form
 
-3. **Login with New Password**
-   - Use new password to log in
+#### Login with New Password
+Use new password to log in
 
 ### For Administrators
 
@@ -223,6 +225,51 @@ console.log(`Cleaned up ${cleaned} expired tokens`);
 - **Email Security**: Use app passwords, not account passwords
 - **Database Security**: Secure database connections
 - **Regular Cleanup**: Implement automated token cleanup
+
+## API Documentation
+
+### Password Reset Endpoints
+
+#### POST /forgot-password
+Request a password reset email.
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+**Response:**
+- 200: Success message (always returned for security)
+- 400: Validation error
+- 429: Rate limit exceeded
+
+#### GET /reset-password/:token
+Display password reset form for valid token.
+
+**Parameters:**
+- `token`: Password reset token
+
+**Response:**
+- 200: Reset form displayed
+- 400: Invalid or expired token
+
+#### POST /reset-password
+Process password reset with new password.
+
+**Request Body:**
+```json
+{
+  "token": "reset-token",
+  "password": "newPassword123!",
+  "confirmPassword": "newPassword123!"
+}
+```
+
+**Response:**
+- 200: Password reset successful
+- 400: Validation error or invalid token
 
 ## Troubleshooting
 
@@ -284,73 +331,14 @@ Regularly check email delivery rates and bounce rates.
 #### Review Security Logs
 Regularly review password reset logs for suspicious activity.
 
-### Updates and Improvements
-
-#### Future Enhancements
+### Future Enhancements
 - **Two-Factor Authentication**: Add 2FA support
 - **Password History**: Prevent password reuse
 - **Account Lockout**: Implement account lockout after failed attempts
 - **Email Templates**: Add more email template options
 - **Analytics**: Add password reset analytics
 
-## API Documentation
-
-### Password Reset Endpoints
-
-#### POST /forgot-password
-Request a password reset email.
-
-**Request Body:**
-```json
-{
-  "email": "user@example.com"
-}
-```
-
-**Response:**
-- 200: Success message (always returned for security)
-- 400: Validation error
-- 429: Rate limit exceeded
-
-#### GET /reset-password/:token
-Display password reset form for valid token.
-
-**Parameters:**
-- `token`: Password reset token
-
-**Response:**
-- 200: Reset form displayed
-- 400: Invalid or expired token
-
-#### POST /reset-password
-Process password reset with new password.
-
-**Request Body:**
-```json
-{
-  "token": "reset-token",
-  "password": "newPassword123!",
-  "confirmPassword": "newPassword123!"
-}
-```
-
-**Response:**
-- 200: Password reset successful
-- 400: Validation error or invalid token
-
 ## Testing
-
-### Unit Tests
-Run the password reset unit tests:
-```bash
-npm test -- --grep "password reset"
-```
-
-### Integration Tests
-Test the complete password reset flow:
-```bash
-npm run test:integration
-```
 
 ### Manual Testing Checklist
 - [ ] Request password reset with valid email
@@ -363,6 +351,13 @@ npm run test:integration
 - [ ] Test password strength validation
 - [ ] Test responsive design
 - [ ] Test accessibility features
+
+## Related Documentation
+
+- [User Approval System](../features/user-approval-system.md) - User registration and approval
+- [Email Service](../operations/email-service.md) - Email configuration and troubleshooting
+- [Security Features](../operations/security.md) - Security implementation details
+- [Authentication](../operations/authentication.md) - Authentication system overview
 
 ## Support
 
@@ -387,6 +382,4 @@ For issues or questions about the password reset system:
 - Database migration scripts
 - Comprehensive documentation
 
----
-
-*This documentation covers the complete password reset system implementation for GamePlan. Keep this document updated as the system evolves.*
+This documentation covers the complete password reset system implementation for GamePlan. The system provides a secure, user-friendly way for users to reset their passwords while maintaining high security standards.

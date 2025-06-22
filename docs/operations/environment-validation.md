@@ -1,10 +1,12 @@
 # Environment Validation System
 
+The GamePlan application includes a comprehensive environment validation system that ensures production safety, validates configuration, and prevents common security issues.
+
 ## Overview
 
-The GamePlan application now includes a comprehensive environment validation system that ensures production safety, validates configuration, and prevents common security issues. This system performs checks at startup and during runtime to maintain application security and stability.
+The environment validation system performs checks at startup and during runtime to maintain application security and stability. It validates required environment variables, enforces production safety measures, and provides clear guidance for proper configuration.
 
-## Features Implemented
+## Features
 
 ### 1. Startup Environment Validation
 
@@ -183,20 +185,137 @@ GET /api/config-health
 ```
 Returns detailed configuration validation status.
 
+## Configuration Validation Details
+
+### Required Variable Validation
+The system checks for the presence and validity of:
+- **NODE_ENV**: Must be set to 'development' or 'production'
+- **MONGO_URI**: Must be a valid MongoDB connection string
+- **SESSION_SECRET**: Must be present for session security
+- **Database Credentials**: MongoDB passwords must be configured
+- **Admin Credentials**: Admin user configuration must be complete
+
+### Optional Variable Warnings
+The system provides helpful warnings for missing optional configurations:
+- **API Keys**: RAWG API key for enhanced game data
+- **reCAPTCHA**: Site and secret keys for spam protection
+- **Steam API**: API key for Steam integration (optional)
+
+### Production-Specific Validation
+Additional checks performed in production mode:
+- **Security Headers**: Validates security-related configurations
+- **HTTPS Settings**: Checks for proper HTTPS configuration
+- **Cookie Security**: Validates secure cookie settings
+- **Development Features**: Ensures development features are disabled
+
 ## Benefits
 
+### Security Benefits
 1. **Production Safety**: Prevents dangerous development settings in production
 2. **Early Detection**: Catches configuration issues at startup, not runtime
-3. **Clear Guidance**: Helpful error messages and warnings guide proper configuration
-4. **Comprehensive Coverage**: Validates all critical and optional settings
-5. **Runtime Protection**: Continuous validation during application operation
-6. **Security First**: Multiple layers of protection against common security issues
+3. **Security First**: Multiple layers of protection against common security issues
+4. **Runtime Protection**: Continuous validation during application operation
+
+### Operational Benefits
+1. **Clear Guidance**: Helpful error messages and warnings guide proper configuration
+2. **Comprehensive Coverage**: Validates all critical and optional settings
+3. **Health Monitoring**: Provides endpoints for monitoring configuration status
+4. **Automated Validation**: Reduces manual configuration errors
+
+## Troubleshooting
+
+### Common Validation Errors
+
+#### Missing Required Variables
+```
+Error: Required environment variable NODE_ENV is not set
+```
+**Solution**: Set the NODE_ENV variable in your .env file
+
+#### AUTO_LOGIN_ADMIN in Production
+```
+Error: AUTO_LOGIN_ADMIN cannot be enabled in production mode
+```
+**Solution**: Set AUTO_LOGIN_ADMIN=false or remove it from production .env
+
+#### Invalid MongoDB URI
+```
+Error: MONGO_URI is not a valid MongoDB connection string
+```
+**Solution**: Check the format of your MongoDB connection string
+
+### Debugging Validation Issues
+
+#### Check Current Configuration
+```bash
+# View current environment variables (excluding sensitive data)
+node -e "console.log(process.env)" | grep -v PASSWORD | grep -v SECRET
+```
+
+#### Test Validation
+```bash
+# Run validation test
+node test-environment-validation.js
+```
+
+#### Check Health Endpoints
+```bash
+# Check application health
+curl http://localhost:3000/api/health
+
+# Check configuration health
+curl http://localhost:3000/api/config-health
+```
+
+## Best Practices
+
+### Development Environment
+1. **Use .env.local**: Keep local development settings separate
+2. **Enable AUTO_LOGIN_ADMIN**: Use for development convenience
+3. **Set DEBUG logging**: Enable verbose logging for development
+4. **Test validation**: Regularly test with different configurations
+
+### Production Environment
+1. **Disable AUTO_LOGIN_ADMIN**: Never enable in production
+2. **Enable HTTPS**: Use FORCE_HTTPS=true for production
+3. **Secure cookies**: Set SECURE_COOKIES=true with HTTPS
+4. **Monitor health**: Regularly check health endpoints
+
+### Configuration Management
+1. **Use templates**: Start from .env.example files
+2. **Document changes**: Keep track of configuration modifications
+3. **Validate regularly**: Test configuration changes thoroughly
+4. **Monitor continuously**: Use health endpoints for ongoing validation
 
 ## Maintenance
 
-- Environment variables are documented in `.env.example`
-- Validation logic is centralized in `middleware/` directory
-- Test coverage ensures all scenarios work correctly
-- Health endpoints provide monitoring capabilities
+### Regular Tasks
+- **Update .env.example**: Keep template files current with new variables
+- **Review validation logic**: Ensure validation covers new features
+- **Test scenarios**: Verify validation works for all use cases
+- **Monitor health**: Check configuration health endpoints regularly
 
-This environment validation system ensures that the GamePlan application runs safely and securely in all environments while providing clear guidance for proper configuration.
+### Future Enhancements
+- **Custom validation rules**: Add application-specific validation
+- **Configuration templates**: Provide environment-specific templates
+- **Automated testing**: Expand test coverage for validation scenarios
+- **Integration monitoring**: Add external service validation
+
+## Related Documentation
+
+- [Development Mode](../development/development-mode.md) - Development mode configuration
+- [Local Development](../development/local-development.md) - Local development setup
+- [Docker Deployment](../deployment/docker-deployment.md) - Production deployment
+- [Troubleshooting](../operations/troubleshooting.md) - Common issues and solutions
+
+## Support
+
+For environment validation issues:
+
+1. Check the validation error messages for specific guidance
+2. Review the .env.example file for proper variable format
+3. Test with the validation test script
+4. Check health endpoints for current status
+5. Review related documentation for configuration details
+
+The environment validation system ensures that GamePlan runs safely and securely in all environments while providing clear guidance for proper configuration.
