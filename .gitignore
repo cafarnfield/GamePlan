@@ -165,6 +165,7 @@ docker-compose.local.yml
 docker-compose.production.yml
 config-backups/
 local-backups/
+git-conflict-backups/
 
 # Template files that should be tracked
 !docker-compose.production.yml.example
