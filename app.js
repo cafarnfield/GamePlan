@@ -7,18 +7,18 @@ const bcrypt = require('bcrypt');
 const { configureApp, initializeApp } = require('./config/app');
 
 // Import authentication middleware
-const { ensurePasswordNotExpired } = require('./middleware/auth');
+const { ensurePasswordNotExpired } = require('./src/middleware/auth');
 
 // Import centralized error handling
 const {
   notFoundHandler,
   errorHandler,
   handleDatabaseErrors: handleDbErrors
-} = require('./middleware/errorHandler');
+} = require('./src/middleware/errorHandler');
 
 // Models
-const User = require('./models/User');
-const Event = require('./models/Event');
+const User = require('./src/models/User');
+const Event = require('./src/models/Event');
 
 // Initialize Express
 const app = express();
@@ -30,39 +30,39 @@ configureApp(app);
 initializeApp();
 
 // Import and use authentication routes
-app.use('/', require('./routes/auth'));
+app.use('/', require('./src/routes/auth'));
 
 // Import and use admin routes
-app.use('/admin', require('./routes/admin'));
+app.use('/admin', require('./src/routes/admin'));
 
 // Import and use event routes
-app.use('/event', require('./routes/events'));
+app.use('/event', require('./src/routes/events'));
 
 // Import and use game routes
-app.use('/games', require('./routes/games'));
+app.use('/games', require('./src/routes/games'));
 
 // Import and use cache management routes
-app.use('/api/cache', require('./routes/cache'));
+app.use('/api/cache', require('./src/routes/cache'));
 
 // Import and use IP management routes
-app.use('/admin/ip-management', require('./routes/ipManagement'));
+app.use('/admin/ip-management', require('./src/routes/ipManagement'));
 
 // Import and use well-known URI routes (must be before 404 handler)
-app.use('/.well-known', require('./routes/wellKnown'));
+app.use('/.well-known', require('./src/routes/wellKnown'));
 
 // Swagger API Documentation (Admin-only access)
 const { specs, swaggerUi, swaggerUiOptions } = require('./config/swagger');
-const { ensureAdmin } = require('./middleware/auth');
+const { ensureAdmin } = require('./src/middleware/auth');
 
 // Swagger UI endpoint with admin authentication
 app.use('/api-docs', ensureAdmin, swaggerUi.serve);
 app.get('/api-docs', ensureAdmin, swaggerUi.setup(specs, swaggerUiOptions));
 
 // Import and use API routes (Steam/RAWG search, version, etc.)
-app.use('/api', require('./routes/api'));
+app.use('/api', require('./src/routes/api'));
 
 // Import and use health check routes
-app.use('/api/health', require('./routes/health'));
+app.use('/api/health', require('./src/routes/health'));
 
 
 

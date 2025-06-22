@@ -63,12 +63,13 @@
   "jest": {
     "testEnvironment": "node",
     "collectCoverageFrom": [
-      "middleware/**/*.js",
-      "routes/**/*.js",
-      "validators/**/*.js",
-      "models/**/*.js",
-      "services/**/*.js",
-      "utils/**/*.js",
+      "src/middleware/**/*.js",
+      "src/routes/**/*.js",
+      "src/validators/**/*.js",
+      "src/models/**/*.js",
+      "src/services/**/*.js",
+      "src/utils/**/*.js",
+      "config/**/*.js",
       "!**/node_modules/**"
     ],
     "coverageDirectory": "coverage",

@@ -6,11 +6,11 @@ const session = require('express-session');
 const MongoStore = require('connect-mongo');
 
 // Import winston logger
-const { systemLogger } = require('../utils/logger');
-const { requestLogger, apiRequestLogger } = require('../middleware/requestLogger');
+const { systemLogger } = require('../src/utils/logger');
+const { requestLogger, apiRequestLogger } = require('../src/middleware/requestLogger');
 
 // Import authentication middleware
-const { ensureAuthenticated, ensureNotBlocked, ensurePasswordNotExpired } = require('../middleware/auth');
+const { ensureAuthenticated, ensureNotBlocked, ensurePasswordNotExpired } = require('../src/middleware/auth');
 
 // Import centralized error handling
 const {
@@ -18,38 +18,38 @@ const {
   notFoundHandler,
   errorHandler,
   handleDatabaseErrors
-} = require('../middleware/errorHandler');
+} = require('../src/middleware/errorHandler');
 
 // Import environment validation middleware
-const { validateAndExitIfInvalid, validateProductionSafety, configHealthMiddleware } = require('../middleware/envValidation');
+const { validateAndExitIfInvalid, validateProductionSafety, configHealthMiddleware } = require('../src/middleware/envValidation');
 
 // Import security and rate limiting middleware
-const { createSecurityMiddleware } = require('../middleware/security');
-const { generalLimiter, apiLimiter } = require('../middleware/rateLimiting');
+const { createSecurityMiddleware } = require('./security');
+const { generalLimiter, apiLimiter } = require('../src/middleware/rateLimiting');
 
 // Enhanced MongoDB connection with retry logic and monitoring
-const { connect: connectDatabase, on: onDatabaseEvent } = require('../utils/database');
-const { connectionMonitor } = require('../utils/connectionMonitor');
+const { connect: connectDatabase, on: onDatabaseEvent } = require('../src/utils/database');
+const { connectionMonitor } = require('../src/utils/connectionMonitor');
 const {
   ensureDatabaseConnection,
   addDatabaseMetrics,
   addAdminDatabaseInfo,
   handleDatabaseErrors: handleDbErrors
-} = require('../middleware/databaseMiddleware');
+} = require('../src/middleware/databaseMiddleware');
 
 // Import cache services
-const cacheService = require('../services/cacheService');
-const dashboardCacheService = require('../services/dashboardCacheService');
-const apiCacheService = require('../services/apiCacheService');
+const cacheService = require('../src/services/cacheService');
+const dashboardCacheService = require('../src/services/dashboardCacheService');
+const apiCacheService = require('../src/services/apiCacheService');
 
 // Models
-const User = require('../models/User');
-const Extension = require('../models/Extension');
-const Event = require('../models/Event');
-const Game = require('../models/Game');
-const AuditLog = require('../models/AuditLog');
-const RejectedEmail = require('../models/RejectedEmail');
-const ErrorLog = require('../models/ErrorLog');
+const User = require('../src/models/User');
+const Extension = require('../src/models/Extension');
+const Event = require('../src/models/Event');
+const Game = require('../src/models/Game');
+const AuditLog = require('../src/models/AuditLog');
+const RejectedEmail = require('../src/models/RejectedEmail');
+const ErrorLog = require('../src/models/ErrorLog');
 
 // Mock admin user for development auto-login
 const mockAdminUser = {
@@ -186,6 +186,7 @@ const configureApp = (app) => {
 
   // View engine setup
   app.set('view engine', 'ejs');
+  app.set('views', './src/views');
 
   // Apply security middleware
   app.use(createSecurityMiddleware());

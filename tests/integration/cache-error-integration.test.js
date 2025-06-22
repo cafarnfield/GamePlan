@@ -2,11 +2,11 @@ const mongoose = require('mongoose');
 require('dotenv').config();
 
 // Import services
-const cacheService = require('./services/cacheService');
-const cacheErrorService = require('./services/cacheErrorService');
+const cacheService = require('../../src/services/cacheService');
+const cacheErrorService = require('../../src/services/cacheErrorService');
 
 // Import models
-const ErrorLog = require('./models/ErrorLog');
+const ErrorLog = require('../../src/models/ErrorLog');
 
 /**
  * Test Cache Error Logging Integration

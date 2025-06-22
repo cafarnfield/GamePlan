@@ -8,9 +8,9 @@ const axios = require('axios');
 require('dotenv').config();
 
 // Import models
-const Game = require('../../models/Game');
-const Event = require('../../models/Event');
-const Extension = require('../../models/Extension');
+const Game = require('../../src/models/Game');
+const Event = require('../../src/models/Event');
+const Extension = require('../../src/models/Extension');
 
 describe('Event Creation System', () => {
   let testGame;

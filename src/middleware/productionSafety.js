@@ -7,12 +7,14 @@ const { validateEnvironment } = require('./startupValidation');
  * @param {Function} next - Express next function
  */
 const validateEnvVarsMiddleware = (req, res, next) => {
-  // Re-run environment validation for each request
-  // This ensures that environment variables are valid throughout the app's lifecycle
-  if (!validateEnvironment()) {
+  // Quick validation without verbose output - only check critical variables
+  const criticalVars = ['NODE_ENV', 'MONGO_URI', 'SESSION_SECRET'];
+  const missingVars = criticalVars.filter(varName => !process.env[varName]);
+  
+  if (missingVars.length > 0) {
     return res.status(500).json({
       error: 'Server configuration error',
-      message: 'Environment validation failed. Please contact support.'
+      message: 'Critical environment variables missing. Please contact support.'
     });
   }
 

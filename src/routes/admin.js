@@ -240,7 +240,7 @@ router.get('/', ensureAuthenticated, ensureAdmin, async (req, res) => {
     const recentActivity = await dashboardCacheService.getRecentActivity(models);
 
     // Get app version from package.json
-    const packageJson = require('../package.json');
+    const packageJson = require('../../package.json');
     const appVersion = packageJson.version;
 
     const isDevelopmentAutoLogin = process.env.AUTO_LOGIN_ADMIN === 'true' && process.env.NODE_ENV === 'development';
@@ -493,7 +493,7 @@ router.get('/cache', ensureAuthenticated, ensureAdmin, async (req, res) => {
 router.get('/system', ensureAuthenticated, ensureSuperAdmin, async (req, res) => {
   try {
     // Get app version from package.json
-    const packageJson = require('../package.json');
+    const packageJson = require('../../package.json');
     const appVersion = packageJson.version;
 
     // Gather system health data

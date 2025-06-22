@@ -6,7 +6,7 @@
  */
 
 require('dotenv').config();
-const { validateAndExitIfInvalid, validateProductionSafety } = require('./middleware/envValidation');
+const { validateAndExitIfInvalid, validateProductionSafety } = require('../../src/middleware/envValidation');
 
 console.log('🧪 TESTING ENVIRONMENT VALIDATION SYSTEM');
 console.log('==========================================\n');

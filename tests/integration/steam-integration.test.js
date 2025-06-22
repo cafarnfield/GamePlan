@@ -1,4 +1,4 @@
-const steamService = require('./services/steamService');
+const steamService = require('../../src/services/steamService');
 
 async function testSteamIntegration() {
   console.log('Testing Steam API Integration...\n');

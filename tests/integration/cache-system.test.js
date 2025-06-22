@@ -7,9 +7,9 @@ const mongoose = require('mongoose');
 require('dotenv').config();
 
 // Import cache services
-const cacheService = require('./services/cacheService');
-const dashboardCacheService = require('./services/dashboardCacheService');
-const apiCacheService = require('./services/apiCacheService');
+const cacheService = require('../../src/services/cacheService');
+const dashboardCacheService = require('../../src/services/dashboardCacheService');
+const apiCacheService = require('../../src/services/apiCacheService');
 
 // Import models (mock for testing)
 const mockModels = {
