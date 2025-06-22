@@ -2996,6 +2996,113 @@ tr:hover td {
   padding-top: 0.5rem;
 }
 
+/* Nest Hub Max Specific Fixes - 1280x800 resolution */
+@media screen and (width: 1280px) and (height: 800px) {
+  /* Disable problematic 2-second animations that cause scroll jumps */
+  header h1 {
+    animation: none !important;
+    /* Keep static glow effect for visual appeal */
+    text-shadow: 0 0 15px var(--teal-cyan), 0 0 25px var(--teal-cyan), 0 0 35px var(--teal-cyan);
+  }
+  
+  h2::after {
+    animation: none !important;
+    /* Keep static border effect */
+    opacity: 0.8;
+  }
+  
+  .player-slot.filled {
+    animation: none !important;
+    /* Keep static glow */
+    text-shadow: 0 0 8px var(--teal-cyan);
+  }
+  
+  .event-card.event-starting-soon {
+    animation: none !important;
+    /* Keep the visual state without animation */
+    border-color: var(--warning-orange);
+    box-shadow: 0 0 25px rgba(255, 107, 53, 0.4), inset 0 0 20px rgba(26, 26, 46, 0.5);
+  }
+  
+  .event-card.event-live {
+    animation: none !important;
+    /* Keep the visual state without animation */
+    border-color: var(--error-red);
+    box-shadow: 0 0 30px rgba(255, 68, 68, 0.5), inset 0 0 20px rgba(26, 26, 46, 0.5);
+  }
+  
+  .event-card.event-live .timer-icon {
+    animation: none !important;
+  }
+  
+  .steam-equivalent,
+  .exists-indicator {
+    animation: none !important;
+    /* Keep static warning appearance */
+    background: rgba(255, 107, 53, 0.15);
+    box-shadow: 0 0 8px rgba(255, 107, 53, 0.4);
+  }
+  
+  .dev-banner {
+    animation: none !important;
+    /* Keep static warning appearance */
+    background: linear-gradient(135deg, var(--warning-orange) 0%, var(--warning-orange-light) 100%);
+    box-shadow: 0 2px 10px rgba(255, 107, 53, 0.3), 0 0 20px rgba(255, 107, 53, 0.2);
+  }
+  
+  /* Optimize scroll behavior for Nest Hub Max */
+  body {
+    scroll-behavior: auto !important;
+    -webkit-overflow-scrolling: auto !important;
+    /* Prevent layout shifts */
+    contain: layout style;
+  }
+  
+  /* Ensure stable layout during interactions */
+  .event-card {
+    will-change: auto !important;
+    contain: layout style paint;
+  }
+  
+  /* Disable smooth scrolling that might conflict */
+  * {
+    scroll-behavior: auto !important;
+  }
+  
+  /* Prevent animation-triggered reflows */
+  .event-timer,
+  .timer-text,
+  .timer-icon {
+    will-change: auto !important;
+    contain: layout;
+  }
+  
+  /* Stabilize filter panel interactions */
+  .filter-panel,
+  .filter-content {
+    contain: layout style;
+  }
+  
+  /* Ensure event grid stability */
+  .events-grid {
+    contain: layout style;
+  }
+  
+  /* Disable problematic hover animations that might cause layout shifts */
+  .event-card:hover {
+    transform: none !important;
+  }
+  
+  button:hover,
+  .action-button:hover {
+    transform: none !important;
+  }
+  
+  nav a:hover {
+    transform: none !important;
+  }
+}
+
 /* Responsive Design for Filter Panel */
 @media (max-width: 768px) {
   .filter-row {
