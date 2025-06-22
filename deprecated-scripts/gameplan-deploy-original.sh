@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# GamePlan Complete Deployment Script - Fixed Version
+# GamePlan Complete Deployment Script
 # This script runs everything in one session to avoid repeated password prompts
 
 set -e
@@ -65,131 +65,36 @@ log "Phase 3: Environment Configuration"
 log "Creating fresh environment file..."
 cp .env.example .env
 
-log "Generating secure passwords (alphanumeric only)..."
-MONGO_ROOT_PASSWORD=$(openssl rand -hex 16)
-MONGO_PASSWORD=$(openssl rand -hex 16)
-SESSION_SECRET=$(openssl rand -hex 24)
-ADMIN_PASSWORD=$(openssl rand -hex 8)
-MONGO_EXPRESS_PASSWORD=$(openssl rand -hex 8)
+log "Generating secure passwords..."
+MONGO_ROOT_PASSWORD=$(openssl rand -base64 32)
+MONGO_PASSWORD=$(openssl rand -base64 32)
+SESSION_SECRET=$(openssl rand -base64 48)
+ADMIN_PASSWORD=$(openssl rand -base64 16)
+MONGO_EXPRESS_PASSWORD=$(openssl rand -base64 16)
 
-log "Creating new environment file with secure passwords..."
-cat > .env << EOF
-# =============================================================================
-# GAMEPLAN DOCKER CONFIGURATION
-# =============================================================================
-
-# -----------------------------------------------------------------------------
-# SERVER CONFIGURATION
-# -----------------------------------------------------------------------------
-PORT=3000
-NODE_ENV=production
-
-# -----------------------------------------------------------------------------
-# DATABASE CONFIGURATION
-# -----------------------------------------------------------------------------
-MONGO_ROOT_PASSWORD=$MONGO_ROOT_PASSWORD
-MONGO_PASSWORD=$MONGO_PASSWORD
-
-# Enhanced Database Connection Settings
-DB_MAX_RETRY_ATTEMPTS=10
-DB_RETRY_DELAY=5000
-DB_MAX_RETRY_DELAY=60000
-DB_CONNECTION_TIMEOUT=30000
-DB_SHUTDOWN_TIMEOUT=10000
-DB_MAX_POOL_SIZE=20
-DB_MIN_POOL_SIZE=5
-DB_MAX_IDLE_TIME=30000
-DB_SOCKET_TIMEOUT=45000
-DB_HEARTBEAT_FREQUENCY=10000
-DB_WRITE_CONCERN=majority
-DB_READ_CONCERN=majority
-DB_READ_PREFERENCE=primary
-DB_JOURNAL=true
-DB_WRITE_TIMEOUT=10000
-DB_COMPRESSION=zstd,zlib
-DB_BUFFER_MAX_ENTRIES=0
-DB_BUFFER_COMMANDS=true
-DB_IP_FAMILY=4
-DB_MONITOR_COMMANDS=false
-DB_SLOW_QUERY_THRESHOLD=1000
-DB_SLOW_REQUEST_THRESHOLD=5000
-DB_HEALTH_CHECK_INTERVAL=30000
-DB_METRICS_RETENTION=86400000
-DB_SSL=false
-DB_SSL_VALIDATE=true
-DB_SSL_CA=
-DB_SSL_CERT=
-DB_SSL_KEY=
-DB_READ_ONLY_MODE=false
-
-# -----------------------------------------------------------------------------
-# SESSION SECURITY
-# -----------------------------------------------------------------------------
-SESSION_SECRET=$SESSION_SECRET
-
-# -----------------------------------------------------------------------------
-# INITIAL ADMIN USER SETUP
-# -----------------------------------------------------------------------------
-ADMIN_EMAIL=admin@yourdomain.com
-ADMIN_PASSWORD=$ADMIN_PASSWORD
-ADMIN_NAME=GamePlan Administrator
-ADMIN_NICKNAME=Admin
-
-# -----------------------------------------------------------------------------
-# EXTERNAL API KEYS
-# -----------------------------------------------------------------------------
-RAWG_API_KEY=3963501b74354e0688413453cb8c6bc4
-
-# -----------------------------------------------------------------------------
-# MONGO EXPRESS (DATABASE ADMIN INTERFACE)
-# -----------------------------------------------------------------------------
-MONGO_EXPRESS_PORT=8081
-MONGO_EXPRESS_USER=admin
-MONGO_EXPRESS_PASSWORD=$MONGO_EXPRESS_PASSWORD
-
-# -----------------------------------------------------------------------------
-# LOGGING CONFIGURATION
-# -----------------------------------------------------------------------------
-LOG_LEVEL=info
-LOG_MAX_SIZE=100m
-LOG_MAX_FILES=30d
-LOG_DATE_PATTERN=YYYY-MM-DD
-LOG_COMPRESS=true
-LOG_CONSOLE=false
-
-# -----------------------------------------------------------------------------
-# DEVELOPMENT MODE SETTINGS
-# -----------------------------------------------------------------------------
-AUTO_LOGIN_ADMIN=false
-EOF
+log "Updating environment file..."
+sed -i "s/your_secure_root_password_here/$MONGO_ROOT_PASSWORD/" .env
+sed -i "s/your_secure_app_password_here/$MONGO_PASSWORD/" .env
+sed -i "s/your_very_secure_session_secret_key_change_this_in_production/$SESSION_SECRET/" .env
+sed -i "s/your_secure_admin_password/$ADMIN_PASSWORD/" .env
+sed -i "s/your_mongo_express_password/$MONGO_EXPRESS_PASSWORD/" .env
+sed -i 's/NODE_ENV=development/NODE_ENV=production/' .env
 
 log "Environment configured with secure passwords"
 
 # Phase 4: GamePlan Deployment
 log "Phase 4: GamePlan Deployment"
 log "Starting Docker Compose services..."
-# Copy production template if it doesn't exist
-if [ ! -f docker-compose.production.yml ]; then
-    log "Creating production compose file from template..."
-    cp docker-compose.production.yml.example docker-compose.production.yml
-fi
-
-# Disable development override if it exists
-if [ -f docker-compose.override.yml ]; then
-    warn "Development override file detected - disabling for production"
-    mv docker-compose.override.yml docker-compose.override.yml.disabled
-fi
-
-docker compose -f docker-compose.yml -f docker-compose.production.yml up -d
+docker compose up -d
 
 log "Waiting for services to start..."
 sleep 30
 
 log "Checking service status..."
-docker compose -f docker-compose.yml -f docker-compose.production.yml ps
+docker compose ps
 
 log "Initializing admin user..."
-docker compose -f docker-compose.yml -f docker-compose.production.yml exec gameplan-app node scripts/init-admin.js
+docker compose --profile init up init-admin
 
 # Phase 5: Firewall Configuration
 log "Phase 5: Firewall Configuration"
@@ -240,7 +145,7 @@ log "Testing health endpoint..."
 curl -s http://localhost:3000/api/health || warn "Health check failed - app may still be starting"
 
 # Get server IP
-SERVER_IP="172.16.58.224"
+SERVER_IP=$(curl -s ifconfig.me 2>/dev/null || echo "172.16.58.224")
 
 # Save credentials
 cat > /home/chrisadmin/gameplan-credentials.txt << EOF
