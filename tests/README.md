@@ -10,23 +10,47 @@ tests/
 │   └── jest.setup.js          # Global test setup and configuration
 ├── helpers/
 │   └── testUtils.js           # Shared test utilities and mock functions
-└── unit/
-    ├── auth/
-    │   ├── passwordHashing.test.js    # Password hashing and bcrypt tests
-    │   └── authMiddleware.test.js     # Authentication middleware tests
-    └── validation/
-        └── inputValidation.test.js    # Input validation and XSS protection tests
+├── unit/
+│   ├── auth/
+│   │   ├── passwordHashing.test.js    # Password hashing and bcrypt tests
+│   │   └── authMiddleware.test.js     # Authentication middleware tests
+│   └── validation/
+│       └── inputValidation.test.js    # Input validation and XSS protection tests
+├── integration/
+│   ├── cache-system.test.js           # Comprehensive cache system testing
+│   ├── cache-error-integration.test.js # Cache error logging integration
+│   ├── email-system.test.js           # Email system diagnostic testing
+│   └── steam-integration.test.js      # Steam API integration testing
+├── system/
+│   ├── environment-validation.test.js # Environment validation testing
+│   ├── validation-system.test.js      # Schema validation system testing
+│   └── deployment-system.test.sh      # Deployment system testing
+└── features/
+    ├── event-creation.test.js          # Comprehensive event creation testing
+    └── update-alerts.test.js           # Update alert functionality testing
 ```
 
 ## Test Coverage
 
-### Authentication Tests (66 tests)
+### Unit Tests (110 tests)
 - **Password Hashing (28 tests)**: Tests bcrypt password hashing, comparison, security properties, and integration with auth flow
 - **Authentication Middleware (38 tests)**: Tests authentication and authorization middleware functions
+- **Input Validation (44 tests)**: Tests XSS protection, password validation, game nickname validation, and future date validation
 
-### Validation Tests (44 tests)
-- **Input Validation**: Tests XSS protection, password validation, game nickname validation, and future date validation
-- **Security**: Tests against various attack vectors and edge cases
+### Integration Tests
+- **Cache System**: Comprehensive testing of multi-layer caching implementation
+- **Cache Error Integration**: Tests cache error logging and monitoring
+- **Email System**: Diagnostic testing for email configuration and SMTP connectivity
+- **Steam Integration**: Tests Steam API search, game details, and update checking
+
+### System Tests
+- **Environment Validation**: Tests environment variable validation and production safety
+- **Validation System**: Tests all Joi validation schemas and error handling
+- **Deployment System**: Tests deployment scripts and Docker configuration
+
+### Feature Tests
+- **Event Creation**: Comprehensive testing of event creation workflows (database, HTTP, validation)
+- **Update Alerts**: Tests Steam update alert functionality
 
 ## Running Tests
 
@@ -35,19 +59,43 @@ tests/
 npm test
 ```
 
-### Run Specific Test Suites
+### Run Tests by Category
 ```bash
 # Run all unit tests
 npm test tests/unit/
 
-# Run authentication tests only
+# Run all integration tests
+npm test tests/integration/
+
+# Run all system tests
+npm test tests/system/
+
+# Run all feature tests
+npm test tests/features/
+```
+
+### Run Specific Test Suites
+```bash
+# Authentication tests
 npm test tests/unit/auth/
 
-# Run validation tests only
+# Validation tests
 npm test tests/unit/validation/
 
-# Run specific test file
-npm test tests/unit/auth/passwordHashing.test.js
+# Cache system tests
+npm test tests/integration/cache-system.test.js
+
+# Event creation tests
+npm test tests/features/event-creation.test.js
+
+# Email system diagnostics
+node tests/integration/email-system.test.js
+
+# Environment validation
+node tests/system/environment-validation.test.js
+
+# Deployment system tests
+bash tests/system/deployment-system.test.sh
 ```
 
 ### Run Tests with Coverage
@@ -62,7 +110,8 @@ npm run test:watch
 
 ## Test Categories
 
-### 1. Password Hashing Tests
+### 1. Unit Tests
+#### Password Hashing Tests
 - **Hash Generation**: Tests password hashing with various inputs and edge cases
 - **Password Comparison**: Tests password verification and security
 - **Error Handling**: Tests handling of invalid inputs and edge cases
@@ -70,7 +119,7 @@ npm run test:watch
 - **Integration**: Tests integration with authentication flow
 - **Performance**: Tests efficiency with multiple operations
 
-### 2. Authentication Middleware Tests
+#### Authentication Middleware Tests
 - **ensureAuthenticated**: Tests user authentication checking
 - **ensureNotBlocked**: Tests blocked user handling
 - **ensureAdmin**: Tests admin privilege checking
@@ -79,13 +128,69 @@ npm run test:watch
 - **Security**: Tests against privilege escalation attempts
 - **Edge Cases**: Tests error handling and malformed inputs
 
-### 3. Input Validation Tests
+#### Input Validation Tests
 - **XSS Protection**: Tests against various XSS attack vectors
 - **Password Validation**: Tests strong password requirements
 - **Game Nickname Validation**: Tests nickname format validation
 - **Future Date Validation**: Tests date range validation
 - **HTML Sanitization**: Tests HTML escaping functionality
 - **Integration**: Tests complete validation workflows
+
+### 2. Integration Tests
+#### Cache System Tests
+- **Cache Operations**: Tests set, get, clear, and invalidation operations
+- **Performance Testing**: Tests cache hit rates and response times
+- **Multi-layer Caching**: Tests dashboard, API, and game list caches
+- **Error Handling**: Tests cache error logging and recovery
+- **Health Monitoring**: Tests cache health metrics and alerts
+
+#### Email System Tests
+- **SMTP Configuration**: Tests email server connectivity and authentication
+- **Environment Validation**: Tests email-related environment variables
+- **Network Connectivity**: Tests firewall and network configuration
+- **Test Email Sending**: Sends actual test emails to verify functionality
+- **Error Diagnostics**: Provides detailed troubleshooting information
+
+#### Steam Integration Tests
+- **Game Search**: Tests Steam API game search functionality
+- **Game Details**: Tests retrieval of detailed game information
+- **Update Checking**: Tests Steam update detection and alerts
+- **Error Handling**: Tests API rate limiting and error responses
+
+### 3. System Tests
+#### Environment Validation Tests
+- **Startup Validation**: Tests environment variable validation at startup
+- **Production Safety**: Tests AUTO_LOGIN_ADMIN protection in production
+- **Security Checks**: Tests HTTPS enforcement and secure cookie settings
+- **Configuration Health**: Tests MongoDB URI validation and other settings
+
+#### Validation System Tests
+- **Schema Validation**: Tests all Joi validation schemas
+- **User Registration**: Tests user input validation and sanitization
+- **Event Creation**: Tests event form validation and error handling
+- **Admin Operations**: Tests admin system operation validation
+- **Error Reporting**: Tests comprehensive validation error messages
+
+#### Deployment System Tests
+- **Script Validation**: Tests deployment script syntax and functionality
+- **Docker Configuration**: Tests Docker Compose file validity
+- **Security Checks**: Tests .gitignore protection and configuration quality
+- **System Requirements**: Tests Docker and Docker Compose availability
+
+### 4. Feature Tests
+#### Event Creation Tests
+- **Database Operations**: Tests direct database event creation and validation
+- **HTTP Form Submission**: Tests web form data processing and transformation
+- **Error Handling**: Tests validation errors and edge cases
+- **Steam Integration**: Tests Steam App ID handling and validation
+- **Performance**: Tests bulk and concurrent event creation
+- **Circular Reference Prevention**: Tests fix for circular HTTP request issues
+
+#### Update Alert Tests
+- **Event Creation**: Tests creating events with Steam App IDs
+- **Update Detection**: Tests Steam API update checking
+- **Alert Display**: Tests update alert rendering on event pages
+- **Error Handling**: Tests handling of invalid Steam App IDs
 
 ## Test Utilities
 
@@ -202,12 +307,75 @@ These tests are designed to run in CI/CD environments:
 
 When adding new tests:
 
-1. **Choose the appropriate directory** based on functionality
-2. **Follow naming conventions**: `*.test.js` for test files
+1. **Choose the appropriate directory** based on test type:
+   - `unit/` - For testing individual functions, modules, or components in isolation
+   - `integration/` - For testing interactions between multiple components or external services
+   - `system/` - For testing system-level functionality, configuration, and deployment
+   - `features/` - For testing complete user-facing features and workflows
+
+2. **Follow naming conventions**: 
+   - `*.test.js` for Jest test files
+   - `*.test.sh` for shell script tests
+   - Use descriptive names that indicate the component or feature being tested
+
 3. **Use existing utilities** from `testUtils.js` when possible
-4. **Include comprehensive test cases**: happy path, edge cases, and error conditions
-5. **Add security tests** for any user-facing functionality
-6. **Update this README** if adding new test categories
+
+4. **Include comprehensive test cases**: 
+   - Happy path scenarios
+   - Edge cases and boundary conditions
+   - Error conditions and exception handling
+   - Security considerations for user-facing functionality
+
+5. **Add proper test documentation**:
+   - Clear test descriptions
+   - Setup and teardown procedures
+   - Mock data and test fixtures
+   - Expected outcomes and assertions
+
+6. **Update this README** if adding new test categories or significant functionality
+
+### Test File Templates
+
+#### Unit Test Template
+```javascript
+const { functionToTest } = require('../../path/to/module');
+
+describe('Module Name', () => {
+  describe('functionToTest', () => {
+    test('should handle normal case', () => {
+      // Test implementation
+    });
+    
+    test('should handle edge case', () => {
+      // Test implementation
+    });
+    
+    test('should throw error for invalid input', () => {
+      // Test implementation
+    });
+  });
+});
+```
+
+#### Integration Test Template
+```javascript
+const mongoose = require('mongoose');
+require('dotenv').config();
+
+describe('Integration Test Name', () => {
+  beforeAll(async () => {
+    // Setup database connection, test data
+  });
+  
+  afterAll(async () => {
+    // Cleanup test data, close connections
+  });
+  
+  test('should test integration scenario', async () => {
+    // Test implementation
+  });
+});
+```
 
 ## Troubleshooting
 
@@ -237,12 +405,69 @@ npm test -- --verbose --detectOpenHandles
 ## Performance
 
 Current test performance:
-- **Total Tests**: 110
-- **Execution Time**: ~4-5 seconds
-- **Coverage**: Comprehensive coverage of critical security functions
+- **Unit Tests**: 110 tests (~4-5 seconds)
+- **Integration Tests**: Variable execution time depending on external services
+- **System Tests**: Quick validation tests (~2-3 seconds)
+- **Feature Tests**: Comprehensive scenarios (~5-10 seconds)
+- **Total Coverage**: Comprehensive coverage of critical functionality and security
 
 The test suite is optimized for:
 - Fast feedback during development
 - Reliable CI/CD execution
 - Comprehensive security validation
 - Easy maintenance and extension
+- Modular execution by test category
+
+## Test Organization Benefits
+
+### Before Reorganization
+- 13+ test files scattered in root directory
+- Unclear test purposes and relationships
+- Difficult to run specific test categories
+- Redundant test implementations
+- Poor maintainability
+
+### After Reorganization
+- ✅ **Logical categorization** by test type and purpose
+- ✅ **Clear naming conventions** with `.test.js` extensions
+- ✅ **Easy test discovery** and execution
+- ✅ **Eliminated redundancy** while preserving functionality
+- ✅ **Professional structure** following industry best practices
+- ✅ **Improved maintainability** and extensibility
+- ✅ **Better documentation** and test descriptions
+
+## Troubleshooting
+
+### Running Individual Test Categories
+
+**Unit Tests Only:**
+```bash
+npm test tests/unit/
+```
+
+**Integration Tests (may require services):**
+```bash
+# Ensure MongoDB is running for database tests
+npm test tests/integration/
+
+# Run email tests (requires SMTP configuration)
+node tests/integration/email-system.test.js your-email@example.com
+```
+
+**System Tests:**
+```bash
+# Environment validation
+node tests/system/environment-validation.test.js
+
+# Deployment system validation
+bash tests/system/deployment-system.test.sh
+```
+
+**Feature Tests:**
+```bash
+# Event creation (requires database)
+npm test tests/features/event-creation.test.js
+
+# Update alerts (may require running server)
+node tests/features/update-alerts.test.js
+```
