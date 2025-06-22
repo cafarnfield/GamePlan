@@ -458,6 +458,9 @@ app.use('/api/cache', require('./routes/cache'));
 // Import and use IP management routes
 app.use('/admin/ip-management', require('./routes/ipManagement'));
 
+// Import and use well-known URI routes (must be before 404 handler)
+app.use('/.well-known', require('./routes/wellKnown'));
+
 // Swagger API Documentation (Admin-only access)
 const { specs, swaggerUi, swaggerUiOptions } = require('./config/swagger');
 const { ensureAdmin } = require('./middleware/auth');
