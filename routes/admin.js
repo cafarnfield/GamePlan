@@ -1563,46 +1563,64 @@ router.get('/error-logs/:id/ai-format', ensureAuthenticated, ensureAdmin, asyncE
     throw new NotFoundError('Error log', req.params.id);
   }
   
-  const aiFormat = `ERROR ANALYSIS REQUEST
+  try {
+    // Safe property access with fallbacks
+    const requestContext = errorLog.requestContext || {};
+    const userContext = errorLog.userContext || {};
+    const errorDetails = errorLog.errorDetails || {};
+    const environment = errorLog.environment || {};
+    const analytics = errorLog.analytics || {};
+    const resolution = errorLog.resolution || {};
+    
+    // Get user action description safely
+    let userAction = 'Unknown action';
+    try {
+      userAction = errorLog.getUserActionDescription();
+    } catch (err) {
+      console.error('Error getting user action description:', err);
+      userAction = `${requestContext.method || 'UNKNOWN'} request to ${requestContext.url || 'unknown endpoint'}`;
+    }
+    
+    const aiFormat = `ERROR ANALYSIS REQUEST
 
 Error Summary:
-- Type: ${errorLog.errorType}
-- Occurred: ${errorLog.timestamp.toISOString()}
-- Endpoint: ${errorLog.requestContext.method} ${errorLog.requestContext.originalUrl}
-- User: ${errorLog.userContext.email || 'Anonymous'}
-- Status: ${errorLog.resolution.status}
-- Severity: ${errorLog.analytics.severity}
+- Type: ${errorLog.errorType || 'Unknown'}
+- Occurred: ${errorLog.timestamp ? errorLog.timestamp.toISOString() : 'Unknown time'}
+- Endpoint: ${requestContext.method || 'UNKNOWN'} ${requestContext.originalUrl || requestContext.url || 'Unknown endpoint'}
+- User: ${userContext.email || 'Anonymous'}
+- Status: ${resolution.status || 'new'}
+- Severity: ${analytics.severity || 'unknown'}
 
 Context:
-- User Action: ${errorLog.getUserActionDescription()}
-- Error Message: ${errorLog.message}
-- Status Code: ${errorLog.statusCode}
-- Request ID: ${errorLog.requestId}
+- User Action: ${userAction}
+- Error Message: ${errorLog.message || 'No message available'}
+- Status Code: ${errorLog.statusCode || 'Unknown'}
+- Request ID: ${errorLog.requestId || 'Unknown'}
 
 Technical Details:
-${errorLog.errorDetails.stack || 'No stack trace available'}
+${errorDetails.stack || 'No stack trace available'}
 
 Request Context:
-${JSON.stringify(errorLog.requestContext, null, 2)}
+${JSON.stringify(requestContext, null, 2)}
 
 User Context:
-${JSON.stringify(errorLog.userContext, null, 2)}
+${JSON.stringify(userContext, null, 2)}
 
 Environment:
-- Node.js: ${errorLog.environment.nodeVersion}
-- Environment: ${errorLog.environment.nodeEnv}
-- Platform: ${errorLog.environment.platform}
+- Node.js: ${environment.nodeVersion || 'Unknown'}
+- Environment: ${environment.nodeEnv || 'Unknown'}
+- Platform: ${environment.platform || 'Unknown'}
 
-${errorLog.analytics.frequency > 1 ? `
+${analytics.frequency && analytics.frequency > 1 ? `
 Pattern Analysis:
-- This error has occurred ${errorLog.analytics.frequency} times
-- Category: ${errorLog.analytics.category}
-- Impact Level: ${errorLog.analytics.impact}
+- This error has occurred ${analytics.frequency} times
+- Category: ${analytics.category || 'Unknown'}
+- Impact Level: ${analytics.impact || 'Unknown'}
 ` : ''}
 
-${errorLog.resolution.adminNotes ? `
+${resolution.adminNotes ? `
 Admin Notes:
-${errorLog.resolution.adminNotes}
+${resolution.adminNotes}
 ` : ''}
 
 Please analyze this error and provide:
@@ -1611,8 +1629,13 @@ Please analyze this error and provide:
 3. Prevention strategies
 4. Impact assessment`;
 
-  res.setHeader('Content-Type', 'text/plain');
-  res.send(aiFormat);
+    res.setHeader('Content-Type', 'text/plain');
+    res.send(aiFormat);
+  } catch (err) {
+    console.error('Error generating AI format:', err);
+    res.status(500).setHeader('Content-Type', 'text/plain');
+    res.send(`Error generating AI format: ${err.message}\n\nRaw error data:\n${JSON.stringify(errorLog, null, 2)}`);
+  }
 }));
 
 // Get technical details
@@ -1622,39 +1645,50 @@ router.get('/error-logs/:id/technical', ensureAuthenticated, ensureAdmin, asyncE
     throw new NotFoundError('Error log', req.params.id);
   }
   
-  const technical = `TECHNICAL ERROR DETAILS
+  try {
+    // Safe property access with fallbacks
+    const requestContext = errorLog.requestContext || {};
+    const errorDetails = errorLog.errorDetails || {};
+    const environment = errorLog.environment || {};
+    
+    const technical = `TECHNICAL ERROR DETAILS
 
 Error Information:
-- Type: ${errorLog.errorType}
-- Message: ${errorLog.message}
-- Status Code: ${errorLog.statusCode}
-- Request ID: ${errorLog.requestId}
-- Timestamp: ${errorLog.timestamp.toISOString()}
+- Type: ${errorLog.errorType || 'Unknown'}
+- Message: ${errorLog.message || 'No message available'}
+- Status Code: ${errorLog.statusCode || 'Unknown'}
+- Request ID: ${errorLog.requestId || 'Unknown'}
+- Timestamp: ${errorLog.timestamp ? errorLog.timestamp.toISOString() : 'Unknown time'}
 
 Stack Trace:
-${errorLog.errorDetails.stack || 'No stack trace available'}
+${errorDetails.stack || 'No stack trace available'}
 
 Request Details:
-- Method: ${errorLog.requestContext.method}
-- URL: ${errorLog.requestContext.originalUrl}
-- IP: ${errorLog.requestContext.ip}
-- User Agent: ${errorLog.requestContext.userAgent}
-- Query: ${JSON.stringify(errorLog.requestContext.query, null, 2)}
-- Body: ${JSON.stringify(errorLog.requestContext.body, null, 2)}
+- Method: ${requestContext.method || 'Unknown'}
+- URL: ${requestContext.originalUrl || requestContext.url || 'Unknown'}
+- IP: ${requestContext.ip || 'Unknown'}
+- User Agent: ${requestContext.userAgent || 'Unknown'}
+- Query: ${JSON.stringify(requestContext.query || {}, null, 2)}
+- Body: ${JSON.stringify(requestContext.body || {}, null, 2)}
 
 Environment:
-- Node.js: ${errorLog.environment.nodeVersion}
-- Environment: ${errorLog.environment.nodeEnv}
-- Platform: ${errorLog.environment.platform}
-- PID: ${errorLog.environment.pid}
-- Uptime: ${errorLog.environment.uptime}s
-- Memory: ${JSON.stringify(errorLog.environment.memoryUsage, null, 2)}
+- Node.js: ${environment.nodeVersion || 'Unknown'}
+- Environment: ${environment.nodeEnv || 'Unknown'}
+- Platform: ${environment.platform || 'Unknown'}
+- PID: ${environment.pid || 'Unknown'}
+- Uptime: ${environment.uptime || 'Unknown'}s
+- Memory: ${JSON.stringify(environment.memoryUsage || {}, null, 2)}
 
 Original Error:
-${JSON.stringify(errorLog.errorDetails.originalError, null, 2)}`;
+${JSON.stringify(errorDetails.originalError || {}, null, 2)}`;
 
-  res.setHeader('Content-Type', 'text/plain');
-  res.send(technical);
+    res.setHeader('Content-Type', 'text/plain');
+    res.send(technical);
+  } catch (err) {
+    console.error('Error generating technical format:', err);
+    res.status(500).setHeader('Content-Type', 'text/plain');
+    res.send(`Error generating technical format: ${err.message}\n\nRaw error data:\n${JSON.stringify(errorLog, null, 2)}`);
+  }
 }));
 
 // Get user context
@@ -1664,39 +1698,59 @@ router.get('/error-logs/:id/user-context', ensureAuthenticated, ensureAdmin, asy
     throw new NotFoundError('Error log', req.params.id);
   }
   
-  const userContext = `USER CONTEXT ANALYSIS
+  try {
+    // Safe property access with fallbacks
+    const requestContext = errorLog.requestContext || {};
+    const userContext = errorLog.userContext || {};
+    const analytics = errorLog.analytics || {};
+    
+    // Get user action description safely
+    let userAction = 'Unknown action';
+    try {
+      userAction = errorLog.getUserActionDescription();
+    } catch (err) {
+      console.error('Error getting user action description:', err);
+      userAction = `${requestContext.method || 'UNKNOWN'} request to ${requestContext.url || 'unknown endpoint'}`;
+    }
+    
+    const userContextText = `USER CONTEXT ANALYSIS
 
 User Information:
-- Email: ${errorLog.userContext.email || 'Anonymous'}
-- Name: ${errorLog.userContext.name || 'N/A'}
-- Authenticated: ${errorLog.userContext.isAuthenticated ? 'Yes' : 'No'}
-- Admin: ${errorLog.userContext.isAdmin ? 'Yes' : 'No'}
-- Super Admin: ${errorLog.userContext.isSuperAdmin ? 'Yes' : 'No'}
-- Probationary: ${errorLog.userContext.probationaryStatus ? 'Yes' : 'No'}
+- Email: ${userContext.email || 'Anonymous'}
+- Name: ${userContext.name || 'N/A'}
+- Authenticated: ${userContext.isAuthenticated ? 'Yes' : 'No'}
+- Admin: ${userContext.isAdmin ? 'Yes' : 'No'}
+- Super Admin: ${userContext.isSuperAdmin ? 'Yes' : 'No'}
+- Probationary: ${userContext.probationaryStatus ? 'Yes' : 'No'}
 
 Session Information:
-- Session ID: ${errorLog.userContext.sessionId || 'N/A'}
-- IP Address: ${errorLog.requestContext.ip}
-- User Agent: ${errorLog.requestContext.userAgent}
+- Session ID: ${userContext.sessionId || 'N/A'}
+- IP Address: ${requestContext.ip || 'Unknown'}
+- User Agent: ${requestContext.userAgent || 'Unknown'}
 
 User Journey:
-- Action Attempted: ${errorLog.getUserActionDescription()}
-- Endpoint: ${errorLog.requestContext.method} ${errorLog.requestContext.originalUrl}
-- Referer: ${errorLog.requestContext.referer || 'Direct access'}
-- Time: ${errorLog.timestamp.toISOString()}
+- Action Attempted: ${userAction}
+- Endpoint: ${requestContext.method || 'UNKNOWN'} ${requestContext.originalUrl || requestContext.url || 'Unknown endpoint'}
+- Referer: ${requestContext.referer || 'Direct access'}
+- Time: ${errorLog.timestamp ? errorLog.timestamp.toISOString() : 'Unknown time'}
 
 Request Details:
-- Protocol: ${errorLog.requestContext.protocol}
-- Secure: ${errorLog.requestContext.secure ? 'Yes' : 'No'}
-- XHR: ${errorLog.requestContext.xhr ? 'Yes (AJAX)' : 'No (Page load)'}
+- Protocol: ${requestContext.protocol || 'Unknown'}
+- Secure: ${requestContext.secure ? 'Yes' : 'No'}
+- XHR: ${requestContext.xhr ? 'Yes (AJAX)' : 'No (Page load)'}
 
 Error Impact:
-- Severity: ${errorLog.analytics.severity}
-- Category: ${errorLog.analytics.category}
-- User Impact: ${errorLog.analytics.impact}`;
+- Severity: ${analytics.severity || 'Unknown'}
+- Category: ${analytics.category || 'Unknown'}
+- User Impact: ${analytics.impact || 'Unknown'}`;
 
-  res.setHeader('Content-Type', 'text/plain');
-  res.send(userContext);
+    res.setHeader('Content-Type', 'text/plain');
+    res.send(userContextText);
+  } catch (err) {
+    console.error('Error generating user context format:', err);
+    res.status(500).setHeader('Content-Type', 'text/plain');
+    res.send(`Error generating user context format: ${err.message}\n\nRaw error data:\n${JSON.stringify(errorLog, null, 2)}`);
+  }
 }));
 
 // Update error status

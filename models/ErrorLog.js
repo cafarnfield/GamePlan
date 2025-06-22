@@ -233,8 +233,13 @@ errorLogSchema.methods.getAIAnalysisFormat = function() {
 };
 
 errorLogSchema.methods.getUserActionDescription = function() {
-  const method = this.requestContext.method;
-  const url = this.requestContext.url;
+  const requestContext = this.requestContext || {};
+  const method = requestContext.method || 'UNKNOWN';
+  const url = requestContext.url || requestContext.originalUrl || 'unknown endpoint';
+  
+  if (!url || url === 'unknown endpoint') {
+    return 'Unknown user action';
+  }
   
   if (url.includes('/login')) return 'User attempting to log in';
   if (url.includes('/register')) return 'User attempting to register';

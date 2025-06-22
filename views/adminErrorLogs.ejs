@@ -515,9 +515,22 @@
   }
   
   .copy-btn.copied {
-    background: rgba(100, 100, 100, 0.8);
-    color: #888;
-    border-color: #888;
+    background: rgba(0, 255, 0, 0.9);
+    color: #000;
+    border-color: #00ff00;
+    box-shadow: 0 0 15px rgba(0, 255, 0, 0.7);
+  }
+  
+  .copy-btn.copy-error {
+    background: rgba(255, 0, 0, 0.8);
+    color: #fff;
+    border-color: #ff0000;
+    box-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+  }
+  
+  .copy-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
   
   .detail-section {
@@ -982,29 +995,199 @@ Referer: ${error.requestContext.referer || 'Direct access'}</div>
     }
   }
   
+  // Enhanced clipboard functionality with fallback support
   async function copyToClipboard(format, errorId) {
+    const button = event.target;
+    const originalText = button.textContent;
+    
     try {
+      // Show loading state
+      button.textContent = '⏳ Loading...';
+      button.disabled = true;
+      
+      // Fetch the content
       const response = await fetch(`/admin/error-logs/${errorId}/${format}`);
-      if (!response.ok) throw new Error('Failed to fetch formatted content');
+      if (!response.ok) {
+        throw new Error(`Failed to fetch content: ${response.status} ${response.statusText}`);
+      }
       
       const text = await response.text();
-      await navigator.clipboard.writeText(text);
       
-      // Visual feedback
-      const button = event.target;
-      const originalText = button.textContent;
-      button.textContent = '✅ Copied!';
-      button.classList.add('copied');
+      if (!text || text.trim() === '') {
+        throw new Error('No content to copy');
+      }
       
-      setTimeout(() => {
-        button.textContent = originalText;
-        button.classList.remove('copied');
-      }, 2000);
+      // Try modern clipboard API first
+      const success = await attemptModernClipboardCopy(text);
+      
+      if (success) {
+        showCopySuccess(button, originalText);
+      } else {
+        // Fallback to legacy method
+        const fallbackSuccess = await attemptFallbackCopy(text);
+        if (fallbackSuccess) {
+          showCopySuccess(button, originalText);
+        } else {
+          throw new Error('Both modern and fallback clipboard methods failed');
+        }
+      }
+      
     } catch (err) {
       console.error('Error copying to clipboard:', err);
-      alert('Failed to copy to clipboard');
+      showCopyError(button, originalText, err.message);
     }
   }
+  
+  // Attempt to copy using modern clipboard API
+  async function attemptModernClipboardCopy(text) {
+    try {
+      // Check if clipboard API is available
+      if (!navigator.clipboard || !navigator.clipboard.writeText) {
+        console.log('Modern clipboard API not available');
+        return false;
+      }
+      
+      // Check if we're in a secure context
+      if (!window.isSecureContext) {
+        console.log('Not in secure context, modern clipboard API may not work');
+        return false;
+      }
+      
+      // Request permission if needed
+      if (navigator.permissions) {
+        try {
+          const permission = await navigator.permissions.query({ name: 'clipboard-write' });
+          if (permission.state === 'denied') {
+            console.log('Clipboard permission denied');
+            return false;
+          }
+        } catch (permErr) {
+          console.log('Could not check clipboard permission:', permErr);
+          // Continue anyway, some browsers don't support permission query
+        }
+      }
+      
+      // Attempt to write to clipboard
+      await navigator.clipboard.writeText(text);
+      console.log('Successfully copied using modern clipboard API');
+      return true;
+      
+    } catch (err) {
+      console.log('Modern clipboard copy failed:', err.message);
+      return false;
+    }
+  }
+  
+  // Fallback copy method using document.execCommand
+  async function attemptFallbackCopy(text) {
+    try {
+      // Create a temporary textarea element
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      textarea.style.top = '-9999px';
+      textarea.style.opacity = '0';
+      textarea.setAttribute('readonly', '');
+      
+      document.body.appendChild(textarea);
+      
+      // Select and copy the text
+      textarea.select();
+      textarea.setSelectionRange(0, text.length);
+      
+      const success = document.execCommand('copy');
+      document.body.removeChild(textarea);
+      
+      if (success) {
+        console.log('Successfully copied using fallback method');
+        return true;
+      } else {
+        console.log('Fallback copy method failed');
+        return false;
+      }
+      
+    } catch (err) {
+      console.log('Fallback copy failed:', err.message);
+      return false;
+    }
+  }
+  
+  // Show successful copy feedback
+  function showCopySuccess(button, originalText) {
+    button.textContent = '✅ Copied!';
+    button.classList.add('copied');
+    button.disabled = false;
+    
+    setTimeout(() => {
+      button.textContent = originalText;
+      button.classList.remove('copied');
+    }, 2000);
+  }
+  
+  // Show copy error with helpful message
+  function showCopyError(button, originalText, errorMessage) {
+    button.textContent = '❌ Failed';
+    button.classList.add('copy-error');
+    button.disabled = false;
+    
+    // Determine user-friendly error message
+    let userMessage = 'Failed to copy to clipboard';
+    let troubleshooting = '';
+    
+    if (errorMessage.includes('fetch')) {
+      userMessage = 'Failed to load content';
+      troubleshooting = 'Please check your internet connection and try again.';
+    } else if (errorMessage.includes('permission') || errorMessage.includes('denied')) {
+      userMessage = 'Clipboard access denied';
+      troubleshooting = 'Please allow clipboard access in your browser settings, or try using Ctrl+C after selecting the text.';
+    } else if (errorMessage.includes('secure context')) {
+      userMessage = 'Clipboard not available';
+      troubleshooting = 'Clipboard access requires HTTPS. Try accessing the site over HTTPS or use manual copy.';
+    } else if (errorMessage.includes('No content')) {
+      userMessage = 'No content to copy';
+      troubleshooting = 'The requested content appears to be empty.';
+    } else {
+      troubleshooting = 'Try refreshing the page or using a different browser. You can also manually select and copy the text from the modal.';
+    }
+    
+    // Show detailed error message
+    const fullMessage = troubleshooting ? 
+      `${userMessage}\n\n${troubleshooting}` : 
+      userMessage;
+    
+    alert(fullMessage);
+    
+    setTimeout(() => {
+      button.textContent = originalText;
+      button.classList.remove('copy-error');
+    }, 3000);
+  }
+  
+  // Test clipboard functionality
+  function testClipboard() {
+    console.log('=== Clipboard Capability Test ===');
+    console.log('Navigator clipboard available:', !!navigator.clipboard);
+    console.log('Clipboard writeText available:', !!(navigator.clipboard && navigator.clipboard.writeText));
+    console.log('Secure context:', window.isSecureContext);
+    console.log('Document execCommand available:', !!document.execCommand);
+    console.log('Permissions API available:', !!navigator.permissions);
+    
+    if (navigator.clipboard && navigator.permissions) {
+      navigator.permissions.query({ name: 'clipboard-write' }).then(permission => {
+        console.log('Clipboard permission state:', permission.state);
+      }).catch(err => {
+        console.log('Could not query clipboard permission:', err);
+      });
+    }
+  }
+  
+  // Run clipboard test on page load for debugging
+  document.addEventListener('DOMContentLoaded', function() {
+    if (console && console.log) {
+      testClipboard();
+    }
+  });
   
   function closeErrorModal() {
     document.getElementById('errorDetailModal').style.display = 'none';
