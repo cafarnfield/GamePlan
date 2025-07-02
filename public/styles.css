@@ -217,6 +217,19 @@ nav {
   }
 }
 
+/* Ensure mobile nav toggle is hidden on desktop by default */
+.mobile-nav-toggle {
+  display: none;
+}
+
+/* Override for desktop screens to ensure burger menu is always hidden */
+@media screen and (min-width: 769px) {
+  .mobile-nav-toggle {
+    display: none !important;
+    visibility: hidden !important;
+  }
+}
+
 nav a {
   color: var(--muted-cyan);
   text-decoration: none;
