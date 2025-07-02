@@ -29,9 +29,35 @@ This guide ensures smooth production deployments by addressing common configurat
 - **Solution**: Deployment scripts now run `scripts/init-admin.js` automatically
 - **Prevention**: Automated admin user creation in deployment process
 
+### 5. App Killing During Git Sync ✅ FIXED
+**Issue**: Application dies when syncing repository to server
+- **Root Cause**: `git reset --hard` overwrites production configurations and kills running app
+- **Solution**: New safe deployment scripts use `git merge` and preserve production files
+- **Prevention**: Protected files in `.gitignore` and automatic backup/rollback system
+- **Scripts**: `safe-deploy-update.sh` (Linux/Unix) and `safe-deploy-update.bat` (Windows)
+
 ## Deployment Methods
 
-### Method 1: Fresh Installation (Recommended for new servers)
+### Method 1: Safe Deployment (RECOMMENDED - Prevents App Downtime)
+```bash
+# On the server (Linux/Unix)
+cd ~/GamePlan
+chmod +x safe-deploy-update.sh
+./safe-deploy-update.sh
+
+# On Windows (Development)
+safe-deploy-update.bat
+```
+
+**Features of Safe Deployment:**
+- ✅ Uses `git merge` instead of destructive `git reset --hard`
+- ✅ Backs up production configurations automatically
+- ✅ Only restarts services when code changes require it
+- ✅ Comprehensive health verification with automatic rollback
+- ✅ Preserves local changes and server-specific files
+- ✅ Smart restart logic minimizes downtime
+
+### Method 2: Fresh Installation (For new servers)
 ```bash
 # On the server
 cd ~/GamePlan
@@ -39,13 +65,15 @@ chmod +x gameplan-deploy-fixed.sh
 ./gameplan-deploy-fixed.sh
 ```
 
-### Method 2: Safe Update (For existing installations)
+### Method 3: Legacy Update (FALLBACK ONLY)
 ```bash
-# On the server
+# On the server - USE ONLY IF SAFE DEPLOYMENT FAILS
 cd ~/GamePlan
 chmod +x deploy-update-enhanced.sh
 ./deploy-update-enhanced.sh
 ```
+
+**⚠️ Warning**: Legacy scripts use `git reset --hard` which can overwrite production configurations.
 
 ## File Structure for Production
 

@@ -237,6 +237,31 @@ For complete local development guide, see [LOCAL_DEVELOPMENT.md](LOCAL_DEVELOPME
 
 ## Deployment
 
+### Safe Deployment Updates (RECOMMENDED)
+
+For existing deployments, use the new safe deployment scripts to update without killing your app:
+
+**Linux/Unix Server:**
+```bash
+cd /path/to/GamePlan
+chmod +x safe-deploy-update.sh
+./safe-deploy-update.sh
+```
+
+**Windows Development:**
+```cmd
+safe-deploy-update.bat
+```
+
+**Safe Deployment Features:**
+- ✅ Uses `git merge` instead of destructive `git reset --hard`
+- ✅ Backs up production configurations automatically
+- ✅ Only restarts services when code changes require it
+- ✅ Comprehensive health verification with automatic rollback
+- ✅ Preserves local changes and server-specific files
+
+See [SAFE_DEPLOYMENT_GUIDE.md](SAFE_DEPLOYMENT_GUIDE.md) for complete safe deployment documentation.
+
 ### Docker (Recommended)
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for comprehensive Docker deployment instructions.

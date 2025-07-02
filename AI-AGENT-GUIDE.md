@@ -420,17 +420,26 @@ dashboardCacheService.invalidateUserCaches();
 
 ### Deployment Tasks
 ```bash
-# Safe deployment
-1. Use safe-deploy-update.sh script
-2. Check health endpoints after deployment
-3. Monitor logs for errors
-4. Verify cache functionality
+# Safe deployment (RECOMMENDED)
+1. Use safe-deploy-update.sh (Linux/Unix) or safe-deploy-update.bat (Windows)
+2. Script automatically backs up production configs
+3. Uses git merge instead of destructive git reset --hard
+4. Only restarts services when code changes require it
+5. Automatically rolls back if health checks fail
+6. Check health endpoints after deployment
+7. Monitor logs for errors
+8. Verify cache functionality
+
+# Legacy deployment (FALLBACK ONLY)
+1. Use deploy-update.sh only if safe script fails
+2. WARNING: May overwrite production configurations
 
 # Troubleshooting
 1. Check container status: docker compose ps
 2. Review logs: docker compose logs
 3. Test health: curl /api/health
 4. Check database connectivity
+5. Review deployment backups: ls -la deployment-backups/
 ```
 
 ---
@@ -515,6 +524,26 @@ npm test tests/integration/ # Integration tests
 docker compose ps           # Check container status
 docker compose logs -f      # Follow logs
 docker compose restart     # Restart services
+```
+
+### Safe Deployment Operations
+```bash
+# Linux/Unix deployment
+chmod +x safe-deploy-update.sh
+./safe-deploy-update.sh
+
+# Windows deployment
+safe-deploy-update.bat
+
+# Check deployment backups
+ls -la deployment-backups/
+
+# Manual rollback (if needed)
+tar -xzf deployment-backups/safe_backup_YYYYMMDD_HHMMSS.tar.gz
+docker compose restart
+
+# Legacy deployment (fallback only)
+./deploy-update.sh
 ```
 
 ---

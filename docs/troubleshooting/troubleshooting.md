@@ -254,6 +254,54 @@ git pull
 docker compose up -d
 ```
 
+### Problem: Application dies during git sync/deployment
+
+**Root Cause**: Using `git reset --hard` overwrites production configurations and kills running app.
+
+**Symptoms:**
+- App stops working after running deployment scripts
+- Production environment files get overwritten
+- Container restart loops after git sync
+- Loss of server-specific configurations
+
+**Solution (RECOMMENDED):**
+```bash
+# Use the new safe deployment script instead
+chmod +x safe-deploy-update.sh
+./safe-deploy-update.sh
+```
+
+**What the safe script does:**
+- ✅ Uses `git merge` instead of destructive `git reset --hard`
+- ✅ Backs up production configurations before sync
+- ✅ Only restarts services when code changes require it
+- ✅ Automatically rolls back if health checks fail
+- ✅ Preserves local changes and server-specific files
+
+**Emergency Recovery (if app is already dead):**
+```bash
+# Check if backup exists
+ls -la deployment-backups/
+
+# Restore from latest backup
+tar -xzf deployment-backups/safe_backup_YYYYMMDD_HHMMSS.tar.gz
+
+# Restart services
+docker compose restart
+
+# If no backup, recreate production files
+cp docker-compose.production.yml.example docker-compose.production.yml
+cp .env.example .env
+# Edit .env with your production settings
+docker compose restart
+```
+
+**Prevention:**
+- Always use `safe-deploy-update.sh` for deployments
+- Never use `deploy-update.sh` (legacy script with git reset --hard)
+- Production files are now protected in `.gitignore`
+- Automatic backups created before each deployment
+
 ## 📊 Performance Issues
 
 ### Problem: Application running slowly
