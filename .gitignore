@@ -174,3 +174,15 @@ git-conflict-backups/
 # Deployment scripts with sensitive data
 deploy-to-server.sh
 sync-to-production.sh
+
+# Safe deployment backups
+deployment-backups/
+
+# Production environment files (server-specific)
+.env.production
+.env.local
+
+# Production docker compose (server-specific)
+docker-compose.production.yml
+docker-compose.local.yml
+docker-compose.override.yml.disabled
